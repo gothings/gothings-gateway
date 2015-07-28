@@ -11,13 +11,15 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 public class HttpPlugin implements GwPlugin {
 
+    static final String GW_PROTOCOL = "http";
+
     private final HttpPluginServer server;
     private final PluginSettings settings;
     private final AtomicBoolean started = new AtomicBoolean(false);
 
     public HttpPlugin() {
         server = new HttpPluginServer();
-        settings = new PluginSettings(started);
+        settings = new PluginSettings(started, GW_PROTOCOL);
     }
 
     @Override

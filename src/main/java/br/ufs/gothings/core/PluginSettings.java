@@ -7,10 +7,12 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 public class PluginSettings {
     private final AtomicBoolean locked;
+    private final String[] protocols;
     private int port;
 
-    public PluginSettings(AtomicBoolean locked) {
+    public PluginSettings(AtomicBoolean locked, String... protocols) {
         this.locked = locked;
+        this.protocols = protocols;
     }
 
     public int getPort() {
@@ -20,6 +22,10 @@ public class PluginSettings {
     public void setPort(int port) {
         writeCheck();
         this.port = port;
+    }
+
+    public String[] getProtocols() {
+        return protocols;
     }
 
     private void writeCheck() {

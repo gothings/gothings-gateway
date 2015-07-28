@@ -1,12 +1,29 @@
 package br.ufs.gothings.core;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 
 /**
  * @author Wagner Macedo
  */
-public interface GwMessage {
-    ByteBuf payload();
+public final class GwMessage {
+    private final GwHeaders headers;
+    private final ByteBuf payload;
 
-    GwHeaders headers();
+    public GwMessage() {
+        this.headers = new GwHeaders();
+        this.payload = Unpooled.buffer();
+    }
+
+    public void setPayload(ByteBuf payload) {
+        this.payload.clear().writeBytes(payload);
+    }
+
+    public ByteBuf payload() {
+        return payload;
+    }
+
+    public GwHeaders headers() {
+        return headers;
+    }
 }
