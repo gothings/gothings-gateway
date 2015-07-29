@@ -97,12 +97,12 @@ final class HttpPluginServerHandler extends SimpleChannelInboundHandler<FullHttp
                         break;
                     case "PUT":
                         gw_headers.setOperation("PUT");
-                        gw_headers.setForwardType(headers.get(CONTENT_TYPE));
+                        gw_headers.setContentType(headers.get(CONTENT_TYPE));
                         msg.setPayload(request.content());
                         break;
                     case "POST":
                         gw_headers.setOperation("POST");
-                        gw_headers.setForwardType(headers.get(CONTENT_TYPE));
+                        gw_headers.setContentType(headers.get(CONTENT_TYPE));
                         msg.setPayload(request.content());
                         break;
                     case "DELETE":
@@ -126,8 +126,7 @@ final class HttpPluginServerHandler extends SimpleChannelInboundHandler<FullHttp
         }
     }
 
-    private static void fillHttpResponseHeaders(HttpHeaders http, GwHeaders gateway) {
-
+    private static void fillHttpResponseHeaders(HttpHeaders hh, GwHeaders gwh) {
     }
 
     private static void send100Continue(ChannelHandlerContext ctx) {

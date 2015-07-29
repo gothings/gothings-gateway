@@ -9,7 +9,7 @@ import java.util.Set;
 public class GwHeaders {
     private String operation;
     private String path;
-    private String forwardType;
+    private String contentType;
     private final Set<String> expectedTypes;
 
     public GwHeaders() {
@@ -32,12 +32,12 @@ public class GwHeaders {
         return path;
     }
 
-    public void setForwardType(String forwardType) {
-        this.forwardType = forwardType;
+    public void setContentType(String contentType) {
+        this.contentType = contentType;
     }
 
-    public String getForwardType() {
-        return forwardType;
+    public String getContentType() {
+        return contentType;
     }
 
     public Set<String> expectedTypes() {
