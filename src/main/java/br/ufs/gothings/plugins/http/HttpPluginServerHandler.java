@@ -127,6 +127,13 @@ final class HttpPluginServerHandler extends SimpleChannelInboundHandler<FullHttp
     }
 
     private static void fillHttpResponseHeaders(HttpHeaders hh, GwHeaders gwh) {
+        setHttpHeader(hh, CONTENT_TYPE, gwh.getContentType());
+    }
+
+    private static void setHttpHeader(HttpHeaders hh, String key, CharSequence value) {
+        if (value != null) {
+            hh.set(key, value);
+        }
     }
 
     private static void send100Continue(ChannelHandlerContext ctx) {

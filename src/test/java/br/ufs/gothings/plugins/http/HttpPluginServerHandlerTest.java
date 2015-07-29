@@ -10,8 +10,12 @@ import io.netty.handler.codec.http.FullHttpResponse;
 import io.netty.util.concurrent.ImmediateExecutor;
 import org.junit.Test;
 
-import java.util.concurrent.*;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CompletionService;
+import java.util.concurrent.ExecutorCompletionService;
+import java.util.concurrent.Future;
 
+import static io.netty.handler.codec.http.HttpHeaders.Names.CONTENT_TYPE;
 import static io.netty.handler.codec.http.HttpMethod.*;
 import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
 import static org.junit.Assert.*;
@@ -69,6 +73,25 @@ public class HttpPluginServerHandlerTest {
 
         assertFalse(channel.finish());
         assertNull(channel.readOutbound());
+    }
+
+    @Test
+    public void testGatewayHeadersAreUsed() {
+        final ChannelHandler handler = new HttpPluginServerHandler(new DummyCM(new MessageCallable() {
+            @Override
+            public GwMessage call() {
+                message.setPayload("{\"array\":[1,2,3]}");
+                final GwHeaders h = message.headers();
+                h.setContentType("application/json");
+                return message;
+            }
+        }));
+        final EmbeddedChannel channel = new EmbeddedChannel(handler);
+
+        final DefaultFullHttpRequest request = new DefaultFullHttpRequest(HTTP_1_1, GET, "/path");
+        assertFalse(channel.writeInbound(request));
+        FullHttpResponse response = (FullHttpResponse) channel.readOutbound();
+        assertEquals("application/json", response.headers().get(CONTENT_TYPE));
     }
 }
 
