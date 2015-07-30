@@ -31,7 +31,7 @@ public class HttpPluginServerHandlerTest {
             @Override
             public GwMessage call() {
                 final GwHeaders h = message.headers();
-                message.payload().clear().writeInt(h.getOperation().length() + h.getPath().length());
+                message.payload().clear().writeInt(h.operation().length() + h.path().length());
                 return message;
             }
         }));
@@ -82,7 +82,7 @@ public class HttpPluginServerHandlerTest {
             public GwMessage call() {
                 message.setPayload("{\"array\":[1,2,3]}");
                 final GwHeaders h = message.headers();
-                h.setContentType("application/json");
+                h.contentType("application/json");
                 return message;
             }
         }));
