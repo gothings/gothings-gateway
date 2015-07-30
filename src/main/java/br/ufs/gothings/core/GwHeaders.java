@@ -23,12 +23,12 @@ public class GwHeaders {
         map = new HashMap<>();
     }
 
-    public void operation(String operation) {
-        map.put(_H_.OPERATION, operation);
+    public void operation(Operation op) {
+        map.put(_H_.OPERATION, op);
     }
 
-    public String operation() {
-        return (String) map.get(_H_.OPERATION);
+    public Operation operation() {
+        return (Operation) map.get(_H_.OPERATION);
     }
 
     public void path(String path) {
@@ -50,5 +50,9 @@ public class GwHeaders {
     @SuppressWarnings("unchecked")
     public Collection<String> expectedTypes() {
         return (Collection<String>) map.computeIfAbsent(_H_.EXPECTED_TYPES, k -> new LinkedHashSet<String>());
+    }
+
+    public enum Operation {
+        GET, PUT, POST, DELETE,
     }
 }

@@ -31,7 +31,7 @@ public class HttpPluginServerHandlerTest {
             @Override
             public GwMessage call() {
                 final GwHeaders h = message.headers();
-                message.payload().clear().writeInt(h.operation().length() + h.path().length());
+                message.payload().clear().writeInt(h.operation().name().length() + h.path().length());
                 return message;
             }
         }));

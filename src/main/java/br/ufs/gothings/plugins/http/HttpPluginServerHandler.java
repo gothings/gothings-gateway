@@ -2,6 +2,7 @@ package br.ufs.gothings.plugins.http;
 
 import br.ufs.gothings.core.CommunicationManager;
 import br.ufs.gothings.core.GwHeaders;
+import br.ufs.gothings.core.GwHeaders.Operation;
 import br.ufs.gothings.core.GwMessage;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
@@ -13,7 +14,6 @@ import io.netty.handler.codec.http.FullHttpResponse;
 import io.netty.handler.codec.http.HttpHeaders;
 
 import java.util.Collection;
-import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
@@ -93,21 +93,21 @@ final class HttpPluginServerHandler extends SimpleChannelInboundHandler<FullHttp
 
                 switch (method) {
                     case "GET":
-                        gw_headers.operation("GET");
+                        gw_headers.operation(Operation.GET);
                         addExpectedTypes(gw_headers, headers);
                         break;
                     case "PUT":
-                        gw_headers.operation("PUT");
+                        gw_headers.operation(Operation.PUT);
                         gw_headers.contentType(headers.get(CONTENT_TYPE));
                         msg.setPayload(request.content());
                         break;
                     case "POST":
-                        gw_headers.operation("POST");
+                        gw_headers.operation(Operation.POST);
                         gw_headers.contentType(headers.get(CONTENT_TYPE));
                         msg.setPayload(request.content());
                         break;
                     case "DELETE":
-                        gw_headers.operation("DELETE");
+                        gw_headers.operation(Operation.DELETE);
                         break;
                 }
 
