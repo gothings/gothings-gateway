@@ -1,9 +1,9 @@
 package br.ufs.gothings.plugins.http;
 
-import br.ufs.gothings.core.CommunicationManager;
 import br.ufs.gothings.core.GwHeaders;
 import br.ufs.gothings.core.GwHeaders.Operation;
 import br.ufs.gothings.core.GwMessage;
+import br.ufs.gothings.core.sink.Sink;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
@@ -14,8 +14,6 @@ import io.netty.handler.codec.http.FullHttpResponse;
 import io.netty.handler.codec.http.HttpHeaders;
 
 import java.util.Collection;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
@@ -24,17 +22,16 @@ import static io.netty.handler.codec.http.HttpHeaders.Names.CONNECTION;
 import static io.netty.handler.codec.http.HttpHeaders.Names.CONTENT_TYPE;
 import static io.netty.handler.codec.http.HttpHeaders.Values.KEEP_ALIVE;
 import static io.netty.handler.codec.http.HttpResponseStatus.*;
-import static io.netty.handler.codec.http.HttpResponseStatus.METHOD_NOT_ALLOWED;
 import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
 
 /**
  * @author Wagner Macedo
  */
 final class HttpPluginServerHandler extends SimpleChannelInboundHandler<FullHttpRequest> {
-    private final CommunicationManager manager;
+    private final Sink<GwMessage> sink;
 
-    HttpPluginServerHandler(CommunicationManager manager) {
-        this.manager = manager;
+    HttpPluginServerHandler(Sink<GwMessage> sink) {
+        this.sink = sink;
     }
 
     @Override
@@ -47,9 +44,9 @@ final class HttpPluginServerHandler extends SimpleChannelInboundHandler<FullHttp
 
         final GwMessage gw_request = parseHttpRequest(request);
         if (gw_request != null) {
-            final Future<GwMessage> f = manager.sendRequest(gw_request);
+            final long sequence = sink.send(gw_request);
             try {
-                final GwMessage gw_response = f.get(1, TimeUnit.MINUTES);
+                final GwMessage gw_response = sink.receive(sequence, 1, TimeUnit.MINUTES);
                 response.content().writeBytes(gw_response.payload());
                 fillHttpResponseHeaders(response.headers(), gw_response.headers());
             }
@@ -57,9 +54,6 @@ final class HttpPluginServerHandler extends SimpleChannelInboundHandler<FullHttp
             catch (InterruptedException e) {
                 ctx.close();
                 return;
-            } catch (ExecutionException e) {
-                e.printStackTrace();
-                response.setStatus(INTERNAL_SERVER_ERROR);
             } catch (TimeoutException e) {
                 response.setStatus(REQUEST_TIMEOUT);
             }

@@ -1,9 +1,12 @@
 package br.ufs.gothings.plugins.http;
 
-import br.ufs.gothings.core.CommunicationManager;
+import br.ufs.gothings.core.GwMessage;
 import br.ufs.gothings.core.GwPlugin;
 import br.ufs.gothings.core.PluginSettings;
+import br.ufs.gothings.core.sink.Sink;
 
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -16,17 +19,23 @@ public class HttpPlugin implements GwPlugin {
     private final HttpPluginServer server;
     private final PluginSettings settings;
     private final AtomicBoolean started = new AtomicBoolean(false);
+    private final ExecutorService executor;
+    private final Sink<GwMessage> cliSink;
+    private final Sink<GwMessage> srvSink;
 
     public HttpPlugin() {
         server = new HttpPluginServer();
+        executor = Executors.newWorkStealingPool();
+        cliSink = new Sink<>(executor);
+        srvSink = new Sink<>(executor);
         settings = new PluginSettings(started, GW_PROTOCOL);
     }
 
     @Override
-    public void start(CommunicationManager manager) {
+    public void start() {
         try {
             started.set(true);
-            server.start(manager, settings.getPort());
+            server.start(srvSink, settings.getPort());
         } catch (InterruptedException ignored) {
             started.set(false);
         }
@@ -36,9 +45,22 @@ public class HttpPlugin implements GwPlugin {
     public void stop() {
         try {
             server.stop();
+            executor.shutdown();
+            cliSink.stop();
+            srvSink.stop();
             started.set(false);
         } catch (InterruptedException ignored) {
         }
+    }
+
+    @Override
+    public Sink<GwMessage> clientSink() {
+        return cliSink;
+    }
+
+    @Override
+    public Sink<GwMessage> serverSink() {
+        return srvSink;
     }
 
     @Override

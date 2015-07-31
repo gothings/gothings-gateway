@@ -1,6 +1,7 @@
 package br.ufs.gothings.plugins.http;
 
-import br.ufs.gothings.core.CommunicationManager;
+import br.ufs.gothings.core.GwMessage;
+import br.ufs.gothings.core.sink.Sink;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.*;
 import io.netty.channel.nio.NioEventLoopGroup;
@@ -12,18 +13,18 @@ import io.netty.handler.codec.http.HttpServerCodec;
  * @author Wagner Macedo
  */
 final class HttpPluginServer {
-    private CommunicationManager manager;
+    private Sink<GwMessage> sink;
 
     private Channel channel;
     private NioEventLoopGroup bossGroup;
     private NioEventLoopGroup workerGroup;
 
-    void start(final CommunicationManager manager, final int port) throws InterruptedException {
-        if (this.manager != null) {
+    void start(final Sink<GwMessage> sink, final int port) throws InterruptedException {
+        if (this.sink != null) {
             throw new IllegalStateException("Server already started");
         }
 
-        this.manager = manager;
+        this.sink = sink;
 
         bossGroup = new NioEventLoopGroup(1);
         workerGroup = new NioEventLoopGroup();
@@ -31,7 +32,7 @@ final class HttpPluginServer {
         final ServerBootstrap bootstrap = new ServerBootstrap();
         bootstrap.group(bossGroup, workerGroup)
                  .channel(NioServerSocketChannel.class)
-                 .childHandler(new HttpPluginServerInitializer(manager));
+                 .childHandler(new HttpPluginServerInitializer(sink));
 
         final ChannelFuture bind = bootstrap.bind(port);
         channel = bind.channel();
@@ -54,7 +55,7 @@ final class HttpPluginServer {
             bossGroup.terminationFuture().sync();
             workerGroup.terminationFuture().sync();
         } finally {
-            manager = null;
+            sink = null;
             channel = null;
             bossGroup = null;
             workerGroup = null;
@@ -62,10 +63,10 @@ final class HttpPluginServer {
     }
 
     private static final class HttpPluginServerInitializer extends ChannelInitializer<Channel> {
-        private final CommunicationManager manager;
+        private final Sink<GwMessage> sink;
 
-        public HttpPluginServerInitializer(CommunicationManager manager) {
-            this.manager = manager;
+        public HttpPluginServerInitializer(Sink<GwMessage> sink) {
+            this.sink = sink;
         }
 
         @Override
@@ -73,7 +74,7 @@ final class HttpPluginServer {
             final ChannelPipeline pipeline = ch.pipeline();
             pipeline.addLast(new HttpServerCodec())
                     .addLast(new HttpObjectAggregator(512 * 1024))
-                    .addLast(new HttpPluginServerHandler(manager));
+                    .addLast(new HttpPluginServerHandler(sink));
         }
     }
 }
