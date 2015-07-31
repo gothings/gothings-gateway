@@ -21,7 +21,7 @@ public class Sink<T> {
 
     @SuppressWarnings("unchecked")
     public Sink(Executor executor) {
-        handlerExecutor = Executors.newSingleThreadExecutor();
+        handlerExecutor = Executors.newWorkStealingPool();
         eventHandler = new SinkEventHandler<>(handlerExecutor);
 
         disruptor = new Disruptor<>(new SinkEventFactory<>(), 1024, executor);

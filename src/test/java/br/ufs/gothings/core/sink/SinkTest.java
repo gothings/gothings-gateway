@@ -68,6 +68,43 @@ public class SinkTest {
         }
     }
 
+    @Test
+    public void testSinkListenerAsynchronous() throws Exception {
+        // Firstly we have a listener running in the same thread
+        Sink<Integer> sink = new Sink<>(EXECUTOR);
+        sink.setListener(event -> {
+            interval(event.getValue());
+        });
+        // Checks that second message cannot be received while the first one is processing.
+        // This happens because the executor is single-threaded
+        sink.send(1000);
+        long seq = sink.send(1);
+        try {
+            sink.receive(seq, 100, TimeUnit.MILLISECONDS);
+            fail("it worked");
+        } catch (TimeoutException ignored) {
+        }
+        sink.stop();
+
+        // Now we've an asynchronous listener. First message shouldn't block the second one.
+        sink = new Sink<>(EXECUTOR);
+        sink.setListener(event -> {
+            event.asyncJob(() -> {
+                interval(event.getValue());
+            });
+        });
+        // Checking now
+        sink.send(1000);
+        seq = sink.send(1);
+        Integer received = null;
+        try {
+            received = sink.receive(seq, 100, TimeUnit.MILLISECONDS);
+        } catch (TimeoutException e) {
+            fail("time out");
+        }
+        assertNotNull(received);
+    }
+
     @Test(expected = IllegalStateException.class)
     public void testSinkWithoutListener() {
         Sink<String> sink = new Sink<>(EXECUTOR);
