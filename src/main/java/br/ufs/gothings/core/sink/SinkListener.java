@@ -4,5 +4,5 @@ package br.ufs.gothings.core.sink;
  * @author Wagner Macedo
  */
 public interface SinkListener<T> {
-    T onSend(T value);
+    void onSend(SinkEvent<T> event);
 }

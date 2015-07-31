@@ -10,13 +10,22 @@ import java.util.concurrent.TimeoutException;
 public final class SinkEvent<T> {
     private final CountDownLatch latch = new CountDownLatch(1);
     private T value;
+    private Runnable job;
 
-    T getValue() {
+    public T getValue() {
         return value;
     }
 
-    void setValue(T value) {
+    public void setValue(T value) {
         this.value = value;
+    }
+
+    public void asyncJob(Runnable job) {
+        this.job = job;
+    }
+
+    Runnable asyncJob() {
+        return job;
     }
 
     void waitSignal() throws InterruptedException {

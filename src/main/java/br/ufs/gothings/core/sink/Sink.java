@@ -61,33 +61,6 @@ public class Sink<T> {
         handlerExecutor.shutdown();
     }
 
-    private static final class SinkEvent<T> {
-        private final CountDownLatch latch = new CountDownLatch(1);
-        private T value;
-
-        T getValue() {
-            return value;
-        }
-
-        void setValue(T value) {
-            this.value = value;
-        }
-
-        void waitSignal() throws InterruptedException {
-            latch.await();
-        }
-
-        void waitSignal(int timeout, TimeUnit unit) throws InterruptedException, TimeoutException {
-            if (!latch.await(timeout, unit)) {
-                throw new TimeoutException();
-            }
-        }
-
-        void signalize() {
-            latch.countDown();
-        }
-    }
-
     private static final class SinkEventHandler<T> implements EventHandler<SinkEvent<T>> {
         private final ExecutorService executor;
         private SinkListener<T> listener;
@@ -98,15 +71,29 @@ public class Sink<T> {
 
         @Override
         public void onEvent(SinkEvent<T> event, long sequence, boolean endOfBatch) throws Exception {
-            executor.execute(() -> {
-                T value = null;
-                try {
-                    value = listener.onSend(event.getValue());
-                } finally {
-                    event.setValue(value);
-                    event.signalize();
-                }
-            });
+            try {
+                listener.onSend(event);
+            } catch (RuntimeException e) {
+                // At any error assure event is signalized
+                event.signalize();
+                return;
+            }
+
+            // If listener set a job to run asynchronously
+            final Runnable job = event.asyncJob();
+            if (job != null) {
+                executor.execute(() -> {
+                    try {
+                        job.run();
+                    } finally {
+                        event.signalize();
+                    }
+                });
+                return;
+            }
+
+            // Listener ran (successfully) on current thread
+            event.signalize();
         }
     }
 

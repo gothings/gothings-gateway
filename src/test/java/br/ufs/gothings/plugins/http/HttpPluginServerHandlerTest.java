@@ -38,10 +38,10 @@ public class HttpPluginServerHandlerTest {
     @Test
     public void testGatewayPayloadIsUsed() {
         final Sink<GwMessage> sink = new Sink<>(EXECUTOR);
-        sink.setListener(message -> {
+        sink.setListener(evt -> {
+            final GwMessage message = evt.getValue();
             final GwHeaders h = message.headers();
             message.payload().clear().writeInt(h.operation().name().length() + h.path().length());
-            return message;
         });
         final ChannelHandler handler = new HttpPluginServerHandler(sink);
         final EmbeddedChannel channel = new EmbeddedChannel(handler);
@@ -87,11 +87,11 @@ public class HttpPluginServerHandlerTest {
     @Test
     public void testGatewayHeadersAreUsed() throws InterruptedException {
         final Sink<GwMessage> sink = new Sink<>(EXECUTOR);
-        sink.setListener(message -> {
+        sink.setListener(evt -> {
+            final GwMessage message = evt.getValue();
             message.setPayload("{\"array\":[1,2,3]}");
             final GwHeaders h = message.headers();
             h.contentType("application/json");
-            return message;
         });
         final ChannelHandler handler = new HttpPluginServerHandler(sink);
         final EmbeddedChannel channel = new EmbeddedChannel(handler);
