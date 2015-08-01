@@ -5,6 +5,7 @@ import com.lmax.disruptor.EventHandler;
 import com.lmax.disruptor.RingBuffer;
 import com.lmax.disruptor.dsl.Disruptor;
 
+import java.util.Objects;
 import java.util.concurrent.*;
 
 /**
@@ -13,22 +14,24 @@ import java.util.concurrent.*;
 public class Sink<T> {
     private final Disruptor<SinkEvent<T>> disruptor;
     private final RingBuffer<SinkEvent<T>> ringBuffer;
+    private final CountDownLatch startLatch = new CountDownLatch(1);
 
     private final SinkEventHandler<T> eventHandler;
-    private final ExecutorService handlerExecutor = Executors.newSingleThreadExecutor();
+    private final ExecutorService handlerExecutor;
 
     @SuppressWarnings("unchecked")
     public Sink(Executor executor) {
+        handlerExecutor = Executors.newSingleThreadExecutor();
         eventHandler = new SinkEventHandler<>(handlerExecutor);
 
         disruptor = new Disruptor<>(new SinkEventFactory<>(), 1024, executor);
         disruptor.handleEventsWith(eventHandler);
-        disruptor.start();
 
         ringBuffer = disruptor.getRingBuffer();
     }
 
     public long send(T value) {
+        checkStart();
         final long sequence = ringBuffer.next();
         final SinkEvent<T> evt = ringBuffer.get(sequence);
 
@@ -39,6 +42,7 @@ public class Sink<T> {
     }
 
     public T receive(long sequence) throws InterruptedException {
+        checkStart();
         final SinkEvent<T> event = ringBuffer.get(sequence);
         event.waitSignal();
 
@@ -46,6 +50,7 @@ public class Sink<T> {
     }
 
     public T receive(long sequence, int timeout, TimeUnit unit) throws InterruptedException, TimeoutException {
+        checkStart();
         final SinkEvent<T> event = ringBuffer.get(sequence);
         event.waitSignal(timeout, unit);
 
@@ -53,12 +58,25 @@ public class Sink<T> {
     }
 
     public void setListener(SinkListener<T> listener) {
+        Objects.requireNonNull(listener);
         eventHandler.listener = listener;
+        disruptor.start();
+        startLatch.countDown();
     }
 
     public void stop() {
         disruptor.shutdown();
         handlerExecutor.shutdown();
+    }
+
+    private void checkStart() {
+        try {
+            if (!startLatch.await(2, TimeUnit.SECONDS)) {
+                throw new IllegalStateException("sink has not a listener");
+            }
+        } catch (InterruptedException e) {
+            // Unlikely to happen
+        }
     }
 
     private static final class SinkEventHandler<T> implements EventHandler<SinkEvent<T>> {
