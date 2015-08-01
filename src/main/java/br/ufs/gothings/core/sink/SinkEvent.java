@@ -1,8 +1,6 @@
 package br.ufs.gothings.core.sink;
 
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
+import java.util.concurrent.*;
 
 /**
  * @author Wagner Macedo
@@ -10,6 +8,7 @@ import java.util.concurrent.TimeoutException;
 public final class SinkEvent<T> {
     private final CountDownLatch latch = new CountDownLatch(1);
     private T value;
+    private Executor jobExecutor;
     private Runnable job;
 
     public T getValue() {
@@ -24,8 +23,17 @@ public final class SinkEvent<T> {
         this.job = job;
     }
 
+    public void asyncJob(Executor executor, Runnable job) {
+        this.jobExecutor = executor;
+        this.job = job;
+    }
+
     Runnable asyncJob() {
         return job;
+    }
+
+    Executor chooseExecutor(Executor executor) {
+        return jobExecutor != null ? jobExecutor : executor;
     }
 
     void waitSignal() throws InterruptedException {

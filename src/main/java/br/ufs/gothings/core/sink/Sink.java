@@ -101,7 +101,7 @@ public class Sink<T> {
             // If listener set a job to run asynchronously
             final Runnable job = event.asyncJob();
             if (job != null) {
-                executor.execute(() -> {
+                event.chooseExecutor(executor).execute(() -> {
                     try {
                         job.run();
                     } finally {

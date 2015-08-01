@@ -105,6 +105,23 @@ public class SinkTest {
         assertNotNull(received);
     }
 
+    @Test
+    public void testSinkListenerAsynchronousWithMyExecutor() throws Exception {
+        Sink<Integer> sink = new Sink<>(EXECUTOR);
+        sink.setListener(event -> {
+            event.asyncJob(EXECUTOR, () -> {
+                interval(event.getValue());
+            });
+        });
+        // Checks that we are stuck with an already busy executor
+        final long seq = sink.send(100);
+        try {
+            sink.receive(seq, 300, TimeUnit.MILLISECONDS);
+            fail("it worked");
+        } catch (TimeoutException ignored) {
+        }
+    }
+
     @Test(expected = IllegalStateException.class)
     public void testSinkWithoutListener() {
         Sink<String> sink = new Sink<>(EXECUTOR);
