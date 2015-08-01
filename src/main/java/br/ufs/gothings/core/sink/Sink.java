@@ -91,8 +91,9 @@ public class Sink<T> {
         public void onEvent(SinkEvent<T> event, long sequence, boolean endOfBatch) throws Exception {
             try {
                 listener.onSend(event);
-            } catch (RuntimeException e) {
-                // At any error assure event is signalized
+            } catch (Exception e) {
+                // At any error assure event is signalized, but value is annulled
+                event.setValue(null);
                 event.signalize();
                 return;
             }
