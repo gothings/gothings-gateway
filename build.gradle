@@ -5,6 +5,12 @@ apply plugin: 'java'
 sourceCompatibility = 1.8
 targetCompatibility = 1.8
 
+test {
+    exclude 'br/ufs/gothings/core/sink/**'
+}
+
+task alltests(type: Test)
+
 repositories {
     mavenLocal()
     mavenCentral()
