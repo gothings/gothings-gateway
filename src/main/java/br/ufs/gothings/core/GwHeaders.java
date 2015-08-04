@@ -1,9 +1,14 @@
 package br.ufs.gothings.core;
 
+import br.ufs.gothings.core.message.ComplexHeader;
+import br.ufs.gothings.core.message.Operation;
+import br.ufs.gothings.core.message.Header;
+
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
+import java.util.function.Supplier;
 
 /**
  * @author Wagner Macedo
@@ -23,36 +28,33 @@ public class GwHeaders {
         map = new HashMap<>();
     }
 
-    public void operation(Operation op) {
-        map.put(_H_.OPERATION, op);
+    /* Header fields */
+
+    public Header<Operation> operation() {
+        return getHeader(_H_.OPERATION, Operation.class);
     }
 
-    public Operation operation() {
-        return (Operation) map.get(_H_.OPERATION);
+    public Header<String> path() {
+        return getHeader(_H_.PATH, String.class);
     }
 
-    public void path(String path) {
-        map.put(_H_.PATH, path);
+    public Header<String> contentType() {
+        return getHeader(_H_.CONTENT_TYPE, String.class);
     }
 
-    public String path() {
-        return (String) map.get(_H_.PATH);
+    public ComplexHeader<String> expectedTypes() {
+        return getComplexHeader(_H_.EXPECTED_TYPES, String.class, LinkedHashSet::new);
     }
 
-    public void contentType(String contentType) {
-        map.put(_H_.CONTENT_TYPE, contentType);
+    /* Internal use */
+
+    @SuppressWarnings({"unchecked", "unused"})
+    private <T> Header<T> getHeader(_H_ key, Class<T> type) {
+        return (Header<T>) map.computeIfAbsent(key, k -> new Header<>());
     }
 
-    public String contentType() {
-        return (String) map.get(_H_.CONTENT_TYPE);
-    }
-
-    @SuppressWarnings("unchecked")
-    public Collection<String> expectedTypes() {
-        return (Collection<String>) map.computeIfAbsent(_H_.EXPECTED_TYPES, k -> new LinkedHashSet<String>());
-    }
-
-    public enum Operation {
-        GET, PUT, POST, DELETE,
+    @SuppressWarnings({"unchecked", "unused"})
+    private <T> ComplexHeader<T> getComplexHeader(_H_ key, Class<T> type, Supplier<Collection<T>> supplier) {
+        return (ComplexHeader<T>) map.computeIfAbsent(key, k -> new ComplexHeader<>(supplier.get()));
     }
 }

@@ -1,8 +1,9 @@
 package br.ufs.gothings.plugins.http;
 
 import br.ufs.gothings.core.GwHeaders;
-import br.ufs.gothings.core.GwHeaders.Operation;
 import br.ufs.gothings.core.GwMessage;
+import br.ufs.gothings.core.message.ComplexHeader;
+import br.ufs.gothings.core.message.Operation;
 import br.ufs.gothings.core.sink.Sink;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
@@ -13,7 +14,6 @@ import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.FullHttpResponse;
 import io.netty.handler.codec.http.HttpHeaders;
 
-import java.util.Collection;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
@@ -83,25 +83,25 @@ final class HttpPluginServerHandler extends SimpleChannelInboundHandler<FullHttp
             case "GET":case "PUT":case "POST":case "DELETE":
                 final GwMessage msg = new GwMessage();
                 final GwHeaders gw_headers = msg.headers();
-                gw_headers.path(request.getUri());
+                gw_headers.path().setValue(request.getUri());
 
                 switch (method) {
                     case "GET":
-                        gw_headers.operation(Operation.GET);
+                        gw_headers.operation().setValue(Operation.GET);
                         addExpectedTypes(gw_headers, headers);
                         break;
                     case "PUT":
-                        gw_headers.operation(Operation.PUT);
-                        gw_headers.contentType(headers.get(CONTENT_TYPE));
+                        gw_headers.operation().setValue(Operation.PUT);
+                        gw_headers.contentType().setValue(headers.get(CONTENT_TYPE));
                         msg.setPayload(request.content());
                         break;
                     case "POST":
-                        gw_headers.operation(Operation.POST);
-                        gw_headers.contentType(headers.get(CONTENT_TYPE));
+                        gw_headers.operation().setValue(Operation.POST);
+                        gw_headers.contentType().setValue(headers.get(CONTENT_TYPE));
                         msg.setPayload(request.content());
                         break;
                     case "DELETE":
-                        gw_headers.operation(Operation.DELETE);
+                        gw_headers.operation().setValue(Operation.DELETE);
                         break;
                 }
 
@@ -113,7 +113,7 @@ final class HttpPluginServerHandler extends SimpleChannelInboundHandler<FullHttp
     private static void addExpectedTypes(GwHeaders gw_headers, HttpHeaders headers) {
         final String acceptValues = headers.get(ACCEPT);
         if (acceptValues != null) {
-            final Collection<String> expectedTypes = gw_headers.expectedTypes();
+            final ComplexHeader<String> expectedTypes = gw_headers.expectedTypes();
             for (String type : acceptValues.split(",")) {
                 final int pos = type.indexOf(';');
                 expectedTypes.add(pos != -1 ? type.substring(0, pos) : type);
@@ -122,7 +122,7 @@ final class HttpPluginServerHandler extends SimpleChannelInboundHandler<FullHttp
     }
 
     private static void fillHttpResponseHeaders(HttpHeaders hh, GwHeaders gwh) {
-        setHttpHeader(hh, CONTENT_TYPE, gwh.contentType());
+        setHttpHeader(hh, CONTENT_TYPE, gwh.contentType().getValue());
     }
 
     private static void setHttpHeader(HttpHeaders hh, String key, CharSequence value) {

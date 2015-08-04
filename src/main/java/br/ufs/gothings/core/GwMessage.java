@@ -3,8 +3,6 @@ package br.ufs.gothings.core;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 
-import java.nio.ByteBuffer;
-
 /**
  * @author Wagner Macedo
  */

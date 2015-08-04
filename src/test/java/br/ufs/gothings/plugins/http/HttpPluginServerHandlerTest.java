@@ -41,7 +41,7 @@ public class HttpPluginServerHandlerTest {
         sink.setListener(evt -> {
             final GwMessage message = evt.getValue();
             final GwHeaders h = message.headers();
-            message.payload().clear().writeInt(h.operation().name().length() + h.path().length());
+            message.payload().clear().writeInt(h.operation().getValue().name().length() + h.path().getValue().length());
         });
         final ChannelHandler handler = new HttpPluginServerHandler(sink);
         final EmbeddedChannel channel = new EmbeddedChannel(handler);
@@ -91,7 +91,7 @@ public class HttpPluginServerHandlerTest {
             final GwMessage message = evt.getValue();
             message.setPayload("{\"array\":[1,2,3]}");
             final GwHeaders h = message.headers();
-            h.contentType("application/json");
+            h.contentType().setValue("application/json");
         });
         final ChannelHandler handler = new HttpPluginServerHandler(sink);
         final EmbeddedChannel channel = new EmbeddedChannel(handler);
