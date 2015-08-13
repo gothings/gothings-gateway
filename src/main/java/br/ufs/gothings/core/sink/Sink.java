@@ -12,19 +12,19 @@ import java.util.concurrent.*;
  * @author Wagner Macedo
  */
 public class Sink<T> {
+    private final ExecutorService executor;
     private final Disruptor<SinkEvent<T>> disruptor;
     private final RingBuffer<SinkEvent<T>> ringBuffer;
-    private final CountDownLatch startLatch = new CountDownLatch(1);
 
-    private final SinkEventHandler<T> eventHandler;
-    private final ExecutorService handlerExecutor;
+    private final CountDownLatch startLatch = new CountDownLatch(1);
+    private final DisruptorSinkEventHandler<T> eventHandler;
 
     @SuppressWarnings("unchecked")
-    public Sink(Executor executor) {
-        handlerExecutor = Executors.newWorkStealingPool();
-        eventHandler = new SinkEventHandler<>(handlerExecutor);
+    public Sink() {
+        eventHandler = new DisruptorSinkEventHandler<>();
 
-        disruptor = new Disruptor<>(new SinkEventFactory<>(), 1024, executor);
+        executor = Executors.newSingleThreadExecutor();
+        disruptor = new Disruptor<>(new DisruptorSinkEventFactory<>(), 1024, executor);
         disruptor.handleEventsWith(eventHandler);
 
         ringBuffer = disruptor.getRingBuffer();
@@ -41,82 +41,52 @@ public class Sink<T> {
         return sequence;
     }
 
-    public T receive(long sequence) throws InterruptedException {
-        checkStart();
-        final SinkEvent<T> event = ringBuffer.get(sequence);
-        event.waitSignal();
-
-        return event.getValue();
-    }
-
     public T receive(long sequence, int timeout, TimeUnit unit) throws InterruptedException, TimeoutException {
         checkStart();
         final SinkEvent<T> event = ringBuffer.get(sequence);
         event.waitSignal(timeout, unit);
 
-        return event.getValue();
+        return event.pull();
     }
 
-    public void setListener(SinkListener<T> listener) {
-        Objects.requireNonNull(listener);
-        eventHandler.listener = listener;
+    public void setHandler(SinkHandler<T> handler) {
+        Objects.requireNonNull(handler);
+        eventHandler.t_handler = handler;
         disruptor.start();
         startLatch.countDown();
     }
 
     public void stop() {
+        executor.shutdown();
         disruptor.shutdown();
-        handlerExecutor.shutdown();
     }
 
     private void checkStart() {
         try {
             if (!startLatch.await(2, TimeUnit.SECONDS)) {
-                throw new IllegalStateException("sink has not a listener");
+                throw new IllegalStateException("sink has not a handler");
             }
         } catch (InterruptedException e) {
             // Unlikely to happen
         }
     }
 
-    private static final class SinkEventHandler<T> implements EventHandler<SinkEvent<T>> {
-        private final ExecutorService executor;
-        private SinkListener<T> listener;
-
-        SinkEventHandler(ExecutorService executor) {
-            this.executor = executor;
-        }
+    private static final class DisruptorSinkEventHandler<T> implements EventHandler<SinkEvent<T>> {
+        private SinkHandler<T> t_handler;
 
         @Override
-        public void onEvent(SinkEvent<T> event, long sequence, boolean endOfBatch) throws Exception {
+        public void onEvent(final SinkEvent<T> event, long sequence, boolean endOfBatch) throws Exception {
             try {
-                listener.onSend(event);
-            } catch (Exception e) {
-                // At any error assure event is signalized, but value is annulled
-                event.setValue(null);
-                event.signalize();
-                return;
+                t_handler.readEvent(event);
             }
-
-            // If listener set a job to run asynchronously
-            final Runnable job = event.asyncJob();
-            if (job != null) {
-                event.chooseExecutor(executor).execute(() -> {
-                    try {
-                        job.run();
-                    } finally {
-                        event.signalize();
-                    }
-                });
-                return;
+            // At any error assure event is signalized, but value is annulled
+            catch (Exception e) {
+                event.pushAndSignal(null);
             }
-
-            // Listener ran (successfully) on current thread
-            event.signalize();
         }
     }
 
-    private static final class SinkEventFactory<T> implements EventFactory<SinkEvent<T>> {
+    private static final class DisruptorSinkEventFactory<T> implements EventFactory<SinkEvent<T>> {
         @Override
         public SinkEvent<T> newInstance() {
             return new SinkEvent<>();

@@ -2,17 +2,13 @@ package br.ufs.gothings.plugins.http;
 
 import br.ufs.gothings.core.GwHeaders;
 import br.ufs.gothings.core.GwMessage;
+import br.ufs.gothings.core.message.Operation;
 import br.ufs.gothings.core.sink.Sink;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.handler.codec.http.DefaultFullHttpRequest;
 import io.netty.handler.codec.http.FullHttpResponse;
-import org.junit.After;
-import org.junit.Before;
 import org.junit.Test;
-
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 import static io.netty.handler.codec.http.HttpHeaders.Names.CONTENT_TYPE;
 import static io.netty.handler.codec.http.HttpMethod.*;
@@ -23,25 +19,17 @@ import static org.junit.Assert.*;
  * @author Wagner Macedo
  */
 public class HttpPluginServerHandlerTest {
-    private static ExecutorService EXECUTOR;
-
-    @Before
-    public void startExecutor() {
-        EXECUTOR = Executors.newSingleThreadExecutor();
-    }
-
-    @After
-    public void stopExecutor() {
-        EXECUTOR.shutdown();
-    }
-
     @Test
     public void testGatewayPayloadIsUsed() {
-        final Sink<GwMessage> sink = new Sink<>(EXECUTOR);
-        sink.setListener(evt -> {
-            final GwMessage message = evt.getValue();
+        final Sink<GwMessage> sink = new Sink<>();
+        sink.setHandler(evt -> {
+            final GwMessage message = evt.pull();
             final GwHeaders h = message.headers();
-            message.payload().clear().writeInt(h.operation().getValue().name().length() + h.path().getValue().length());
+
+            final Operation operation = h.operation().getValue();
+            final String path = h.path().getValue();
+            message.payload().clear().writeInt(operation.name().length() + path.length());
+            evt.pushAndSignal(message);
         });
         final ChannelHandler handler = new HttpPluginServerHandler(sink);
         final EmbeddedChannel channel = new EmbeddedChannel(handler);
@@ -86,12 +74,13 @@ public class HttpPluginServerHandlerTest {
 
     @Test
     public void testGatewayHeadersAreUsed() throws InterruptedException {
-        final Sink<GwMessage> sink = new Sink<>(EXECUTOR);
-        sink.setListener(evt -> {
-            final GwMessage message = evt.getValue();
+        final Sink<GwMessage> sink = new Sink<>();
+        sink.setHandler(evt -> {
+            final GwMessage message = evt.pull();
             message.setPayload("{\"array\":[1,2,3]}");
             final GwHeaders h = message.headers();
             h.contentType().setValue("application/json");
+            evt.pushAndSignal(message);
         });
         final ChannelHandler handler = new HttpPluginServerHandler(sink);
         final EmbeddedChannel channel = new EmbeddedChannel(handler);

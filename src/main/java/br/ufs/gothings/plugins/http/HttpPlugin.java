@@ -19,15 +19,13 @@ public class HttpPlugin implements GwPlugin {
     private final HttpPluginServer server;
     private final PluginSettings settings;
     private final AtomicBoolean started = new AtomicBoolean(false);
-    private final ExecutorService executor;
     private final Sink<GwMessage> cliSink;
     private final Sink<GwMessage> srvSink;
 
     public HttpPlugin() {
         server = new HttpPluginServer();
-        executor = Executors.newWorkStealingPool();
-        cliSink = new Sink<>(executor);
-        srvSink = new Sink<>(executor);
+        cliSink = new Sink<>();
+        srvSink = new Sink<>();
         settings = new PluginSettings(started, GW_PROTOCOL);
     }
 
@@ -45,7 +43,6 @@ public class HttpPlugin implements GwPlugin {
     public void stop() {
         try {
             server.stop();
-            executor.shutdown();
             cliSink.stop();
             srvSink.stop();
             started.set(false);
