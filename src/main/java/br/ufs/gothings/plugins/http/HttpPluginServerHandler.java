@@ -4,7 +4,7 @@ import br.ufs.gothings.core.GwHeaders;
 import br.ufs.gothings.core.GwMessage;
 import br.ufs.gothings.core.message.ComplexHeader;
 import br.ufs.gothings.core.message.Operation;
-import br.ufs.gothings.core.sink.Sink;
+import br.ufs.gothings.core.sink.SinkLink;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
@@ -28,10 +28,10 @@ import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
  * @author Wagner Macedo
  */
 final class HttpPluginServerHandler extends SimpleChannelInboundHandler<FullHttpRequest> {
-    private final Sink<GwMessage> sink;
+    private final SinkLink<GwMessage> sinkLink;
 
-    HttpPluginServerHandler(Sink<GwMessage> sink) {
-        this.sink = sink;
+    HttpPluginServerHandler(SinkLink<GwMessage> sinkLink) {
+        this.sinkLink = sinkLink;
     }
 
     @Override
@@ -44,9 +44,9 @@ final class HttpPluginServerHandler extends SimpleChannelInboundHandler<FullHttp
 
         final GwMessage gw_request = parseHttpRequest(request);
         if (gw_request != null) {
-            final long sequence = sink.send(gw_request);
+            final long sequence = sinkLink.put(gw_request);
             try {
-                final GwMessage gw_response = sink.receive(sequence, 1, TimeUnit.MINUTES);
+                final GwMessage gw_response = sinkLink.get(sequence, 1, TimeUnit.MINUTES);
                 response.content().writeBytes(gw_response.payload());
                 fillHttpResponseHeaders(response.headers(), gw_response.headers());
             }

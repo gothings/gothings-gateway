@@ -1,11 +1,12 @@
 package br.ufs.gothings.core.sink;
 
-import com.lmax.disruptor.EventFactory;
 import com.lmax.disruptor.EventHandler;
 import com.lmax.disruptor.RingBuffer;
 import com.lmax.disruptor.dsl.Disruptor;
+import org.apache.commons.lang3.Validate;
 
-import java.util.Objects;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.*;
 
 /**
@@ -16,44 +17,34 @@ public class Sink<T> {
     private final Disruptor<SinkEvent<T>> disruptor;
     private final RingBuffer<SinkEvent<T>> ringBuffer;
 
-    private final CountDownLatch startLatch = new CountDownLatch(1);
-    private final DisruptorSinkEventHandler<T> eventHandler;
+    private final ValueSinkEventHandler eventHandler;
 
     @SuppressWarnings("unchecked")
     public Sink() {
-        eventHandler = new DisruptorSinkEventHandler<>();
+        eventHandler = new ValueSinkEventHandler();
 
         executor = Executors.newSingleThreadExecutor();
-        disruptor = new Disruptor<>(new DisruptorSinkEventFactory<>(), 1024, executor);
+        disruptor = new Disruptor<>(SinkEvent::new, 1024, executor);
         disruptor.handleEventsWith(eventHandler);
-
         ringBuffer = disruptor.getRingBuffer();
-    }
 
-    public long send(T value) {
-        checkStart();
-        final long sequence = ringBuffer.next();
-        final SinkEvent<T> evt = ringBuffer.get(sequence);
-
-        evt.setValue(value);
-
-        ringBuffer.publish(sequence);
-        return sequence;
-    }
-
-    public T receive(long sequence, int timeout, TimeUnit unit) throws InterruptedException, TimeoutException {
-        checkStart();
-        final SinkEvent<T> event = ringBuffer.get(sequence);
-        event.waitSignal(timeout, unit);
-
-        return event.pull();
-    }
-
-    public void setHandler(SinkHandler<T> handler) {
-        Objects.requireNonNull(handler);
-        eventHandler.t_handler = handler;
         disruptor.start();
-        startLatch.countDown();
+    }
+
+    public SinkLink<T> createLink(SinkHandler<T> handler) {
+        final ValueSinkLink sinkLink = new ValueSinkLink(handler);
+        eventHandler.addLink(sinkLink);
+        return sinkLink;
+    }
+
+    private void checkStart() {
+        try {
+            eventHandler.waitLinks(2, TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+            // do nothing
+        } catch (TimeoutException e) {
+            throw new IllegalStateException("sink has not the required two links");
+        }
     }
 
     public void stop() {
@@ -61,35 +52,74 @@ public class Sink<T> {
         disruptor.shutdown();
     }
 
-    private void checkStart() {
-        try {
-            if (!startLatch.await(2, TimeUnit.SECONDS)) {
-                throw new IllegalStateException("sink has not a handler");
-            }
-        } catch (InterruptedException e) {
-            // Unlikely to happen
+    private final class ValueSinkLink implements SinkLink<T> {
+        private final SinkHandler<T> handler;
+
+        ValueSinkLink(SinkHandler<T> handler) {
+            this.handler = handler;
+        }
+
+        SinkHandler<T> getHandler() {
+            return handler;
+        }
+
+        @Override
+        public long put(T value) {
+            Validate.notNull(value);
+            checkStart();
+
+            final long sequence = ringBuffer.next();
+            final SinkEvent<T> event = ringBuffer.get(sequence);
+
+            event.setLink(this);
+            event.setValue(value);
+
+            ringBuffer.publish(sequence);
+            return sequence;
+        }
+
+        @Override
+        public T get(long sequence, int timeout, TimeUnit unit) throws InterruptedException, TimeoutException {
+            Validate.notNull(unit);
+            checkStart();
+
+            final SinkEvent<T> event = ringBuffer.get(sequence);
+            event.waitValue(timeout, unit);
+
+            return event.getValue();
         }
     }
 
-    private static final class DisruptorSinkEventHandler<T> implements EventHandler<SinkEvent<T>> {
-        private SinkHandler<T> t_handler;
+    private final class ValueSinkEventHandler implements EventHandler<SinkEvent<T>> {
+        private List<ValueSinkLink> sinkLinks = new ArrayList<>(2);
+        private final CountDownLatch latch = new CountDownLatch(2);
 
-        @Override
-        public void onEvent(final SinkEvent<T> event, long sequence, boolean endOfBatch) throws Exception {
-            try {
-                t_handler.readEvent(event);
-            }
-            // At any error assure event is signalized, but value is annulled
-            catch (Exception e) {
-                event.pushAndSignal(null);
+        void addLink(ValueSinkLink link) {
+            Validate.validState(latch.getCount() > 0, "sink cannot have more than two links");
+
+            sinkLinks.add(link);
+            latch.countDown();
+        }
+
+        void waitLinks(long timeout, TimeUnit unit) throws InterruptedException, TimeoutException {
+            if (!latch.await(timeout, unit)) {
+                throw new TimeoutException();
             }
         }
-    }
 
-    private static final class DisruptorSinkEventFactory<T> implements EventFactory<SinkEvent<T>> {
         @Override
-        public SinkEvent<T> newInstance() {
-            return new SinkEvent<>();
+        public void onEvent(final SinkEvent<T> event, long sequence, boolean endOfBatch) {
+            for (ValueSinkLink link : sinkLinks) {
+                if (link != event.getLink()) {
+                    try {
+                        link.getHandler().readEvent(event);
+                    } catch (Exception e) {
+                        // At any error assure event is signalized, but value is annulled
+                        event.writeValue(null);
+                    }
+                    break;
+                }
+            }
         }
     }
 }

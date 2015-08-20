@@ -6,24 +6,39 @@ import java.util.concurrent.*;
  * @author Wagner Macedo
  */
 public final class SinkEvent<T> {
-    private final CountDownLatch latch = new CountDownLatch(1);
+    private final CountDownLatch writeLatch = new CountDownLatch(1);
+    private SinkLink<T> link;
     private T value;
 
-    public T pull() {
+    public T readValue() {
         return value;
     }
 
-    public void pushAndSignal(T value) {
+    public void writeValue(T value) {
         this.value = value;
-        latch.countDown();
+        writeLatch.countDown();
+    }
+
+    /* Internal use */
+
+    SinkLink<T> getLink() {
+        return link;
+    }
+
+    void setLink(SinkLink<T> link) {
+        this.link = link;
+    }
+
+    T getValue() {
+        return value;
     }
 
     void setValue(T value) {
         this.value = value;
     }
 
-    void waitSignal(int timeout, TimeUnit unit) throws InterruptedException, TimeoutException {
-        if (!latch.await(timeout, unit)) {
+    void waitValue(int timeout, TimeUnit unit) throws InterruptedException, TimeoutException {
+        if (!writeLatch.await(timeout, unit)) {
             throw new TimeoutException();
         }
     }

@@ -5,8 +5,6 @@ import br.ufs.gothings.core.GwPlugin;
 import br.ufs.gothings.core.PluginSettings;
 import br.ufs.gothings.core.sink.Sink;
 
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -33,7 +31,7 @@ public class HttpPlugin implements GwPlugin {
     public void start() {
         try {
             started.set(true);
-            server.start(srvSink, settings.getPort());
+            server.start(srvSink.createLink(null), settings.getPort());
         } catch (InterruptedException ignored) {
             started.set(false);
         }

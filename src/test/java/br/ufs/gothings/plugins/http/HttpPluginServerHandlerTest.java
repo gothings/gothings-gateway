@@ -22,16 +22,16 @@ public class HttpPluginServerHandlerTest {
     @Test
     public void testGatewayPayloadIsUsed() {
         final Sink<GwMessage> sink = new Sink<>();
-        sink.setHandler(evt -> {
-            final GwMessage message = evt.pull();
+        sink.createLink(evt -> {
+            final GwMessage message = evt.readValue();
             final GwHeaders h = message.headers();
 
             final Operation operation = h.operation().getValue();
             final String path = h.path().getValue();
             message.payload().clear().writeInt(operation.name().length() + path.length());
-            evt.pushAndSignal(message);
+            evt.writeValue(message);
         });
-        final ChannelHandler handler = new HttpPluginServerHandler(sink);
+        final ChannelHandler handler = new HttpPluginServerHandler(sink.createLink(null));
         final EmbeddedChannel channel = new EmbeddedChannel(handler);
 
         /*
@@ -75,14 +75,14 @@ public class HttpPluginServerHandlerTest {
     @Test
     public void testGatewayHeadersAreUsed() throws InterruptedException {
         final Sink<GwMessage> sink = new Sink<>();
-        sink.setHandler(evt -> {
-            final GwMessage message = evt.pull();
+        sink.createLink(evt -> {
+            final GwMessage message = evt.readValue();
             message.setPayload("{\"array\":[1,2,3]}");
             final GwHeaders h = message.headers();
             h.contentType().setValue("application/json");
-            evt.pushAndSignal(message);
+            evt.writeValue(message);
         });
-        final ChannelHandler handler = new HttpPluginServerHandler(sink);
+        final ChannelHandler handler = new HttpPluginServerHandler(sink.createLink(null));
         final EmbeddedChannel channel = new EmbeddedChannel(handler);
 
         final DefaultFullHttpRequest request = new DefaultFullHttpRequest(HTTP_1_1, GET, "/path");

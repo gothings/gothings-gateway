@@ -14,51 +14,55 @@ import static org.junit.Assert.*;
 public class SinkTest {
     @Test
     public void testSinkListenerCalled() throws Exception {
-        // Check if listener incremented an atomic integer and didn't change value
+        // Check if handler incremented an atomic integer and didn't change value
         Sink<AtomicInteger> sink = new Sink<>();
-        sink.setHandler(event -> {
-            final AtomicInteger value = event.pull();
+        sink.createLink(event -> {
+            final AtomicInteger value = event.readValue();
             value.incrementAndGet();
-            event.pushAndSignal(value);
+            event.writeValue(value);
         });
+        SinkLink<AtomicInteger> sinkLink = sink.createLink(null);
         AtomicInteger value = new AtomicInteger(15);
-        long seq = sink.send(value);
-        AtomicInteger received = sink.receive(seq, 1, TimeUnit.MINUTES);
+        long seq = sinkLink.put(value);
+        AtomicInteger received = sinkLink.get(seq, 1, TimeUnit.MINUTES);
         assertEquals(16, value.get());
         assertEquals(value, received);
         sink.stop();
 
-        // Here it checks if listener changed the value of event
+        // Here it checks if handler changed the value of event
         sink = new Sink<>();
-        sink.setHandler(event -> {
-            final int n = event.pull().get();
-            event.pushAndSignal(new AtomicInteger(n));
+        sink.createLink(event -> {
+            final int n = event.readValue().get();
+            event.writeValue(new AtomicInteger(n));
         });
-        seq = sink.send(value);
-        received = sink.receive(seq, 1, TimeUnit.MINUTES);
+        sinkLink = sink.createLink(null);
+        seq = sinkLink.put(value);
+        received = sinkLink.get(seq, 1, TimeUnit.MINUTES);
         assertNotEquals(value, received);
     }
 
     @Test
     public void testSinkListenerSameThread() throws Exception {
-        // Check if receive really waits for listener call
-        Sink<String> sink = new Sink<>();
-        sink.setHandler(event -> {
+        // Check if 'get' really waits for listener call
+        final Sink<String> sink = new Sink<>();
+        sink.createLink(event -> {
             interval(50);
-            event.pushAndSignal(null);
+            event.writeValue(null);
         });
-        final long seq = sink.send("Hello");
+        final SinkLink<String> sinkLink = sink.createLink(null);
+        final long seq = sinkLink.put("Hello");
         try {
-            sink.receive(seq, 60, TimeUnit.MILLISECONDS);
+            sinkLink.get(seq, 60, TimeUnit.MILLISECONDS);
         } catch (TimeoutException e) {
             fail("time out");
         }
     }
 
     @Test(expected = IllegalStateException.class)
-    public void testSinkWithoutListener() {
-        Sink<String> sink = new Sink<>();
-        sink.send("AAA");
+    public void testSinkHavingOnlyOneLink() {
+        final Sink<String> sink = new Sink<>();
+        final SinkLink<String> sinkLink = sink.createLink(null);
+        sinkLink.put("AAA");
     }
 
     private static void interval(int millis) {
