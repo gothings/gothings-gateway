@@ -26,8 +26,8 @@ public class HttpPluginServerHandlerTest {
             final GwMessage message = evt.readValue();
             final GwHeaders h = message.headers();
 
-            final Operation operation = h.operation().getValue();
-            final String path = h.path().getValue();
+            final Operation operation = h.operationHeader().get();
+            final String path = h.pathHeader().get();
             message.payload().clear().writeInt(operation.name().length() + path.length());
             evt.writeValue(message);
         });
@@ -79,7 +79,7 @@ public class HttpPluginServerHandlerTest {
             final GwMessage message = evt.readValue();
             message.setPayload("{\"array\":[1,2,3]}");
             final GwHeaders h = message.headers();
-            h.contentType().setValue("application/json");
+            h.contentTypeHeader().set("application/json");
             evt.writeValue(message);
         });
         final ChannelHandler handler = new HttpPluginServerHandler(sink.createLink(null));

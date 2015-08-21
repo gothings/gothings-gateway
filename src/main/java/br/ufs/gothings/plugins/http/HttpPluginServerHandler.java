@@ -82,26 +82,28 @@ final class HttpPluginServerHandler extends SimpleChannelInboundHandler<FullHttp
         switch (method) {
             case "GET":case "PUT":case "POST":case "DELETE":
                 final GwMessage msg = new GwMessage();
+
+                // filling GwHeaders
                 final GwHeaders gw_headers = msg.headers();
-                gw_headers.path().setValue(request.getUri());
+                gw_headers.pathHeader().set(request.getUri());
 
                 switch (method) {
                     case "GET":
-                        gw_headers.operation().setValue(Operation.GET);
+                        gw_headers.operationHeader().set(Operation.GET);
                         addExpectedTypes(gw_headers, headers);
                         break;
                     case "PUT":
-                        gw_headers.operation().setValue(Operation.PUT);
-                        gw_headers.contentType().setValue(headers.get(CONTENT_TYPE));
+                        gw_headers.operationHeader().set(Operation.PUT);
+                        gw_headers.contentTypeHeader().set(headers.get(CONTENT_TYPE));
                         msg.setPayload(request.content());
                         break;
                     case "POST":
-                        gw_headers.operation().setValue(Operation.POST);
-                        gw_headers.contentType().setValue(headers.get(CONTENT_TYPE));
+                        gw_headers.operationHeader().set(Operation.POST);
+                        gw_headers.contentTypeHeader().set(headers.get(CONTENT_TYPE));
                         msg.setPayload(request.content());
                         break;
                     case "DELETE":
-                        gw_headers.operation().setValue(Operation.DELETE);
+                        gw_headers.operationHeader().set(Operation.DELETE);
                         break;
                 }
 
@@ -113,7 +115,7 @@ final class HttpPluginServerHandler extends SimpleChannelInboundHandler<FullHttp
     private static void addExpectedTypes(GwHeaders gw_headers, HttpHeaders headers) {
         final String acceptValues = headers.get(ACCEPT);
         if (acceptValues != null) {
-            final ComplexHeader<String> expectedTypes = gw_headers.expectedTypes();
+            final ComplexHeader<String> expectedTypes = gw_headers.expectedTypesHeader();
             for (String type : acceptValues.split(",")) {
                 final int pos = type.indexOf(';');
                 expectedTypes.add(pos != -1 ? type.substring(0, pos) : type);
@@ -122,7 +124,7 @@ final class HttpPluginServerHandler extends SimpleChannelInboundHandler<FullHttp
     }
 
     private static void fillHttpResponseHeaders(HttpHeaders hh, GwHeaders gwh) {
-        setHttpHeader(hh, CONTENT_TYPE, gwh.contentType().getValue());
+        setHttpHeader(hh, CONTENT_TYPE, gwh.contentTypeHeader().get());
     }
 
     private static void setHttpHeader(HttpHeaders hh, String key, CharSequence value) {

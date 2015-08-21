@@ -6,11 +6,11 @@ package br.ufs.gothings.core.message;
 public class Header<T> {
     private T value;
 
-    public void setValue(T value) {
+    public void set(T value) {
         this.value = value;
     }
 
-    public T getValue() {
+    public T get() {
         return value;
     }
 }

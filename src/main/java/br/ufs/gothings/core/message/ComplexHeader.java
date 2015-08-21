@@ -13,6 +13,20 @@ public class ComplexHeader<T> implements Iterable<T> {
         this.values = values;
     }
 
+    public T get(int index) {
+        final Iterator<T> it = values.iterator();
+        int i = 0;
+        while (i < index && it.hasNext()) {
+            i++;
+            it.next();
+        }
+
+        if (i == index && it.hasNext()) {
+            return it.next();
+        }
+        return null;
+    }
+
     public boolean add(T t) {
         return values.add(t);
     }
