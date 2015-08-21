@@ -47,7 +47,7 @@ final class HttpPluginServerHandler extends SimpleChannelInboundHandler<FullHttp
             final long sequence = sinkLink.put(gw_request);
             try {
                 final GwMessage gw_response = sinkLink.get(sequence, 1, TimeUnit.MINUTES);
-                response.content().writeBytes(gw_response.payload());
+                response.content().writeBytes(gw_response.payload().asBuffer());
                 fillHttpResponseHeaders(response.headers(), gw_response.headers());
             }
             // Handling with possible errors
@@ -95,12 +95,12 @@ final class HttpPluginServerHandler extends SimpleChannelInboundHandler<FullHttp
                     case "PUT":
                         gw_headers.operationHeader().set(Operation.PUT);
                         gw_headers.contentTypeHeader().set(headers.get(CONTENT_TYPE));
-                        msg.setPayload(request.content());
+                        msg.payload().set(request.content().nioBuffer());
                         break;
                     case "POST":
                         gw_headers.operationHeader().set(Operation.POST);
                         gw_headers.contentTypeHeader().set(headers.get(CONTENT_TYPE));
-                        msg.setPayload(request.content());
+                        msg.payload().set(request.content().nioBuffer());
                         break;
                     case "DELETE":
                         gw_headers.operationHeader().set(Operation.DELETE);

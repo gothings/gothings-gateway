@@ -4,11 +4,15 @@ import br.ufs.gothings.core.GwHeaders;
 import br.ufs.gothings.core.GwMessage;
 import br.ufs.gothings.core.message.Operation;
 import br.ufs.gothings.core.sink.Sink;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.handler.codec.http.DefaultFullHttpRequest;
 import io.netty.handler.codec.http.FullHttpResponse;
 import org.junit.Test;
+
+import java.nio.charset.Charset;
 
 import static io.netty.handler.codec.http.HttpHeaders.Names.CONTENT_TYPE;
 import static io.netty.handler.codec.http.HttpMethod.*;
@@ -28,7 +32,8 @@ public class HttpPluginServerHandlerTest {
 
             final Operation operation = h.operationHeader().get();
             final String path = h.pathHeader().get();
-            message.payload().clear().writeInt(operation.name().length() + path.length());
+            final ByteBuf buf = Unpooled.buffer().writeInt(operation.name().length() + path.length());
+            message.payload().set(buf.nioBuffer());
             evt.writeValue(message);
         });
         final ChannelHandler handler = new HttpPluginServerHandler(sink.createLink(null));
@@ -77,7 +82,7 @@ public class HttpPluginServerHandlerTest {
         final Sink<GwMessage> sink = new Sink<>();
         sink.createLink(evt -> {
             final GwMessage message = evt.readValue();
-            message.setPayload("{\"array\":[1,2,3]}");
+            message.payload().set("{\"array\":[1,2,3]}", Charset.defaultCharset());
             final GwHeaders h = message.headers();
             h.contentTypeHeader().set("application/json");
             evt.writeValue(message);
