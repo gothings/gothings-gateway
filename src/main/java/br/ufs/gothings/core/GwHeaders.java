@@ -22,6 +22,7 @@ public class GwHeaders {
         PATH,
         CONTENT_TYPE,
         EXPECTED_TYPES,
+        QOS,
     }
 
     private final Map<Name, Object> map;
@@ -54,6 +55,10 @@ public class GwHeaders {
 
     public ComplexHeader<String> expectedTypesHeader() {
         return getComplexHeader(Name.EXPECTED_TYPES, String.class, LinkedHashSet::new);
+    }
+
+    public Header<Integer> qosHeader() {
+        return getHeader(Name.QOS, Integer.class);
     }
 
     /* Internal use */
