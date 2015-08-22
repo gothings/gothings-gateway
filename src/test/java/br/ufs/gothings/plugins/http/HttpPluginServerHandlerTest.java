@@ -34,7 +34,7 @@ public class HttpPluginServerHandlerTest {
             final String path = h.pathHeader().get();
             final ByteBuf buf = Unpooled.buffer().writeInt(operation.name().length() + path.length());
             message.payload().set(buf.nioBuffer());
-            evt.writeValue(message);
+            evt.finish();
         });
         final ChannelHandler handler = new HttpPluginServerHandler(sink.createLink(null));
         final EmbeddedChannel channel = new EmbeddedChannel(handler);
@@ -85,7 +85,7 @@ public class HttpPluginServerHandlerTest {
             message.payload().set("{\"array\":[1,2,3]}", Charset.defaultCharset());
             final GwHeaders h = message.headers();
             h.contentTypeHeader().set("application/json");
-            evt.writeValue(message);
+            evt.finish();
         });
         final ChannelHandler handler = new HttpPluginServerHandler(sink.createLink(null));
         final EmbeddedChannel channel = new EmbeddedChannel(handler);

@@ -19,7 +19,7 @@ public class SinkTest {
         sink.createLink(event -> {
             final AtomicInteger value = event.readValue();
             value.incrementAndGet();
-            event.writeValue(value);
+            event.finish();
         });
         SinkLink<AtomicInteger> sinkLink = sink.createLink(null);
         AtomicInteger value = new AtomicInteger(15);
@@ -47,7 +47,7 @@ public class SinkTest {
         final Sink<String> sink = new Sink<>();
         sink.createLink(event -> {
             interval(50);
-            event.writeValue(null);
+            event.finish();
         });
         final SinkLink<String> sinkLink = sink.createLink(null);
         final long seq = sinkLink.put("Hello");

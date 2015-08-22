@@ -84,7 +84,7 @@ public class Sink<T> {
             checkStart();
 
             final SinkEvent<T> event = ringBuffer.get(sequence);
-            event.waitValue(timeout, unit);
+            event.waitFinish(timeout, unit);
 
             return event.getValue();
         }
@@ -114,7 +114,7 @@ public class Sink<T> {
                     try {
                         link.getHandler().readEvent(event);
                     } catch (Exception e) {
-                        // At any error assure event is signalized, but value is annulled
+                        // At any error assure event is finished, but value is annulled
                         event.writeValue(null);
                     }
                     break;

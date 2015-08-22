@@ -16,6 +16,10 @@ public final class SinkEvent<T> {
 
     public void writeValue(T value) {
         this.value = value;
+        finish();
+    }
+
+    public void finish() {
         writeLatch.countDown();
     }
 
@@ -37,7 +41,7 @@ public final class SinkEvent<T> {
         this.value = value;
     }
 
-    void waitValue(int timeout, TimeUnit unit) throws InterruptedException, TimeoutException {
+    void waitFinish(int timeout, TimeUnit unit) throws InterruptedException, TimeoutException {
         if (!writeLatch.await(timeout, unit)) {
             throw new TimeoutException();
         }
