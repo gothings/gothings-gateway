@@ -13,8 +13,8 @@ import org.eclipse.paho.client.mqttv3.*;
 import java.util.HashMap;
 import java.util.Map;
 
-import static java.lang.Math.max;
-import static java.lang.Math.min;
+import static org.apache.commons.lang3.ObjectUtils.max;
+import static org.apache.commons.lang3.ObjectUtils.min;
 
 /**
  * @author Wagner Macedo
@@ -51,6 +51,7 @@ public final class MqttPluginClient {
 
     private class MqttConnection {
         private final MqttAsyncClient client;
+        private final IMqttToken connectionToken;
 
         public MqttConnection(String host) throws MqttException {
             client = new MqttAsyncClient("tcp://" + host, "gothings-client_" + host.hashCode());
@@ -79,22 +80,11 @@ public final class MqttPluginClient {
 
                 }
             });
-            client.connect(new MqttConnectOptions(), null, new IMqttActionListener() {
-                // TODO
-                @Override
-                public void onSuccess(IMqttToken asyncActionToken) {
-
-                }
-
-                // TODO
-                @Override
-                public void onFailure(IMqttToken asyncActionToken, Throwable exception) {
-
-                }
-            });
+            connectionToken = client.connect(new MqttConnectOptions());
         }
 
         public void sendMessage(GwMessage msg) throws MqttException {
+            connectionToken.waitForCompletion();
             final GwHeaders h = msg.headers();
             final Operation operation = h.operationHeader().get();
             final String topic = h.pathHeader().get();

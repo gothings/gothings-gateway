@@ -6,7 +6,8 @@ sourceCompatibility = 1.8
 targetCompatibility = 1.8
 
 test {
-    exclude 'br/ufs/gothings/core/sink/**'
+    exclude 'br/ufs/gothings/core/sink/**'      // slow tests
+    exclude 'br/ufs/gothings/plugins/mqtt/**'   // need external interaction
 }
 
 task alltests(type: Test)
