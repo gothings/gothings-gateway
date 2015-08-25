@@ -6,5 +6,5 @@ package br.ufs.gothings.core.sink;
 public interface SinkLink<T> {
     void send(T value);
 
-    void setHandler(SinkHandler<T> handler);
+    void setListener(SinkListener<T> listener);
 }

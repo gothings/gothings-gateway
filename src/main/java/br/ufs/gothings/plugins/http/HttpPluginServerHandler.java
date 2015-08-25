@@ -37,7 +37,7 @@ final class HttpPluginServerHandler extends SimpleChannelInboundHandler<FullHttp
 
     HttpPluginServerHandler(Sink<GwMessage> sink) {
         sinkLink = sink.createLink();
-        sinkLink.setHandler(value -> {
+        sinkLink.setListener(value -> {
             if (!value.isAnswer()) {
                 return;
             }

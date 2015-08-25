@@ -4,7 +4,7 @@ import br.ufs.gothings.core.GwHeaders;
 import br.ufs.gothings.core.GwMessage;
 import br.ufs.gothings.core.message.Operation;
 import br.ufs.gothings.core.sink.Sink;
-import br.ufs.gothings.core.sink.SinkHandler;
+import br.ufs.gothings.core.sink.SinkListener;
 import br.ufs.gothings.core.sink.SinkLink;
 import org.apache.commons.lang3.ArrayUtils;
 import org.eclipse.paho.client.mqttv3.*;
@@ -24,11 +24,11 @@ public final class MqttPluginClient {
 
     public MqttPluginClient(final Sink<GwMessage> sink) {
         sinkLink = sink.createLink();
-        sinkLink.setHandler(new MessageSinkHandler());
+        sinkLink.setListener(new MessageSinkListener());
         connections = new HashMap<>();
     }
 
-    private class MessageSinkHandler implements SinkHandler<GwMessage> {
+    private class MessageSinkListener implements SinkListener<GwMessage> {
         @Override
         public void valueReceived(GwMessage msg) throws MqttException {
             final String host = msg.headers().targetsHeader().get(0);

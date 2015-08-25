@@ -28,7 +28,7 @@ public class HttpPluginServerHandlerTest {
     public void testGatewayPayloadIsUsed() {
         final Sink<GwMessage> sink = new Sink<>();
         final SinkLink<GwMessage> link = sink.createLink();
-        link.setHandler(message -> {
+        link.setListener(message -> {
             final GwHeaders h = message.headers();
 
             final Operation operation = h.operationHeader().get();
@@ -85,7 +85,7 @@ public class HttpPluginServerHandlerTest {
     public void testGatewayHeadersAreUsed() throws InterruptedException {
         final Sink<GwMessage> sink = new Sink<>();
         final SinkLink<GwMessage> link = sink.createLink();
-        link.setHandler(message -> {
+        link.setListener(message -> {
             final GwMessage answer = GwMessage.newAnswerMessage(message);
             answer.payload().set("{\"array\":[1,2,3]}", Charset.defaultCharset());
             final GwHeaders h = answer.headers();

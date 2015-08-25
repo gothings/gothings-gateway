@@ -72,7 +72,7 @@ public class Sink<T> {
     }
 
     private final class ValueSinkLink implements SinkLink<T> {
-        private SinkHandler<T> handler;
+        private SinkListener<T> listener;
 
         @Override
         public void send(T value) {
@@ -89,14 +89,14 @@ public class Sink<T> {
         }
 
         @Override
-        public void setHandler(SinkHandler<T> handler) {
-            Validate.validState(this.handler == null, "handler already set");
-            this.handler = handler;
+        public void setListener(SinkListener<T> listener) {
+            Validate.validState(this.listener == null, "listener already set");
+            this.listener = listener;
             eventHandler.addLink(this);
         }
 
-        SinkHandler<T> getHandler() {
-            return handler;
+        SinkListener<T> getListener() {
+            return listener;
         }
     }
 
@@ -122,7 +122,7 @@ public class Sink<T> {
             for (ValueSinkLink link : sinkLinks) {
                 if (link != event.getSourceLink()) {
                     try {
-                        link.getHandler().valueReceived(event.getValue());
+                        link.getListener().valueReceived(event.getValue());
                     } catch (Exception ignored) {
                         // Any errors are silently ignored
                     }

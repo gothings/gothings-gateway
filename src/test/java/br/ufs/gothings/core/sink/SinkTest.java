@@ -14,17 +14,17 @@ public class SinkTest {
     private static final SynchronousQueue<Object> pipe = new SynchronousQueue<>();
 
     @Test
-    public void testSinkHandlerCalled() throws InterruptedException {
-        // Check if handler incremented an atomic integer and didn't change value
+    public void testSinkListenerCalled() throws InterruptedException {
+        // Check if listener incremented an atomic integer and didn't change value
         Sink<AtomicInteger> sink = new Sink<>();
         final SinkLink<AtomicInteger> firstLink = sink.createLink();
-        firstLink.setHandler(value -> {
+        firstLink.setListener(value -> {
             value.incrementAndGet();
             firstLink.send(value);
         });
 
         final SinkLink<AtomicInteger> secondLink = sink.createLink();
-        secondLink.setHandler(pipe::put);
+        secondLink.setListener(pipe::put);
         AtomicInteger value = new AtomicInteger(15);
         secondLink.send(value);
 
@@ -35,14 +35,14 @@ public class SinkTest {
     }
 
     @Test
-    public void testSinkHandlerDuplex() throws InterruptedException {
+    public void testSinkLinkDuplex() throws InterruptedException {
         // Check if links really have a duplex channel among them
         final Sink<String> sink = new Sink<>();
         final SinkLink<String> firstLink = sink.createLink();
-        firstLink.setHandler(value -> firstLink.send(value + "World"));
+        firstLink.setListener(value -> firstLink.send(value + "World"));
 
         final SinkLink<String> secondLink = sink.createLink();
-        secondLink.setHandler(pipe::put);
+        secondLink.setListener(pipe::put);
         secondLink.send("Hello");
 
         final String received = (String) pipe.take();
