@@ -4,7 +4,6 @@ import br.ufs.gothings.core.GwHeaders;
 import br.ufs.gothings.core.GwMessage;
 import br.ufs.gothings.core.message.Operation;
 import br.ufs.gothings.core.sink.Sink;
-import br.ufs.gothings.core.sink.SinkEvent;
 import br.ufs.gothings.core.sink.SinkHandler;
 import br.ufs.gothings.core.sink.SinkLink;
 import org.apache.commons.lang3.ArrayUtils;
@@ -24,19 +23,18 @@ public final class MqttPluginClient {
     private final SinkLink<GwMessage> sinkLink;
 
     public MqttPluginClient(final Sink<GwMessage> sink) {
-        sinkLink = sink.createLink(new MessageSinkHandler());
+        sinkLink = sink.createLink();
+        sinkLink.setHandler(new MessageSinkHandler());
         connections = new HashMap<>();
     }
 
     private class MessageSinkHandler implements SinkHandler<GwMessage> {
         @Override
-        public void readEvent(final SinkEvent<GwMessage> event) throws MqttException {
-            final GwMessage msg = event.readValue();
+        public void valueReceived(GwMessage msg) throws MqttException {
             final String host = msg.headers().targetsHeader().get(0);
 
             final MqttConnection conn = getMqttConnection(host);
             conn.sendMessage(msg);
-            event.writeValue(null);
         }
     }
 
@@ -70,7 +68,7 @@ public final class MqttPluginClient {
                     h.targetsHeader().add(host);
                     h.pathHeader().set(topic);
 
-                    sinkLink.put(msg);
+                    sinkLink.send(msg);
                 }
 
                 // TODO: what to do here?

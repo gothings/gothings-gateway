@@ -2,8 +2,7 @@ package br.ufs.gothings.core.sink;
 
 import org.junit.Test;
 
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
+import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.Assert.*;
@@ -12,64 +11,48 @@ import static org.junit.Assert.*;
  * @author Wagner Macedo
  */
 public class SinkTest {
+    private static final SynchronousQueue<Object> pipe = new SynchronousQueue<>();
+
     @Test
-    public void testSinkHandlerCalled() throws Exception {
+    public void testSinkHandlerCalled() throws InterruptedException {
         // Check if handler incremented an atomic integer and didn't change value
         Sink<AtomicInteger> sink = new Sink<>();
-        sink.createLink(event -> {
-            final AtomicInteger value = event.readValue();
+        final SinkLink<AtomicInteger> firstLink = sink.createLink();
+        firstLink.setHandler(value -> {
             value.incrementAndGet();
-            event.finish();
+            firstLink.send(value);
         });
 
-        SinkLink<AtomicInteger> sinkLink = sink.createLink(null);
+        final SinkLink<AtomicInteger> secondLink = sink.createLink();
+        secondLink.setHandler(pipe::put);
         AtomicInteger value = new AtomicInteger(15);
-        long seq = sinkLink.put(value);
-        AtomicInteger received = sinkLink.get(seq, 1, TimeUnit.MINUTES);
-        assertEquals(16, value.get());
-        assertEquals(value, received);
-        sink.stop();
+        secondLink.send(value);
 
-        // Here it checks if handler changed the value of event
-        sink = new Sink<>();
-        sink.createLink(event -> {
-            final int n = event.readValue().get();
-            event.writeValue(new AtomicInteger(n));
-        });
-        sinkLink = sink.createLink(null);
-        seq = sinkLink.put(value);
-        received = sinkLink.get(seq, 1, TimeUnit.MINUTES);
-        assertNotEquals(value, received);
+        final AtomicInteger received = (AtomicInteger) pipe.take();
+        assertEquals(16, value.get());
+        assertSame(value, received);
+        sink.stop();
     }
 
     @Test
-    public void testSinkHandlerSameThread() throws Exception {
-        // Check if 'get' really waits for listener call
+    public void testSinkHandlerDuplex() throws InterruptedException {
+        // Check if links really have a duplex channel among them
         final Sink<String> sink = new Sink<>();
-        sink.createLink(event -> {
-            interval(50);
-            event.finish();
-        });
-        final SinkLink<String> sinkLink = sink.createLink(null);
-        final long seq = sinkLink.put("Hello");
-        try {
-            sinkLink.get(seq, 60, TimeUnit.MILLISECONDS);
-        } catch (TimeoutException e) {
-            fail("time out");
-        }
+        final SinkLink<String> firstLink = sink.createLink();
+        firstLink.setHandler(value -> firstLink.send(value + "World"));
+
+        final SinkLink<String> secondLink = sink.createLink();
+        secondLink.setHandler(pipe::put);
+        secondLink.send("Hello");
+
+        final String received = (String) pipe.take();
+        assertEquals("HelloWorld", received);
     }
 
     @Test(expected = IllegalStateException.class)
-    public void testSinkHavingOnlyOneLink() {
+    public void testSinkNotReadyYet() {
         final Sink<String> sink = new Sink<>();
-        final SinkLink<String> sinkLink = sink.createLink(null);
-        sinkLink.put("AAA");
-    }
-
-    private static void interval(int millis) {
-        try {
-            Thread.sleep(millis);
-        } catch (InterruptedException ignored) {
-        }
+        final SinkLink<String> sinkLink = sink.createLink();
+        sinkLink.send("AAA");
     }
 }

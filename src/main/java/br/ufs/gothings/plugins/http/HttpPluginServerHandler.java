@@ -4,6 +4,7 @@ import br.ufs.gothings.core.GwHeaders;
 import br.ufs.gothings.core.GwMessage;
 import br.ufs.gothings.core.message.ComplexHeader;
 import br.ufs.gothings.core.message.Operation;
+import br.ufs.gothings.core.sink.Sink;
 import br.ufs.gothings.core.sink.SinkLink;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
@@ -14,6 +15,9 @@ import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.FullHttpResponse;
 import io.netty.handler.codec.http.HttpHeaders;
 
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
@@ -29,9 +33,33 @@ import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
  */
 final class HttpPluginServerHandler extends SimpleChannelInboundHandler<FullHttpRequest> {
     private final SinkLink<GwMessage> sinkLink;
+    private final Map<Long, SynchronousQueue<GwMessage>> answers = new ConcurrentHashMap<>();
 
-    HttpPluginServerHandler(SinkLink<GwMessage> sinkLink) {
-        this.sinkLink = sinkLink;
+    HttpPluginServerHandler(Sink<GwMessage> sink) {
+        sinkLink = sink.createLink();
+        sinkLink.setHandler(value -> {
+            if (!value.isAnswer()) {
+                return;
+            }
+
+            final SynchronousQueue<GwMessage> pipe = getPipe(value.sequence());
+            pipe.put(value);
+        });
+    }
+
+    private SynchronousQueue<GwMessage> getPipe(long sequence) {
+        return answers.computeIfAbsent(sequence, k -> new SynchronousQueue<>());
+    }
+
+    private GwMessage getAnswer(long sequence, long timeout, TimeUnit unit) throws InterruptedException, TimeoutException {
+        final SynchronousQueue<GwMessage> pipe = getPipe(sequence);
+
+        final GwMessage polled = pipe.poll(timeout, unit);
+        if (polled == null) {
+            throw new TimeoutException();
+        } else {
+            return polled;
+        }
     }
 
     @Override
@@ -44,9 +72,9 @@ final class HttpPluginServerHandler extends SimpleChannelInboundHandler<FullHttp
 
         final GwMessage gw_request = parseHttpRequest(request);
         if (gw_request != null) {
-            final long sequence = sinkLink.put(gw_request);
-            try {
-                final GwMessage gw_response = sinkLink.get(sequence, 1, TimeUnit.MINUTES);
+            sinkLink.send(gw_request);
+             try  {
+                final GwMessage gw_response = getAnswer(gw_request.sequence(), 1, TimeUnit.MINUTES);
                 response.content().writeBytes(gw_response.payload().asBuffer());
                 fillHttpResponseHeaders(response.headers(), gw_response.headers());
             }

@@ -31,7 +31,7 @@ public class HttpPlugin implements GwPlugin {
     public void start() {
         try {
             started.set(true);
-            server.start(srvSink.createLink(null), settings.getPort());
+            server.start(srvSink, settings.getPort());
         } catch (InterruptedException ignored) {
             started.set(false);
         }

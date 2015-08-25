@@ -26,16 +26,14 @@ public class MqttPluginClientTest {
         new MqttPluginClient(sink);
 
         final SynchronousQueue<GwMessage> pipe = new SynchronousQueue<>();
-        final SinkLink<GwMessage> link = sink.createLink(event -> {
-            final GwMessage msg = event.readValue();
-            pipe.put(msg);
-        });
+        final SinkLink<GwMessage> link = sink.createLink();
+        link.setHandler(pipe::put);
 
         GwMessage msg = GwMessage.newMessage();
         msg.headers().targetsHeader().add("localhost");
         msg.headers().operationHeader().set(Operation.GET);
         msg.headers().pathHeader().set("temperature");
-        link.put(msg);
+        link.send(msg);
 
         msg = pipe.take();
         assertTrue(msg.isAnswer());

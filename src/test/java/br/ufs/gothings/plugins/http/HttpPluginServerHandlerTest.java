@@ -4,6 +4,7 @@ import br.ufs.gothings.core.GwHeaders;
 import br.ufs.gothings.core.GwMessage;
 import br.ufs.gothings.core.message.Operation;
 import br.ufs.gothings.core.sink.Sink;
+import br.ufs.gothings.core.sink.SinkLink;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandler;
@@ -26,17 +27,20 @@ public class HttpPluginServerHandlerTest {
     @Test
     public void testGatewayPayloadIsUsed() {
         final Sink<GwMessage> sink = new Sink<>();
-        sink.createLink(evt -> {
-            final GwMessage message = evt.readValue();
+        final SinkLink<GwMessage> link = sink.createLink();
+        link.setHandler(message -> {
             final GwHeaders h = message.headers();
 
             final Operation operation = h.operationHeader().get();
             final String path = h.pathHeader().get();
             final ByteBuf buf = Unpooled.buffer().writeInt(operation.name().length() + path.length());
-            message.payload().set(buf.nioBuffer());
-            evt.finish();
+
+            final GwMessage answer = GwMessage.newAnswerMessage(message);
+            answer.payload().set(buf.nioBuffer());
+            link.send(answer);
         });
-        final ChannelHandler handler = new HttpPluginServerHandler(sink.createLink(null));
+
+        final ChannelHandler handler = new HttpPluginServerHandler(sink);
         final EmbeddedChannel channel = new EmbeddedChannel(handler);
 
         /*
@@ -80,14 +84,17 @@ public class HttpPluginServerHandlerTest {
     @Test
     public void testGatewayHeadersAreUsed() throws InterruptedException {
         final Sink<GwMessage> sink = new Sink<>();
-        sink.createLink(evt -> {
-            final GwMessage message = evt.readValue();
-            message.payload().set("{\"array\":[1,2,3]}", Charset.defaultCharset());
-            final GwHeaders h = message.headers();
+        final SinkLink<GwMessage> link = sink.createLink();
+        link.setHandler(message -> {
+            final GwMessage answer = GwMessage.newAnswerMessage(message);
+            answer.payload().set("{\"array\":[1,2,3]}", Charset.defaultCharset());
+            final GwHeaders h = answer.headers();
             h.contentTypeHeader().set("application/json");
-            evt.finish();
+
+            link.send(answer);
         });
-        final ChannelHandler handler = new HttpPluginServerHandler(sink.createLink(null));
+
+        final ChannelHandler handler = new HttpPluginServerHandler(sink);
         final EmbeddedChannel channel = new EmbeddedChannel(handler);
 
         final DefaultFullHttpRequest request = new DefaultFullHttpRequest(HTTP_1_1, GET, "/path");

@@ -31,19 +31,17 @@ public class Sink<T> {
         disruptor.start();
     }
 
-    public SinkLink<T> createLink(SinkHandler<T> handler) {
-        final ValueSinkLink sinkLink = new ValueSinkLink(handler);
-        eventHandler.addLink(sinkLink);
-        return sinkLink;
+    public SinkLink<T> createLink() {
+        return new ValueSinkLink();
     }
 
     private void checkStart() {
         try {
             eventHandler.waitLinks(2, TimeUnit.SECONDS);
-        } catch (InterruptedException e) {
+        } catch (InterruptedException ignored) {
             // do nothing
         } catch (TimeoutException e) {
-            throw new IllegalStateException("sink has not the required two links");
+            throw new IllegalStateException("sink is not ready yet");
         }
     }
 
@@ -52,41 +50,53 @@ public class Sink<T> {
         disruptor.shutdown();
     }
 
+    private static final class SinkEvent<T> {
+        private T value;
+        private SinkLink<T> sourceLink;
+
+        T getValue() {
+            return value;
+        }
+
+        void setValue(T value) {
+            this.value = value;
+        }
+
+        SinkLink<T> getSourceLink() {
+            return sourceLink;
+        }
+
+        void setSourceLink(SinkLink<T> sourceLink) {
+            this.sourceLink = sourceLink;
+        }
+    }
+
     private final class ValueSinkLink implements SinkLink<T> {
-        private final SinkHandler<T> handler;
-
-        ValueSinkLink(SinkHandler<T> handler) {
-            this.handler = handler;
-        }
-
-        SinkHandler<T> getHandler() {
-            return handler;
-        }
+        private SinkHandler<T> handler;
 
         @Override
-        public long put(T value) {
+        public void send(T value) {
             Validate.notNull(value);
             checkStart();
 
             final long sequence = ringBuffer.next();
             final SinkEvent<T> event = ringBuffer.get(sequence);
 
-            event.setSourceLink(this);
             event.setValue(value);
+            event.setSourceLink(this);
 
             ringBuffer.publish(sequence);
-            return sequence;
         }
 
         @Override
-        public T get(long sequence, int timeout, TimeUnit unit) throws InterruptedException, TimeoutException {
-            Validate.notNull(unit);
-            checkStart();
+        public void setHandler(SinkHandler<T> handler) {
+            Validate.validState(this.handler == null, "handler already set");
+            this.handler = handler;
+            eventHandler.addLink(this);
+        }
 
-            final SinkEvent<T> event = ringBuffer.get(sequence);
-            event.waitFinish(timeout, unit);
-
-            return event.getValue();
+        SinkHandler<T> getHandler() {
+            return handler;
         }
     }
 
@@ -112,10 +122,9 @@ public class Sink<T> {
             for (ValueSinkLink link : sinkLinks) {
                 if (link != event.getSourceLink()) {
                     try {
-                        link.getHandler().readEvent(event);
-                    } catch (Exception e) {
-                        // At any error assure event is finished, but value is annulled
-                        event.writeValue(null);
+                        link.getHandler().valueReceived(event.getValue());
+                    } catch (Exception ignored) {
+                        // Any errors are silently ignored
                     }
                     break;
                 }
