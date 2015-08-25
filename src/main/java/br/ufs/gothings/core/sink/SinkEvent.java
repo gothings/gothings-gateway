@@ -7,7 +7,7 @@ import java.util.concurrent.*;
  */
 public final class SinkEvent<T> {
     private final CountDownLatch writeLatch = new CountDownLatch(1);
-    private SinkLink<T> link;
+    private SinkLink<T> sourceLink;
     private T value;
 
     public T readValue() {
@@ -25,12 +25,12 @@ public final class SinkEvent<T> {
 
     /* Internal use */
 
-    SinkLink<T> getLink() {
-        return link;
+    SinkLink<T> getSourceLink() {
+        return sourceLink;
     }
 
-    void setLink(SinkLink<T> link) {
-        this.link = link;
+    void setSourceLink(SinkLink<T> sourceLink) {
+        this.sourceLink = sourceLink;
     }
 
     T getValue() {

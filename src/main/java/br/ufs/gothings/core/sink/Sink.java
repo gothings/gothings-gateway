@@ -71,7 +71,7 @@ public class Sink<T> {
             final long sequence = ringBuffer.next();
             final SinkEvent<T> event = ringBuffer.get(sequence);
 
-            event.setLink(this);
+            event.setSourceLink(this);
             event.setValue(value);
 
             ringBuffer.publish(sequence);
@@ -110,7 +110,7 @@ public class Sink<T> {
         @Override
         public void onEvent(final SinkEvent<T> event, long sequence, boolean endOfBatch) {
             for (ValueSinkLink link : sinkLinks) {
-                if (link != event.getLink()) {
+                if (link != event.getSourceLink()) {
                     try {
                         link.getHandler().readEvent(event);
                     } catch (Exception e) {

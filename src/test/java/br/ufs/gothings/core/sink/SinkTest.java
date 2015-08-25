@@ -13,7 +13,7 @@ import static org.junit.Assert.*;
  */
 public class SinkTest {
     @Test
-    public void testSinkListenerCalled() throws Exception {
+    public void testSinkHandlerCalled() throws Exception {
         // Check if handler incremented an atomic integer and didn't change value
         Sink<AtomicInteger> sink = new Sink<>();
         sink.createLink(event -> {
@@ -21,6 +21,7 @@ public class SinkTest {
             value.incrementAndGet();
             event.finish();
         });
+
         SinkLink<AtomicInteger> sinkLink = sink.createLink(null);
         AtomicInteger value = new AtomicInteger(15);
         long seq = sinkLink.put(value);
@@ -42,7 +43,7 @@ public class SinkTest {
     }
 
     @Test
-    public void testSinkListenerSameThread() throws Exception {
+    public void testSinkHandlerSameThread() throws Exception {
         // Check if 'get' really waits for listener call
         final Sink<String> sink = new Sink<>();
         sink.createLink(event -> {
