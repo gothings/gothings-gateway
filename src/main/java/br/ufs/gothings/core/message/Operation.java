@@ -4,5 +4,5 @@ package br.ufs.gothings.core.message;
  * @author Wagner Macedo
  */
 public enum Operation {
-    GET, PUT, POST, DELETE, ANSWER,
+    GET, PUT, POST, DELETE,
 }

@@ -31,14 +31,14 @@ public class MqttPluginClientTest {
             pipe.put(msg);
         });
 
-        GwMessage msg = new GwMessage();
+        GwMessage msg = GwMessage.newMessage();
         msg.headers().targetsHeader().add("localhost");
         msg.headers().operationHeader().set(Operation.GET);
         msg.headers().pathHeader().set("temperature");
         link.put(msg);
 
         msg = pipe.take();
-        assertSame(msg.headers().operationHeader().get(), Operation.ANSWER);
+        assertTrue(msg.isAnswer());
         assertEquals("localhost", msg.headers().targetsHeader().get(0));
         assertEquals("temperature", msg.headers().pathHeader().get());
         assertEquals("88 C", msg.payload().asString(Charset.defaultCharset()));

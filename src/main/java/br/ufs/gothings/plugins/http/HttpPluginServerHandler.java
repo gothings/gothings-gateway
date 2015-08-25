@@ -81,7 +81,7 @@ final class HttpPluginServerHandler extends SimpleChannelInboundHandler<FullHttp
         final String method = request.getMethod().name();
         switch (method) {
             case "GET":case "PUT":case "POST":case "DELETE":
-                final GwMessage msg = new GwMessage();
+                final GwMessage msg = GwMessage.newMessage();
 
                 // filling GwHeaders
                 final GwHeaders gw_headers = msg.headers();
