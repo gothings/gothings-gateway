@@ -4,6 +4,7 @@ import br.ufs.gothings.core.GwMessage;
 import br.ufs.gothings.core.GwPlugin;
 import br.ufs.gothings.core.Settings;
 import br.ufs.gothings.core.sink.Sink;
+import br.ufs.gothings.core.sink.SinkLink;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -17,13 +18,15 @@ public class HttpPlugin implements GwPlugin {
     private final HttpPluginServer server;
     private final Settings settings;
     private final AtomicBoolean started = new AtomicBoolean(false);
-    private final Sink<GwMessage> cliSink;
     private final Sink<GwMessage> srvSink;
+    private final SinkLink<GwMessage> externalSrvLink;
+    private final SinkLink<GwMessage> internalSrvLink;
 
     public HttpPlugin() {
         server = new HttpPluginServer();
-        cliSink = null;
         srvSink = new Sink<>();
+        externalSrvLink = srvSink.createLink();
+        internalSrvLink = srvSink.createLink();
         settings = new Settings(started);
     }
 
@@ -31,7 +34,7 @@ public class HttpPlugin implements GwPlugin {
     public void start() {
         try {
             started.set(true);
-            server.start(srvSink, (Integer) settings.get("server.port"));
+            server.start(internalSrvLink, (Integer) settings.get("server.port"));
         } catch (InterruptedException ignored) {
             started.set(false);
         }
@@ -41,7 +44,6 @@ public class HttpPlugin implements GwPlugin {
     public void stop() {
         try {
             server.stop();
-            cliSink.stop();
             srvSink.stop();
             started.set(false);
         } catch (InterruptedException ignored) {
@@ -49,13 +51,13 @@ public class HttpPlugin implements GwPlugin {
     }
 
     @Override
-    public Sink<GwMessage> clientSink() {
-        return cliSink;
+    public SinkLink<GwMessage> clientLink() {
+        return null;
     }
 
     @Override
-    public Sink<GwMessage> serverSink() {
-        return srvSink;
+    public SinkLink<GwMessage> serverLink() {
+        return externalSrvLink;
     }
 
     @Override

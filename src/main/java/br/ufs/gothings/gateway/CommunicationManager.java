@@ -4,7 +4,6 @@ import br.ufs.gothings.core.GwMessage;
 import br.ufs.gothings.core.GwPlugin;
 import br.ufs.gothings.gateway.block.Block;
 import br.ufs.gothings.gateway.block.BlockId;
-import br.ufs.gothings.core.sink.Sink;
 import br.ufs.gothings.core.sink.SinkLink;
 
 import java.util.IdentityHashMap;
@@ -36,9 +35,8 @@ public class CommunicationManager {
     }
 
     public void register(final GwPlugin plugin) {
-        final Sink<GwMessage> serverSink = plugin.serverSink();
-        if (serverSink != null) {
-            final SinkLink<GwMessage> serverLink = serverSink.createLink();
+        final SinkLink<GwMessage> serverLink = plugin.serverLink();
+        if (serverLink != null) {
             serverLink.setListener(msg -> {
                 // ignore answer messages
                 if (!msg.isAnswer()) {
@@ -47,9 +45,8 @@ public class CommunicationManager {
             });
         }
 
-        final Sink<GwMessage> clientSink = plugin.clientSink();
-        if (clientSink != null) {
-            final SinkLink<GwMessage> clientLink = clientSink.createLink();
+        final SinkLink<GwMessage> clientLink = plugin.clientLink();
+        if (clientLink != null) {
             clientLink.setListener(msg -> {
                 // ignore request messages
                 if (msg.isAnswer()) {

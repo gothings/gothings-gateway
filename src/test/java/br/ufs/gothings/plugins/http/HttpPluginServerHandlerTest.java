@@ -40,7 +40,7 @@ public class HttpPluginServerHandlerTest {
             link.send(answer);
         });
 
-        final ChannelHandler handler = new HttpPluginServerHandler(sink);
+        final ChannelHandler handler = new HttpPluginServerHandler(sink.createLink());
         final EmbeddedChannel channel = new EmbeddedChannel(handler);
 
         /*
@@ -94,7 +94,7 @@ public class HttpPluginServerHandlerTest {
             link.send(answer);
         });
 
-        final ChannelHandler handler = new HttpPluginServerHandler(sink);
+        final ChannelHandler handler = new HttpPluginServerHandler(sink.createLink());
         final EmbeddedChannel channel = new EmbeddedChannel(handler);
 
         final DefaultFullHttpRequest request = new DefaultFullHttpRequest(HTTP_1_1, GET, "/path");

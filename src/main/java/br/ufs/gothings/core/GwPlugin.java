@@ -1,6 +1,7 @@
 package br.ufs.gothings.core;
 
 import br.ufs.gothings.core.sink.Sink;
+import br.ufs.gothings.core.sink.SinkLink;
 
 /**
  * @author Wagner Macedo
@@ -10,9 +11,9 @@ public interface GwPlugin {
 
     void stop();
 
-    Sink<GwMessage> clientSink();
+    SinkLink<GwMessage> clientLink();
 
-    Sink<GwMessage> serverSink();
+    SinkLink<GwMessage> serverLink();
 
     String getProtocol();
 

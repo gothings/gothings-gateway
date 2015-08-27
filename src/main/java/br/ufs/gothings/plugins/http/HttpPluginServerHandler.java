@@ -4,7 +4,6 @@ import br.ufs.gothings.core.GwHeaders;
 import br.ufs.gothings.core.GwMessage;
 import br.ufs.gothings.core.message.ComplexHeader;
 import br.ufs.gothings.core.message.Operation;
-import br.ufs.gothings.core.sink.Sink;
 import br.ufs.gothings.core.sink.SinkLink;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
@@ -35,9 +34,9 @@ final class HttpPluginServerHandler extends SimpleChannelInboundHandler<FullHttp
     private final SinkLink<GwMessage> sinkLink;
     private final Map<Long, SynchronousQueue<GwMessage>> answers = new ConcurrentHashMap<>();
 
-    HttpPluginServerHandler(Sink<GwMessage> sink) {
-        sinkLink = sink.createLink();
-        sinkLink.setListener(value -> {
+    HttpPluginServerHandler(SinkLink<GwMessage> sinkLink) {
+        this.sinkLink = sinkLink;
+        this.sinkLink.setListener(value -> {
             if (!value.isAnswer()) {
                 return;
             }
