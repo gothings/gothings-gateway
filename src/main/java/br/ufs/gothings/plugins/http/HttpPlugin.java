@@ -2,7 +2,7 @@ package br.ufs.gothings.plugins.http;
 
 import br.ufs.gothings.core.GwMessage;
 import br.ufs.gothings.core.GwPlugin;
-import br.ufs.gothings.core.PluginSettings;
+import br.ufs.gothings.core.Settings;
 import br.ufs.gothings.core.sink.Sink;
 
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -15,23 +15,23 @@ public class HttpPlugin implements GwPlugin {
     static final String GW_PROTOCOL = "http";
 
     private final HttpPluginServer server;
-    private final PluginSettings settings;
+    private final Settings settings;
     private final AtomicBoolean started = new AtomicBoolean(false);
     private final Sink<GwMessage> cliSink;
     private final Sink<GwMessage> srvSink;
 
     public HttpPlugin() {
         server = new HttpPluginServer();
-        cliSink = new Sink<>();
+        cliSink = null;
         srvSink = new Sink<>();
-        settings = new PluginSettings(started, GW_PROTOCOL);
+        settings = new Settings(started);
     }
 
     @Override
     public void start() {
         try {
             started.set(true);
-            server.start(srvSink, settings.getPort());
+            server.start(srvSink, (Integer) settings.get("server.port"));
         } catch (InterruptedException ignored) {
             started.set(false);
         }
@@ -59,7 +59,12 @@ public class HttpPlugin implements GwPlugin {
     }
 
     @Override
-    public PluginSettings settings() {
+    public String getProtocol() {
+        return GW_PROTOCOL;
+    }
+
+    @Override
+    public Settings settings() {
         return settings;
     }
 }

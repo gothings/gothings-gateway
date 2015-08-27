@@ -14,5 +14,7 @@ public interface GwPlugin {
 
     Sink<GwMessage> serverSink();
 
-    PluginSettings settings();
+    String getProtocol();
+
+    Settings settings();
 }

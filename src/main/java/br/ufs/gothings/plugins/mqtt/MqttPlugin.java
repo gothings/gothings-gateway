@@ -2,7 +2,7 @@ package br.ufs.gothings.plugins.mqtt;
 
 import br.ufs.gothings.core.GwMessage;
 import br.ufs.gothings.core.GwPlugin;
-import br.ufs.gothings.core.PluginSettings;
+import br.ufs.gothings.core.Settings;
 import br.ufs.gothings.core.sink.Sink;
 
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -15,15 +15,15 @@ public class MqttPlugin implements GwPlugin {
     static final String GW_PROTOCOL = "mqtt";
 
     private final MqttPluginClient client;
-    private final PluginSettings settings;
+    private final Settings settings;
     private final AtomicBoolean started = new AtomicBoolean(false);
     private final Sink<GwMessage> cliSink;
     private final Sink<GwMessage> srvSink;
 
     public MqttPlugin() {
         cliSink = new Sink<>();
-        srvSink = new Sink<>();
-        settings = new PluginSettings(started, GW_PROTOCOL);
+        srvSink = null;
+        settings = new Settings(started);
 
         client = new MqttPluginClient(cliSink);
     }
@@ -51,7 +51,12 @@ public class MqttPlugin implements GwPlugin {
     }
 
     @Override
-    public PluginSettings settings() {
+    public String getProtocol() {
+        return GW_PROTOCOL;
+    }
+
+    @Override
+    public Settings settings() {
         return settings;
     }
 }
