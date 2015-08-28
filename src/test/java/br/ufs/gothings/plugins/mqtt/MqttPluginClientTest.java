@@ -23,10 +23,10 @@ public class MqttPluginClientTest {
     @Test
     public void testSubscribe() throws InterruptedException {
         final Sink<GwMessage> sink = new Sink<>();
-        new MqttPluginClient(sink);
+        new MqttPluginClient(sink.getRightLink());
 
         final SynchronousQueue<GwMessage> pipe = new SynchronousQueue<>();
-        final SinkLink<GwMessage> link = sink.createLink();
+        final SinkLink<GwMessage> link = sink.getLeftLink();
         link.setListener(pipe::put);
 
         GwMessage msg = GwMessage.newMessage();

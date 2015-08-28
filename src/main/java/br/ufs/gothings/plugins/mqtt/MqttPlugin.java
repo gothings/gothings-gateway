@@ -18,17 +18,11 @@ public class MqttPlugin implements GwPlugin {
     private final MqttPluginClient client;
     private final Settings settings;
     private final AtomicBoolean started = new AtomicBoolean(false);
-    private final Sink<GwMessage> cliSink;
-    private final Sink<GwMessage> srvSink;
-    private final SinkLink<GwMessage> cliLink;
+    private final Sink<GwMessage> cliSink = new Sink<>();
 
     public MqttPlugin() {
-        cliSink = new Sink<>();
-        cliLink = cliSink.createLink();
-        srvSink = null;
         settings = new Settings(started);
-
-        client = new MqttPluginClient(cliSink);
+        client = new MqttPluginClient(cliSink.getRightLink());
     }
 
     @Override
@@ -39,13 +33,12 @@ public class MqttPlugin implements GwPlugin {
     @Override
     public void stop() {
         cliSink.stop();
-        srvSink.stop();
         started.set(false);
     }
 
     @Override
     public SinkLink<GwMessage> clientLink() {
-        return cliLink;
+        return cliSink.getLeftLink();
     }
 
     @Override

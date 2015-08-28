@@ -3,7 +3,6 @@ package br.ufs.gothings.plugins.mqtt;
 import br.ufs.gothings.core.GwHeaders;
 import br.ufs.gothings.core.GwMessage;
 import br.ufs.gothings.core.message.Operation;
-import br.ufs.gothings.core.sink.Sink;
 import br.ufs.gothings.core.sink.SinkListener;
 import br.ufs.gothings.core.sink.SinkLink;
 import org.apache.commons.lang3.ArrayUtils;
@@ -22,9 +21,9 @@ public final class MqttPluginClient {
     private final Map<String, MqttConnection> connections;
     private final SinkLink<GwMessage> sinkLink;
 
-    public MqttPluginClient(final Sink<GwMessage> sink) {
-        sinkLink = sink.createLink();
-        sinkLink.setListener(new MessageSinkListener());
+    public MqttPluginClient(final SinkLink<GwMessage> sinkLink) {
+        this.sinkLink = sinkLink;
+        this.sinkLink.setListener(new MessageSinkListener());
         connections = new HashMap<>();
     }
 

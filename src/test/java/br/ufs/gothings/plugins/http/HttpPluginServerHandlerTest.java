@@ -27,7 +27,7 @@ public class HttpPluginServerHandlerTest {
     @Test
     public void testGatewayPayloadIsUsed() {
         final Sink<GwMessage> sink = new Sink<>();
-        final SinkLink<GwMessage> link = sink.createLink();
+        final SinkLink<GwMessage> link = sink.getLeftLink();
         link.setListener(message -> {
             final GwHeaders h = message.headers();
 
@@ -40,7 +40,7 @@ public class HttpPluginServerHandlerTest {
             link.send(answer);
         });
 
-        final ChannelHandler handler = new HttpPluginServerHandler(sink.createLink());
+        final ChannelHandler handler = new HttpPluginServerHandler(sink.getRightLink());
         final EmbeddedChannel channel = new EmbeddedChannel(handler);
 
         /*
@@ -84,7 +84,7 @@ public class HttpPluginServerHandlerTest {
     @Test
     public void testGatewayHeadersAreUsed() throws InterruptedException {
         final Sink<GwMessage> sink = new Sink<>();
-        final SinkLink<GwMessage> link = sink.createLink();
+        final SinkLink<GwMessage> link = sink.getLeftLink();
         link.setListener(message -> {
             final GwMessage answer = GwMessage.newAnswerMessage(message);
             answer.payload().set("{\"array\":[1,2,3]}", Charset.defaultCharset());
@@ -94,7 +94,7 @@ public class HttpPluginServerHandlerTest {
             link.send(answer);
         });
 
-        final ChannelHandler handler = new HttpPluginServerHandler(sink.createLink());
+        final ChannelHandler handler = new HttpPluginServerHandler(sink.getRightLink());
         final EmbeddedChannel channel = new EmbeddedChannel(handler);
 
         final DefaultFullHttpRequest request = new DefaultFullHttpRequest(HTTP_1_1, GET, "/path");

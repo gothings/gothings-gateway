@@ -18,15 +18,10 @@ public class HttpPlugin implements GwPlugin {
     private final HttpPluginServer server;
     private final Settings settings;
     private final AtomicBoolean started = new AtomicBoolean(false);
-    private final Sink<GwMessage> srvSink;
-    private final SinkLink<GwMessage> externalSrvLink;
-    private final SinkLink<GwMessage> internalSrvLink;
+    private final Sink<GwMessage> srvSink = new Sink<>();
 
     public HttpPlugin() {
         server = new HttpPluginServer();
-        srvSink = new Sink<>();
-        externalSrvLink = srvSink.createLink();
-        internalSrvLink = srvSink.createLink();
         settings = new Settings(started);
     }
 
@@ -34,7 +29,7 @@ public class HttpPlugin implements GwPlugin {
     public void start() {
         try {
             started.set(true);
-            server.start(internalSrvLink, (Integer) settings.get("server.port"));
+            server.start(srvSink.getRightLink(), (Integer) settings.get("server.port"));
         } catch (InterruptedException ignored) {
             started.set(false);
         }
@@ -57,7 +52,7 @@ public class HttpPlugin implements GwPlugin {
 
     @Override
     public SinkLink<GwMessage> serverLink() {
-        return externalSrvLink;
+        return srvSink.getLeftLink();
     }
 
     @Override

@@ -17,13 +17,13 @@ public class SinkTest {
     public void testSinkListenerCalled() throws InterruptedException {
         // Check if listener incremented an atomic integer and didn't change value
         Sink<AtomicInteger> sink = new Sink<>();
-        final SinkLink<AtomicInteger> firstLink = sink.createLink();
+        final SinkLink<AtomicInteger> firstLink = sink.getLeftLink();
         firstLink.setListener(value -> {
             value.incrementAndGet();
             firstLink.send(value);
         });
 
-        final SinkLink<AtomicInteger> secondLink = sink.createLink();
+        final SinkLink<AtomicInteger> secondLink = sink.getRightLink();
         secondLink.setListener(pipe::put);
         AtomicInteger value = new AtomicInteger(15);
         secondLink.send(value);
@@ -38,10 +38,10 @@ public class SinkTest {
     public void testSinkLinkDuplex() throws InterruptedException {
         // Check if links really have a duplex channel among them
         final Sink<String> sink = new Sink<>();
-        final SinkLink<String> firstLink = sink.createLink();
+        final SinkLink<String> firstLink = sink.getLeftLink();
         firstLink.setListener(value -> firstLink.send(value + "World"));
 
-        final SinkLink<String> secondLink = sink.createLink();
+        final SinkLink<String> secondLink = sink.getRightLink();
         secondLink.setListener(pipe::put);
         secondLink.send("Hello");
 
@@ -52,7 +52,7 @@ public class SinkTest {
     @Test(expected = IllegalStateException.class)
     public void testSinkNotReadyYet() {
         final Sink<String> sink = new Sink<>();
-        final SinkLink<String> sinkLink = sink.createLink();
+        final SinkLink<String> sinkLink = sink.getLeftLink();
         sinkLink.send("AAA");
     }
 }

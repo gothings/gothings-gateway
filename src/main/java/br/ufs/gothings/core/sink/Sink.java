@@ -17,10 +17,14 @@ public class Sink<T> {
     private final Disruptor<SinkEvent<T>> disruptor;
     private final RingBuffer<SinkEvent<T>> ringBuffer;
 
+    private final ValueSinkLink leftLink;
+    private final ValueSinkLink rightLink;
     private final ValueSinkEventHandler eventHandler;
 
     @SuppressWarnings("unchecked")
     public Sink() {
+        leftLink = new ValueSinkLink();
+        rightLink = new ValueSinkLink();
         eventHandler = new ValueSinkEventHandler();
 
         executor = Executors.newSingleThreadExecutor();
@@ -31,8 +35,12 @@ public class Sink<T> {
         disruptor.start();
     }
 
-    public SinkLink<T> createLink() {
-        return new ValueSinkLink();
+    public SinkLink<T> getLeftLink() {
+        return leftLink;
+    }
+
+    public SinkLink<T> getRightLink() {
+        return rightLink;
     }
 
     private void checkStart() {
@@ -92,7 +100,7 @@ public class Sink<T> {
         public void setListener(SinkListener<T> listener) {
             Validate.validState(this.listener == null, "listener already set");
             this.listener = listener;
-            eventHandler.addLink(this);
+            eventHandler.addLink();
         }
 
         SinkListener<T> getListener() {
@@ -101,13 +109,10 @@ public class Sink<T> {
     }
 
     private final class ValueSinkEventHandler implements EventHandler<SinkEvent<T>> {
-        private List<ValueSinkLink> sinkLinks = new ArrayList<>(2);
         private final CountDownLatch latch = new CountDownLatch(2);
 
-        void addLink(ValueSinkLink link) {
+        void addLink() {
             Validate.validState(latch.getCount() > 0, "sink cannot have more than two links");
-
-            sinkLinks.add(link);
             latch.countDown();
         }
 
@@ -119,15 +124,11 @@ public class Sink<T> {
 
         @Override
         public void onEvent(final SinkEvent<T> event, long sequence, boolean endOfBatch) {
-            for (ValueSinkLink link : sinkLinks) {
-                if (link != event.getSourceLink()) {
-                    try {
-                        link.getListener().valueReceived(event.getValue());
-                    } catch (Exception ignored) {
-                        // Any errors are silently ignored
-                    }
-                    break;
-                }
+            final ValueSinkLink targetLink = (event.getSourceLink() == leftLink) ? rightLink : leftLink;
+            try {
+                targetLink.getListener().valueReceived(event.getValue());
+            } catch (Exception ignored) {
+                // Any errors are silently ignored
             }
         }
     }
