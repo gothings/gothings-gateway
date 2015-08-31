@@ -5,6 +5,8 @@ import br.ufs.gothings.core.GwPlugin;
 import br.ufs.gothings.gateway.block.Block;
 import br.ufs.gothings.gateway.block.BlockId;
 import br.ufs.gothings.core.sink.SinkLink;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.util.IdentityHashMap;
 import java.util.Map;
@@ -16,6 +18,8 @@ import static br.ufs.gothings.gateway.block.BlockId.*;
  * @author Wagner Macedo
  */
 public class CommunicationManager {
+    private static Logger logger = LogManager.getFormatterLogger(CommunicationManager.class);
+
     private final Map<String, GwPlugin> pluginsMap = new ConcurrentHashMap<>();
     private final Map<Block, BlockId> blocksMap = new IdentityHashMap<>(4);
 
@@ -56,10 +60,20 @@ public class CommunicationManager {
         }
 
         pluginsMap.put(plugin.getProtocol(), plugin);
+        if (logger.isDebugEnabled()) {
+            logger.debug("%s plugin registered with %s", plugin.getProtocol(), plugin.getClass());
+        }
     }
 
     public void start() {
-        pluginsMap.values().forEach(GwPlugin::start);
+        for (final GwPlugin plugin : pluginsMap.values()) {
+            plugin.start();
+            if (logger.isInfoEnabled()) {
+                logger.info("%s plugin started: client=%-3s server=%s", plugin.getProtocol(),
+                        plugin.clientLink() == null ? "no" : "yes",
+                        plugin.serverLink() == null ? "no" : "yes(" + plugin.settings().get("server.port") + ")");
+            }
+        }
     }
 
     public void forward(final Block sourceBlock, final BlockId targetId, final GwMessage msg) {
