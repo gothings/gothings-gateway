@@ -2,6 +2,7 @@ package br.ufs.gothings.gateway;
 
 import br.ufs.gothings.core.GwMessage;
 import br.ufs.gothings.core.GwPlugin;
+import br.ufs.gothings.core.Settings;
 import br.ufs.gothings.gateway.block.Block;
 import br.ufs.gothings.gateway.block.BlockId;
 import br.ufs.gothings.core.sink.SinkLink;
@@ -71,7 +72,7 @@ public class CommunicationManager {
             if (logger.isInfoEnabled()) {
                 logger.info("%s plugin started: client=%-3s server=%s", plugin.getProtocol(),
                         plugin.clientLink() == null ? "no" : "yes",
-                        plugin.serverLink() == null ? "no" : "yes(" + plugin.settings().get("server.port") + ")");
+                        plugin.serverLink() == null ? "no" : "yes(" + plugin.settings().get(Settings.SERVER_PORT) + ")");
             }
         }
     }

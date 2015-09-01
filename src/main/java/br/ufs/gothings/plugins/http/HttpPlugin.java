@@ -28,8 +28,8 @@ public class HttpPlugin implements GwPlugin {
     @Override
     public void start() {
         try {
+            server.start(srvSink.getRightLink(), settings);
             started.set(true);
-            server.start(srvSink.getRightLink(), (Integer) settings.get("server.port"));
         } catch (InterruptedException ignored) {
             started.set(false);
         }

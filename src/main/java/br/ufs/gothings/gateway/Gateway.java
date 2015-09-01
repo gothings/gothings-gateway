@@ -11,7 +11,6 @@ public final class Gateway {
         final CommunicationManager manager = new CommunicationManager();
 
         final HttpPlugin httpPlugin = new HttpPlugin();
-        httpPlugin.settings().set("server.port", 8080);
         manager.register(httpPlugin);
 
         final MqttPlugin mqttPlugin = new MqttPlugin();
