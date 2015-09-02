@@ -11,12 +11,12 @@ import io.netty.channel.ChannelHandler;
 import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.handler.codec.http.DefaultFullHttpRequest;
 import io.netty.handler.codec.http.FullHttpResponse;
+import io.netty.handler.codec.http.HttpMethod;
 import org.junit.Test;
 
 import java.nio.charset.Charset;
 
 import static io.netty.handler.codec.http.HttpHeaders.Names.CONTENT_TYPE;
-import static io.netty.handler.codec.http.HttpMethod.*;
 import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
 import static org.junit.Assert.*;
 
@@ -46,36 +46,36 @@ public class HttpPluginServerHandlerTest {
         /*
         the response 'assert' statements check:
             - payload has the size of int (4 bytes), and
-            - the int value is the length of strings METHOD+PATH, e.g. "GET/hello/world".length().
+            - the int value is the length of strings OPERATION+PATH, e.g. "READ/hello/world".length().
         */
-        final DefaultFullHttpRequest request = new DefaultFullHttpRequest(HTTP_1_1, GET, "/hello/world");
+        final DefaultFullHttpRequest request = new DefaultFullHttpRequest(HTTP_1_1, HttpMethod.GET, "/hello/world");
         request.retain();  // <- allow request object reusing
         assertFalse(channel.writeInbound(request));
         FullHttpResponse response = (FullHttpResponse) channel.readOutbound();
         assertEquals(4, response.content().readableBytes());
-        assertEquals(15, response.content().readInt());
+        assertEquals(16, response.content().readInt()); // "READ/hello/world"
 
-        request.setMethod(PUT);
+        request.setMethod(HttpMethod.PUT);
         request.setUri("/hello");
         request.retain();
         assertFalse(channel.writeInbound(request));
         response = (FullHttpResponse) channel.readOutbound();
         assertEquals(4, response.content().readableBytes());
-        assertEquals(9, response.content().readInt());
+        assertEquals(12, response.content().readInt()); // "UPDATE/hello"
 
-        request.setMethod(POST);
+        request.setMethod(HttpMethod.POST);
         request.retain();
         assertFalse(channel.writeInbound(request));
         response = (FullHttpResponse) channel.readOutbound();
         assertEquals(4, response.content().readableBytes());
-        assertEquals(10, response.content().readInt());
+        assertEquals(12, response.content().readInt()); // "CREATE/hello"
 
-        request.setMethod(DELETE);
+        request.setMethod(HttpMethod.DELETE);
         request.retain();
         assertFalse(channel.writeInbound(request));
         response = (FullHttpResponse) channel.readOutbound();
         assertEquals(4, response.content().readableBytes());
-        assertEquals(12, response.content().readInt());
+        assertEquals(12, response.content().readInt()); // "DELETE/hello"
 
         assertFalse(channel.finish());
         assertNull(channel.readOutbound());
@@ -97,7 +97,7 @@ public class HttpPluginServerHandlerTest {
         final ChannelHandler handler = new HttpPluginServerHandler(sink.getRightLink());
         final EmbeddedChannel channel = new EmbeddedChannel(handler);
 
-        final DefaultFullHttpRequest request = new DefaultFullHttpRequest(HTTP_1_1, GET, "/path");
+        final DefaultFullHttpRequest request = new DefaultFullHttpRequest(HTTP_1_1, HttpMethod.GET, "/path");
         assertFalse(channel.writeInbound(request));
         FullHttpResponse response = (FullHttpResponse) channel.readOutbound();
         assertEquals("application/json", response.headers().get(CONTENT_TYPE));

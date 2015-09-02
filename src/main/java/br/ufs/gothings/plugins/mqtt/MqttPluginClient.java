@@ -86,11 +86,11 @@ public final class MqttPluginClient {
             final String topic = h.pathHeader().get();
             final int qos = max(0, min(2, h.qosHeader().get()));
             switch (operation) {
-                // PUT and POST is mapped as a publish, but this plugin treats POST as a retained message
-                case PUT:
-                case POST:
+                // CREATE or UPDATE is mapped as a publish, but this plugin treats CREATE as a retained message
+                case CREATE:
+                case UPDATE:
                     final MqttMessage mqttMessage = new MqttMessage(msg.payload().asBytes());
-                    mqttMessage.setRetained(operation == Operation.POST);
+                    mqttMessage.setRetained(operation == Operation.CREATE);
                     mqttMessage.setQos(qos);
                     client.publish(topic, mqttMessage);
                     break;
@@ -101,8 +101,8 @@ public final class MqttPluginClient {
                     client.publish(topic, ArrayUtils.EMPTY_BYTE_ARRAY, 0, true);
                     break;
 
-                // GET is unsurprisingly directly mapped to subscribe
-                case GET:
+                // READ is unsurprisingly directly mapped to subscribe
+                case READ:
                     client.subscribe(topic, qos);
                     break;
             }

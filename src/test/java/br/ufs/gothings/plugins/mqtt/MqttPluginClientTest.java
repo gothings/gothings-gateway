@@ -31,7 +31,7 @@ public class MqttPluginClientTest {
 
         GwMessage msg = GwMessage.newMessage();
         msg.headers().targetsHeader().add("localhost");
-        msg.headers().operationHeader().set(Operation.GET);
+        msg.headers().operationHeader().set(Operation.READ);
         msg.headers().pathHeader().set("temperature");
         link.send(msg);
 

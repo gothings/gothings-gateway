@@ -116,16 +116,16 @@ final class HttpPluginServerHandler extends SimpleChannelInboundHandler<FullHttp
 
                 switch (method) {
                     case "GET":
-                        gw_headers.operationHeader().set(Operation.GET);
+                        gw_headers.operationHeader().set(Operation.READ);
                         addExpectedTypes(gw_headers, headers);
                         break;
                     case "PUT":
-                        gw_headers.operationHeader().set(Operation.PUT);
+                        gw_headers.operationHeader().set(Operation.UPDATE);
                         gw_headers.contentTypeHeader().set(headers.get(CONTENT_TYPE));
                         msg.payload().set(request.content().nioBuffer());
                         break;
                     case "POST":
-                        gw_headers.operationHeader().set(Operation.POST);
+                        gw_headers.operationHeader().set(Operation.CREATE);
                         gw_headers.contentTypeHeader().set(headers.get(CONTENT_TYPE));
                         msg.payload().set(request.content().nioBuffer());
                         break;
