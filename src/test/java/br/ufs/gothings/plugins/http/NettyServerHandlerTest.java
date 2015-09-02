@@ -23,7 +23,7 @@ import static org.junit.Assert.*;
 /**
  * @author Wagner Macedo
  */
-public class HttpPluginServerHandlerTest {
+public class NettyServerHandlerTest {
     @Test
     public void testGatewayPayloadIsUsed() {
         final Sink<GwMessage> sink = new Sink<>();
@@ -40,7 +40,7 @@ public class HttpPluginServerHandlerTest {
             link.send(answer);
         });
 
-        final ChannelHandler handler = new HttpPluginServerHandler(sink.getRightLink());
+        final ChannelHandler handler = new NettyServerHandler(sink.getRightLink());
         final EmbeddedChannel channel = new EmbeddedChannel(handler);
 
         /*
@@ -94,7 +94,7 @@ public class HttpPluginServerHandlerTest {
             link.send(answer);
         });
 
-        final ChannelHandler handler = new HttpPluginServerHandler(sink.getRightLink());
+        final ChannelHandler handler = new NettyServerHandler(sink.getRightLink());
         final EmbeddedChannel channel = new EmbeddedChannel(handler);
 
         final DefaultFullHttpRequest request = new DefaultFullHttpRequest(HTTP_1_1, HttpMethod.GET, "/path");

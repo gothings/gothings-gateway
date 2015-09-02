@@ -30,11 +30,12 @@ import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
 /**
  * @author Wagner Macedo
  */
-final class HttpPluginServerHandler extends SimpleChannelInboundHandler<FullHttpRequest> {
+@Deprecated
+final class NettyServerHandler extends SimpleChannelInboundHandler<FullHttpRequest> {
     private final SinkLink<GwMessage> sinkLink;
     private final Map<Long, SynchronousQueue<GwMessage>> answers = new ConcurrentHashMap<>();
 
-    HttpPluginServerHandler(SinkLink<GwMessage> sinkLink) {
+    NettyServerHandler(SinkLink<GwMessage> sinkLink) {
         this.sinkLink = sinkLink;
         this.sinkLink.setListener(value -> {
             if (!value.isAnswer()) {
@@ -72,7 +73,7 @@ final class HttpPluginServerHandler extends SimpleChannelInboundHandler<FullHttp
         final GwMessage gw_request = parseHttpRequest(request);
         if (gw_request != null) {
             sinkLink.send(gw_request);
-             try  {
+            try {
                 final GwMessage gw_response = getAnswer(gw_request.sequence(), 1, TimeUnit.MINUTES);
                 response.content().writeBytes(gw_response.payload().asBuffer());
                 fillHttpResponseHeaders(response.headers(), gw_response.headers());

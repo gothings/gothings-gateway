@@ -1,10 +1,15 @@
 package br.ufs.gothings.core.message;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufInputStream;
 import io.netty.buffer.Unpooled;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
+
+import static java.lang.Math.min;
 
 /**
  * @author Wagner Macedo
@@ -14,6 +19,20 @@ public class Payload {
 
     public void set(byte[] bytes) {
         data.clear().writeBytes(bytes);
+    }
+
+    public void set(final InputStream in) throws IOException {
+        data.clear();
+        final byte[] bytes = new byte[1024];
+
+        while (true) {
+            final int read = in.read(bytes, 0, min(in.available(), 1024));
+            if (read > 0) {
+                data.writeBytes(bytes);
+            } else {
+                break;
+            }
+        }
     }
 
     public void set(ByteBuffer buffer) {
@@ -26,6 +45,10 @@ public class Payload {
 
     public byte[] asBytes() {
         return data.array();
+    }
+
+    public InputStream asInputStream() {
+        return new ByteBufInputStream(data);
     }
 
     public ByteBuffer asBuffer() {

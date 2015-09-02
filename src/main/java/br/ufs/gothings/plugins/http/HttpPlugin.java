@@ -21,7 +21,7 @@ public class HttpPlugin implements GwPlugin {
     private final Sink<GwMessage> srvSink = new Sink<>();
 
     public HttpPlugin() {
-        server = new HttpPluginServer();
+        server = new NanoHTTPDServer();
         settings = new Settings(started);
     }
 
