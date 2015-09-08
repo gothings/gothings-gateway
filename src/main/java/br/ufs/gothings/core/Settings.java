@@ -46,7 +46,7 @@ public class Settings {
     }
 
     @SuppressWarnings("unchecked")
-    private synchronized <T> Key<T> getKey(final String name) {
+    public synchronized <T> Key<T> getKey(final String name) {
         Key<T> key = (Key<T>) globalKeys.get(name);
         if (key == null) {
             key = (Key<T>) localKeys.get(name);
