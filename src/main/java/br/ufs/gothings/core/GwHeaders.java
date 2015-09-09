@@ -16,6 +16,8 @@ import java.util.function.Supplier;
 public class GwHeaders {
     /* Header identifiers */
     private enum Name {
+        SOURCE,
+        TARGET,
         OPERATION,
         PATH,
         CONTENT_TYPE,
@@ -29,6 +31,14 @@ public class GwHeaders {
     }
 
     /* Header fields */
+
+    public Header<String> sourceHeader() {
+        return getHeader(Name.SOURCE, String.class);
+    }
+
+    public ComplexHeader<String> targetsHeader() {
+        return getComplexHeader(Name.TARGET, String.class, LinkedHashSet::new);
+    }
 
     public Header<Operation> operationHeader() {
         return getHeader(Name.OPERATION, Operation.class);
