@@ -3,7 +3,7 @@ package br.ufs.gothings.gateway;
 import br.ufs.gothings.core.GwMessage;
 import br.ufs.gothings.gateway.block.BlockId;
 import br.ufs.gothings.gateway.block.Block;
-import br.ufs.gothings.core.message.Operation;
+import br.ufs.gothings.core.message.headers.Operation;
 import br.ufs.gothings.gateway.exceptions.InvalidForwardingException;
 
 /**

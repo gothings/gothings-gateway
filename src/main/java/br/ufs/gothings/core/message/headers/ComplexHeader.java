@@ -1,4 +1,4 @@
-package br.ufs.gothings.core.message;
+package br.ufs.gothings.core.message.headers;
 
 import java.util.Collection;
 import java.util.Iterator;

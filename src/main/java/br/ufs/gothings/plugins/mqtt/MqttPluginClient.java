@@ -2,7 +2,7 @@ package br.ufs.gothings.plugins.mqtt;
 
 import br.ufs.gothings.core.GwHeaders;
 import br.ufs.gothings.core.GwMessage;
-import br.ufs.gothings.core.message.Operation;
+import br.ufs.gothings.core.message.headers.Operation;
 import br.ufs.gothings.core.message.sink.MessageListener;
 import br.ufs.gothings.core.message.sink.MessageLink;
 import org.apache.commons.lang3.ArrayUtils;

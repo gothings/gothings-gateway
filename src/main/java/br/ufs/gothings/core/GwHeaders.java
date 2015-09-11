@@ -1,8 +1,8 @@
 package br.ufs.gothings.core;
 
-import br.ufs.gothings.core.message.ComplexHeader;
-import br.ufs.gothings.core.message.Operation;
-import br.ufs.gothings.core.message.Header;
+import br.ufs.gothings.core.message.headers.ComplexHeader;
+import br.ufs.gothings.core.message.headers.Operation;
+import br.ufs.gothings.core.message.headers.Header;
 
 import java.util.Collection;
 import java.util.HashMap;

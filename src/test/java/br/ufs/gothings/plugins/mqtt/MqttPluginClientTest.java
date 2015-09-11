@@ -1,7 +1,7 @@
 package br.ufs.gothings.plugins.mqtt;
 
 import br.ufs.gothings.core.GwMessage;
-import br.ufs.gothings.core.message.Operation;
+import br.ufs.gothings.core.message.headers.Operation;
 import br.ufs.gothings.core.message.sink.MessageSink;
 import br.ufs.gothings.core.message.sink.MessageLink;
 import org.junit.Test;
