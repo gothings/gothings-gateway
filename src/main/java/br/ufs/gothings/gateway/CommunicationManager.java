@@ -1,11 +1,13 @@
 package br.ufs.gothings.gateway;
 
+import br.ufs.gothings.core.GwHeaders;
 import br.ufs.gothings.core.GwMessage;
 import br.ufs.gothings.core.GwPlugin;
 import br.ufs.gothings.core.Settings;
 import br.ufs.gothings.gateway.block.Block;
 import br.ufs.gothings.gateway.block.BlockId;
 import br.ufs.gothings.core.message.sink.MessageLink;
+import br.ufs.gothings.gateway.exceptions.InvalidForwardingException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -22,6 +24,7 @@ public class CommunicationManager {
     private static Logger logger = LogManager.getFormatterLogger(CommunicationManager.class);
 
     private final Map<String, GwPlugin> pluginsMap = new ConcurrentHashMap<>();
+    private final Map<Long, GwPlugin> sequencesMap = new ConcurrentHashMap<>();
     private final Map<Block, BlockId> blocksMap = new IdentityHashMap<>(4);
 
     private final Block inputController;
@@ -44,7 +47,10 @@ public class CommunicationManager {
         if (serverLink != null) {
             serverLink.setListener(msg -> {
                 // ignore answer messages
-                if (!msg.isAnswer()) {
+                if (msg.isAnswer()) {
+                    logger.error("%s server plugin sent a non-answer to the Communication Manager", plugin.getProtocol());
+                } else {
+                    sequencesMap.put(msg.sequence(), plugin);
                     inputController.receiveForwarding(COMMUNICATION_MANAGER, msg);
                 }
             });
@@ -54,7 +60,9 @@ public class CommunicationManager {
         if (clientLink != null) {
             clientLink.setListener(msg -> {
                 // ignore request messages
-                if (msg.isAnswer()) {
+                if (!msg.isAnswer()) {
+                    logger.error("%s client plugin sent an answer to the Communication Manager", plugin.getProtocol());
+                } else {
                     interconnectionController.receiveForwarding(COMMUNICATION_MANAGER, msg);
                 }
             });
@@ -77,7 +85,7 @@ public class CommunicationManager {
         }
     }
 
-    public void forward(final Block sourceBlock, final BlockId targetId, final GwMessage msg) {
+    public void forward(final Block sourceBlock, final BlockId targetId, final GwMessage msg) throws InvalidForwardingException {
         final BlockId sourceId = blocksMap.get(sourceBlock);
         switch (sourceId) {
             case INPUT_CONTROLLER:
@@ -86,7 +94,7 @@ public class CommunicationManager {
                         interconnectionController.receiveForwarding(sourceId, msg);
                         break;
                     default:
-                        throw new IllegalArgumentException("sourceBlock => targetId");
+                        throw new InvalidForwardingException("sourceBlock => targetId");
                 }
                 break;
 
@@ -99,7 +107,7 @@ public class CommunicationManager {
                         outputController.receiveForwarding(sourceId, msg);
                         break;
                     default:
-                        throw new IllegalArgumentException("sourceBlock => targetId");
+                        throw new InvalidForwardingException("sourceBlock => targetId");
                 }
                 break;
 
@@ -109,19 +117,35 @@ public class CommunicationManager {
                         responseToPlugin(msg);
                         break;
                     default:
-                        throw new IllegalArgumentException("sourceBlock => targetId");
+                        throw new InvalidForwardingException("sourceBlock => targetId");
                 }
                 break;
 
             default:
-                throw new IllegalArgumentException("sourceBlock");
+                throw new InvalidForwardingException("sourceBlock");
         }
     }
 
     private void requestToPlugin(final GwMessage msg) {
-
+        // TODO: method stub
     }
 
     private void responseToPlugin(final GwMessage msg) {
+        final Long sequence = msg.sequence();
+
+        // response to a sequenced message
+        if (sequence != null) {
+            final GwPlugin target = sequencesMap.remove(sequence);
+            if (target == null) {
+                return;
+            }
+            // TODO: stub
+        }
+
+        // response to an unsequenced message
+        else {
+            final GwHeaders h = msg.headers();
+            // TODO: stub
+        }
     }
 }
