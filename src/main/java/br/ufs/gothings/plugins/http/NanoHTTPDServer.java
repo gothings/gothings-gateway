@@ -5,12 +5,11 @@ import br.ufs.gothings.core.GwMessage;
 import br.ufs.gothings.core.Settings;
 import br.ufs.gothings.core.message.ComplexHeader;
 import br.ufs.gothings.core.message.Operation;
-import br.ufs.gothings.core.sink.SinkLink;
+import br.ufs.gothings.core.message.sink.MessageLink;
 import fi.iki.elonen.NanoHTTPD;
 import fi.iki.elonen.NanoHTTPD.Response.Status;
 
 import java.io.IOException;
-import java.nio.charset.Charset;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.SynchronousQueue;
@@ -21,8 +20,8 @@ import java.util.concurrent.TimeoutException;
  * @author Wagner Macedo
  */
 class NanoHTTPDServer implements HttpPluginServer {
-    public void start(final SinkLink sinkLink, final Settings settings) throws InterruptedException{
-        final Server server = new Server(sinkLink, settings.get(Settings.SERVER_PORT));
+    public void start(final MessageLink messageLink, final Settings settings) throws InterruptedException{
+        final Server server = new Server(messageLink, settings.get(Settings.SERVER_PORT));
         try {
             server.start();
         } catch (IOException e) {
@@ -35,13 +34,13 @@ class NanoHTTPDServer implements HttpPluginServer {
     }
 
     private static final class Server extends NanoHTTPD {
-        private final SinkLink sinkLink;
+        private final MessageLink messageLink;
         private final Map<Long, SynchronousQueue<GwMessage>> answers = new ConcurrentHashMap<>();
 
-        public Server(final SinkLink sinkLink, final int port) {
+        public Server(final MessageLink messageLink, final int port) {
             super(port);
-            this.sinkLink = sinkLink;
-            this.sinkLink.setListener(msg -> {
+            this.messageLink = messageLink;
+            this.messageLink.setListener(msg -> {
                 if (!msg.isAnswer()) {
                     return;
                 }
@@ -60,7 +59,7 @@ class NanoHTTPDServer implements HttpPluginServer {
             }
 
             if (gw_request != null) {
-                sinkLink.send(gw_request);
+                messageLink.send(gw_request);
                 try {
                     final GwMessage gw_response = getAnswer(gw_request.sequence(), 1, TimeUnit.MINUTES);
 

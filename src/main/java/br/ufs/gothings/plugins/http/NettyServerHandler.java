@@ -4,7 +4,7 @@ import br.ufs.gothings.core.GwHeaders;
 import br.ufs.gothings.core.GwMessage;
 import br.ufs.gothings.core.message.ComplexHeader;
 import br.ufs.gothings.core.message.Operation;
-import br.ufs.gothings.core.sink.SinkLink;
+import br.ufs.gothings.core.message.sink.MessageLink;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
@@ -32,12 +32,12 @@ import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
  */
 @Deprecated
 final class NettyServerHandler extends SimpleChannelInboundHandler<FullHttpRequest> {
-    private final SinkLink sinkLink;
+    private final MessageLink messageLink;
     private final Map<Long, SynchronousQueue<GwMessage>> answers = new ConcurrentHashMap<>();
 
-    NettyServerHandler(SinkLink sinkLink) {
-        this.sinkLink = sinkLink;
-        this.sinkLink.setListener(value -> {
+    NettyServerHandler(MessageLink messageLink) {
+        this.messageLink = messageLink;
+        this.messageLink.setListener(value -> {
             if (!value.isAnswer()) {
                 return;
             }
@@ -72,7 +72,7 @@ final class NettyServerHandler extends SimpleChannelInboundHandler<FullHttpReque
 
         final GwMessage gw_request = parseHttpRequest(request);
         if (gw_request != null) {
-            sinkLink.send(gw_request);
+            messageLink.send(gw_request);
             try {
                 final GwMessage gw_response = getAnswer(gw_request.sequence(), 1, TimeUnit.MINUTES);
                 response.content().writeBytes(gw_response.payload().asBuffer());

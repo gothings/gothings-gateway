@@ -2,8 +2,8 @@ package br.ufs.gothings.plugins.mqtt;
 
 import br.ufs.gothings.core.GwPlugin;
 import br.ufs.gothings.core.Settings;
-import br.ufs.gothings.core.sink.Sink;
-import br.ufs.gothings.core.sink.SinkLink;
+import br.ufs.gothings.core.message.sink.MessageSink;
+import br.ufs.gothings.core.message.sink.MessageLink;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -17,7 +17,7 @@ public class MqttPlugin implements GwPlugin {
     private final MqttPluginClient client;
     private final Settings settings;
     private final AtomicBoolean started = new AtomicBoolean(false);
-    private final Sink cliSink = new Sink();
+    private final MessageSink cliSink = new MessageSink();
 
     public MqttPlugin() {
         settings = new Settings(started);
@@ -36,12 +36,12 @@ public class MqttPlugin implements GwPlugin {
     }
 
     @Override
-    public SinkLink clientLink() {
+    public MessageLink clientLink() {
         return cliSink.getLeftLink();
     }
 
     @Override
-    public SinkLink serverLink() {
+    public MessageLink serverLink() {
         return null;
     }
 

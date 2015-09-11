@@ -5,7 +5,7 @@ import br.ufs.gothings.core.GwPlugin;
 import br.ufs.gothings.core.Settings;
 import br.ufs.gothings.gateway.block.Block;
 import br.ufs.gothings.gateway.block.BlockId;
-import br.ufs.gothings.core.sink.SinkLink;
+import br.ufs.gothings.core.message.sink.MessageLink;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -40,7 +40,7 @@ public class CommunicationManager {
     }
 
     public void register(final GwPlugin plugin) {
-        final SinkLink serverLink = plugin.serverLink();
+        final MessageLink serverLink = plugin.serverLink();
         if (serverLink != null) {
             serverLink.setListener(msg -> {
                 // ignore answer messages
@@ -50,7 +50,7 @@ public class CommunicationManager {
             });
         }
 
-        final SinkLink clientLink = plugin.clientLink();
+        final MessageLink clientLink = plugin.clientLink();
         if (clientLink != null) {
             clientLink.setListener(msg -> {
                 // ignore request messages

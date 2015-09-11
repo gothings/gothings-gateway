@@ -2,8 +2,8 @@ package br.ufs.gothings.plugins.mqtt;
 
 import br.ufs.gothings.core.GwMessage;
 import br.ufs.gothings.core.message.Operation;
-import br.ufs.gothings.core.sink.Sink;
-import br.ufs.gothings.core.sink.SinkLink;
+import br.ufs.gothings.core.message.sink.MessageSink;
+import br.ufs.gothings.core.message.sink.MessageLink;
 import org.junit.Test;
 
 import java.nio.charset.Charset;
@@ -22,11 +22,11 @@ This will be fixed at any moment later by embed a MQTT broker.
 public class MqttPluginClientTest {
     @Test
     public void testSubscribe() throws InterruptedException {
-        final Sink sink = new Sink();
+        final MessageSink sink = new MessageSink();
         new MqttPluginClient(sink.getRightLink());
 
         final SynchronousQueue<GwMessage> pipe = new SynchronousQueue<>();
-        final SinkLink link = sink.getLeftLink();
+        final MessageLink link = sink.getLeftLink();
         link.setListener(pipe::put);
 
         GwMessage msg = GwMessage.newMessage();

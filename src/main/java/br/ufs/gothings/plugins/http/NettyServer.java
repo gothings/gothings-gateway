@@ -1,7 +1,7 @@
 package br.ufs.gothings.plugins.http;
 
 import br.ufs.gothings.core.Settings;
-import br.ufs.gothings.core.sink.SinkLink;
+import br.ufs.gothings.core.message.sink.MessageLink;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.*;
 import io.netty.channel.nio.NioEventLoopGroup;
@@ -15,19 +15,19 @@ import io.netty.handler.codec.http.HttpServerCodec;
 @Deprecated
 final class NettyServer implements HttpPluginServer {
 
-    private SinkLink sinkLink;
+    private MessageLink messageLink;
 
     private Channel channel;
     private NioEventLoopGroup bossGroup;
     private NioEventLoopGroup workerGroup;
 
     @Override
-    public void start(final SinkLink sinkLink, final Settings settings) throws InterruptedException {
-        if (this.sinkLink != null) {
+    public void start(final MessageLink messageLink, final Settings settings) throws InterruptedException {
+        if (this.messageLink != null) {
             throw new IllegalStateException("Server already started");
         }
 
-        this.sinkLink = sinkLink;
+        this.messageLink = messageLink;
 
         bossGroup = new NioEventLoopGroup(1);
         workerGroup = new NioEventLoopGroup();
@@ -35,7 +35,7 @@ final class NettyServer implements HttpPluginServer {
         final ServerBootstrap bootstrap = new ServerBootstrap();
         bootstrap.group(bossGroup, workerGroup)
                  .channel(NioServerSocketChannel.class)
-                 .childHandler(new NettyServerInitializer(sinkLink));
+                 .childHandler(new NettyServerInitializer(messageLink));
 
         // get server port from settings
         int port = settings.get(Settings.SERVER_PORT);
@@ -62,7 +62,7 @@ final class NettyServer implements HttpPluginServer {
             bossGroup.terminationFuture().sync();
             workerGroup.terminationFuture().sync();
         } finally {
-            sinkLink = null;
+            messageLink = null;
             channel = null;
             bossGroup = null;
             workerGroup = null;
@@ -71,10 +71,10 @@ final class NettyServer implements HttpPluginServer {
 
     @Deprecated
     private static final class NettyServerInitializer extends ChannelInitializer<Channel> {
-        private final SinkLink sinkLink;
+        private final MessageLink messageLink;
 
-        public NettyServerInitializer(SinkLink sinkLink) {
-            this.sinkLink = sinkLink;
+        public NettyServerInitializer(MessageLink messageLink) {
+            this.messageLink = messageLink;
         }
 
         @Override
@@ -82,7 +82,7 @@ final class NettyServer implements HttpPluginServer {
             final ChannelPipeline pipeline = ch.pipeline();
             pipeline.addLast(new HttpServerCodec())
                     .addLast(new HttpObjectAggregator(512 * 1024))
-                    .addLast(new NettyServerHandler(sinkLink));
+                    .addLast(new NettyServerHandler(messageLink));
         }
     }
 }

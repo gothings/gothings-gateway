@@ -3,8 +3,8 @@ package br.ufs.gothings.plugins.http;
 import br.ufs.gothings.core.GwHeaders;
 import br.ufs.gothings.core.GwMessage;
 import br.ufs.gothings.core.message.Operation;
-import br.ufs.gothings.core.sink.Sink;
-import br.ufs.gothings.core.sink.SinkLink;
+import br.ufs.gothings.core.message.sink.MessageSink;
+import br.ufs.gothings.core.message.sink.MessageLink;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandler;
@@ -26,8 +26,8 @@ import static org.junit.Assert.*;
 public class NettyServerHandlerTest {
     @Test
     public void testGatewayPayloadIsUsed() {
-        final Sink sink = new Sink();
-        final SinkLink link = sink.getLeftLink();
+        final MessageSink sink = new MessageSink();
+        final MessageLink link = sink.getLeftLink();
         link.setListener(message -> {
             final GwHeaders h = message.headers();
 
@@ -83,8 +83,8 @@ public class NettyServerHandlerTest {
 
     @Test
     public void testGatewayHeadersAreUsed() throws InterruptedException {
-        final Sink sink = new Sink();
-        final SinkLink link = sink.getLeftLink();
+        final MessageSink sink = new MessageSink();
+        final MessageLink link = sink.getLeftLink();
         link.setListener(message -> {
             final GwMessage answer = GwMessage.newAnswerMessage(message);
             answer.payload().set("{\"array\":[1,2,3]}", Charset.defaultCharset());

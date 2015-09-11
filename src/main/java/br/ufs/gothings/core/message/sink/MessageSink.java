@@ -1,4 +1,4 @@
-package br.ufs.gothings.core.sink;
+package br.ufs.gothings.core.message.sink;
 
 import br.ufs.gothings.core.GwMessage;
 import com.lmax.disruptor.EventHandler;
@@ -11,34 +11,34 @@ import java.util.concurrent.*;
 /**
  * @author Wagner Macedo
  */
-public class Sink {
+public class MessageSink {
     private final ExecutorService executor;
-    private final Disruptor<SinkEvent> disruptor;
-    private final RingBuffer<SinkEvent> ringBuffer;
+    private final Disruptor<MessageEvent> disruptor;
+    private final RingBuffer<MessageEvent> ringBuffer;
 
-    private final ValueSinkLink leftLink;
-    private final ValueSinkLink rightLink;
-    private final ValueSinkEventHandler eventHandler;
+    private final InternalMessageLink leftLink;
+    private final InternalMessageLink rightLink;
+    private final MessageEventHandler eventHandler;
 
     @SuppressWarnings("unchecked")
-    public Sink() {
-        leftLink = new ValueSinkLink();
-        rightLink = new ValueSinkLink();
-        eventHandler = new ValueSinkEventHandler();
+    public MessageSink() {
+        leftLink = new InternalMessageLink();
+        rightLink = new InternalMessageLink();
+        eventHandler = new MessageEventHandler();
 
         executor = Executors.newSingleThreadExecutor();
-        disruptor = new Disruptor<>(SinkEvent::new, 1024, executor);
+        disruptor = new Disruptor<>(MessageEvent::new, 1024, executor);
         disruptor.handleEventsWith(eventHandler);
         ringBuffer = disruptor.getRingBuffer();
 
         disruptor.start();
     }
 
-    public SinkLink getLeftLink() {
+    public MessageLink getLeftLink() {
         return leftLink;
     }
 
-    public SinkLink getRightLink() {
+    public MessageLink getRightLink() {
         return rightLink;
     }
 
@@ -57,57 +57,57 @@ public class Sink {
         disruptor.shutdown();
     }
 
-    private static final class SinkEvent {
-        private GwMessage value;
-        private SinkLink sourceLink;
+    private static final class MessageEvent {
+        private GwMessage message;
+        private MessageLink sourceLink;
 
-        GwMessage getValue() {
-            return value;
+        GwMessage getMessage() {
+            return message;
         }
 
-        void setValue(GwMessage value) {
-            this.value = value;
+        void setMessage(GwMessage message) {
+            this.message = message;
         }
 
-        SinkLink getSourceLink() {
+        MessageLink getSourceLink() {
             return sourceLink;
         }
 
-        void setSourceLink(SinkLink sourceLink) {
+        void setSourceLink(MessageLink sourceLink) {
             this.sourceLink = sourceLink;
         }
     }
 
-    private final class ValueSinkLink implements SinkLink {
-        private SinkListener listener;
+    private final class InternalMessageLink implements MessageLink {
+        private MessageListener listener;
 
         @Override
-        public void send(GwMessage value) {
-            Validate.notNull(value);
+        public void send(GwMessage msg) {
+            Validate.notNull(msg);
             checkStart();
 
             final long sequence = ringBuffer.next();
-            final SinkEvent event = ringBuffer.get(sequence);
+            final MessageEvent event = ringBuffer.get(sequence);
 
-            event.setValue(value);
+            event.setMessage(msg);
             event.setSourceLink(this);
 
             ringBuffer.publish(sequence);
         }
 
         @Override
-        public void setListener(SinkListener listener) {
+        public void setListener(MessageListener listener) {
             Validate.validState(this.listener == null, "listener already set");
             this.listener = listener;
             eventHandler.addLink();
         }
 
-        SinkListener getListener() {
+        MessageListener getListener() {
             return listener;
         }
     }
 
-    private final class ValueSinkEventHandler implements EventHandler<SinkEvent> {
+    private final class MessageEventHandler implements EventHandler<MessageEvent> {
         private final CountDownLatch latch = new CountDownLatch(2);
 
         void addLink() {
@@ -122,10 +122,10 @@ public class Sink {
         }
 
         @Override
-        public void onEvent(final SinkEvent event, long sequence, boolean endOfBatch) {
-            final ValueSinkLink targetLink = (event.getSourceLink() == leftLink) ? rightLink : leftLink;
+        public void onEvent(final MessageEvent event, long sequence, boolean endOfBatch) {
+            final InternalMessageLink targetLink = (event.getSourceLink() == leftLink) ? rightLink : leftLink;
             try {
-                targetLink.getListener().valueReceived(event.getValue());
+                targetLink.getListener().valueReceived(event.getMessage());
             } catch (Exception ignored) {
                 // Any errors are silently ignored
             }

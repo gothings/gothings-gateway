@@ -3,8 +3,8 @@ package br.ufs.gothings.plugins.mqtt;
 import br.ufs.gothings.core.GwHeaders;
 import br.ufs.gothings.core.GwMessage;
 import br.ufs.gothings.core.message.Operation;
-import br.ufs.gothings.core.sink.SinkListener;
-import br.ufs.gothings.core.sink.SinkLink;
+import br.ufs.gothings.core.message.sink.MessageListener;
+import br.ufs.gothings.core.message.sink.MessageLink;
 import org.apache.commons.lang3.ArrayUtils;
 import org.eclipse.paho.client.mqttv3.*;
 
@@ -19,15 +19,15 @@ import static org.apache.commons.lang3.ObjectUtils.min;
  */
 public final class MqttPluginClient {
     private final Map<String, MqttConnection> connections;
-    private final SinkLink sinkLink;
+    private final MessageLink messageLink;
 
-    public MqttPluginClient(final SinkLink sinkLink) {
-        this.sinkLink = sinkLink;
-        this.sinkLink.setListener(new MessageSinkListener());
+    public MqttPluginClient(final MessageLink messageLink) {
+        this.messageLink = messageLink;
+        this.messageLink.setListener(new MessageSinkListener());
         connections = new HashMap<>();
     }
 
-    private class MessageSinkListener implements SinkListener {
+    private class MessageSinkListener implements MessageListener {
         @Override
         public void valueReceived(GwMessage msg) throws MqttException {
             final String host = msg.headers().targetsHeader().get(0);
@@ -67,7 +67,7 @@ public final class MqttPluginClient {
                     h.targetsHeader().add(host);
                     h.pathHeader().set(topic);
 
-                    sinkLink.send(msg);
+                    messageLink.send(msg);
                 }
 
                 // TODO: what to do here?
