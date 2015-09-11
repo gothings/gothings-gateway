@@ -1,10 +1,12 @@
 package br.ufs.gothings.core.sink;
 
+import br.ufs.gothings.core.GwMessage;
+
 /**
  * @author Wagner Macedo
  */
-public interface SinkLink<T> {
-    void send(T value);
+public interface SinkLink {
+    void send(GwMessage value);
 
-    void setListener(SinkListener<T> listener);
+    void setListener(SinkListener listener);
 }

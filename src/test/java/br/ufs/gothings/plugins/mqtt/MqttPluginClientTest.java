@@ -22,11 +22,11 @@ This will be fixed at any moment later by embed a MQTT broker.
 public class MqttPluginClientTest {
     @Test
     public void testSubscribe() throws InterruptedException {
-        final Sink<GwMessage> sink = new Sink<>();
+        final Sink sink = new Sink();
         new MqttPluginClient(sink.getRightLink());
 
         final SynchronousQueue<GwMessage> pipe = new SynchronousQueue<>();
-        final SinkLink<GwMessage> link = sink.getLeftLink();
+        final SinkLink link = sink.getLeftLink();
         link.setListener(pipe::put);
 
         GwMessage msg = GwMessage.newMessage();

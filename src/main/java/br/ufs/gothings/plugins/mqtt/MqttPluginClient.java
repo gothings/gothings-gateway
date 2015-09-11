@@ -19,15 +19,15 @@ import static org.apache.commons.lang3.ObjectUtils.min;
  */
 public final class MqttPluginClient {
     private final Map<String, MqttConnection> connections;
-    private final SinkLink<GwMessage> sinkLink;
+    private final SinkLink sinkLink;
 
-    public MqttPluginClient(final SinkLink<GwMessage> sinkLink) {
+    public MqttPluginClient(final SinkLink sinkLink) {
         this.sinkLink = sinkLink;
         this.sinkLink.setListener(new MessageSinkListener());
         connections = new HashMap<>();
     }
 
-    private class MessageSinkListener implements SinkListener<GwMessage> {
+    private class MessageSinkListener implements SinkListener {
         @Override
         public void valueReceived(GwMessage msg) throws MqttException {
             final String host = msg.headers().targetsHeader().get(0);

@@ -21,7 +21,7 @@ import java.util.concurrent.TimeoutException;
  * @author Wagner Macedo
  */
 class NanoHTTPDServer implements HttpPluginServer {
-    public void start(final SinkLink<GwMessage> sinkLink, final Settings settings) throws InterruptedException{
+    public void start(final SinkLink sinkLink, final Settings settings) throws InterruptedException{
         final Server server = new Server(sinkLink, settings.get(Settings.SERVER_PORT));
         try {
             server.start();
@@ -35,10 +35,10 @@ class NanoHTTPDServer implements HttpPluginServer {
     }
 
     private static final class Server extends NanoHTTPD {
-        private final SinkLink<GwMessage> sinkLink;
+        private final SinkLink sinkLink;
         private final Map<Long, SynchronousQueue<GwMessage>> answers = new ConcurrentHashMap<>();
 
-        public Server(final SinkLink<GwMessage> sinkLink, final int port) {
+        public Server(final SinkLink sinkLink, final int port) {
             super(port);
             this.sinkLink = sinkLink;
             this.sinkLink.setListener(msg -> {

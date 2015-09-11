@@ -32,10 +32,10 @@ import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
  */
 @Deprecated
 final class NettyServerHandler extends SimpleChannelInboundHandler<FullHttpRequest> {
-    private final SinkLink<GwMessage> sinkLink;
+    private final SinkLink sinkLink;
     private final Map<Long, SynchronousQueue<GwMessage>> answers = new ConcurrentHashMap<>();
 
-    NettyServerHandler(SinkLink<GwMessage> sinkLink) {
+    NettyServerHandler(SinkLink sinkLink) {
         this.sinkLink = sinkLink;
         this.sinkLink.setListener(value -> {
             if (!value.isAnswer()) {

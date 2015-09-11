@@ -1,6 +1,5 @@
 package br.ufs.gothings.plugins.http;
 
-import br.ufs.gothings.core.GwMessage;
 import br.ufs.gothings.core.Settings;
 import br.ufs.gothings.core.sink.SinkLink;
 import io.netty.bootstrap.ServerBootstrap;
@@ -16,14 +15,14 @@ import io.netty.handler.codec.http.HttpServerCodec;
 @Deprecated
 final class NettyServer implements HttpPluginServer {
 
-    private SinkLink<GwMessage> sinkLink;
+    private SinkLink sinkLink;
 
     private Channel channel;
     private NioEventLoopGroup bossGroup;
     private NioEventLoopGroup workerGroup;
 
     @Override
-    public void start(final SinkLink<GwMessage> sinkLink, final Settings settings) throws InterruptedException {
+    public void start(final SinkLink sinkLink, final Settings settings) throws InterruptedException {
         if (this.sinkLink != null) {
             throw new IllegalStateException("Server already started");
         }
@@ -72,9 +71,9 @@ final class NettyServer implements HttpPluginServer {
 
     @Deprecated
     private static final class NettyServerInitializer extends ChannelInitializer<Channel> {
-        private final SinkLink<GwMessage> sinkLink;
+        private final SinkLink sinkLink;
 
-        public NettyServerInitializer(SinkLink<GwMessage> sinkLink) {
+        public NettyServerInitializer(SinkLink sinkLink) {
             this.sinkLink = sinkLink;
         }
 

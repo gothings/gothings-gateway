@@ -26,8 +26,8 @@ import static org.junit.Assert.*;
 public class NettyServerHandlerTest {
     @Test
     public void testGatewayPayloadIsUsed() {
-        final Sink<GwMessage> sink = new Sink<>();
-        final SinkLink<GwMessage> link = sink.getLeftLink();
+        final Sink sink = new Sink();
+        final SinkLink link = sink.getLeftLink();
         link.setListener(message -> {
             final GwHeaders h = message.headers();
 
@@ -83,8 +83,8 @@ public class NettyServerHandlerTest {
 
     @Test
     public void testGatewayHeadersAreUsed() throws InterruptedException {
-        final Sink<GwMessage> sink = new Sink<>();
-        final SinkLink<GwMessage> link = sink.getLeftLink();
+        final Sink sink = new Sink();
+        final SinkLink link = sink.getLeftLink();
         link.setListener(message -> {
             final GwMessage answer = GwMessage.newAnswerMessage(message);
             answer.payload().set("{\"array\":[1,2,3]}", Charset.defaultCharset());

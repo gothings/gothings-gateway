@@ -1,21 +1,20 @@
 package br.ufs.gothings.core.sink;
 
+import br.ufs.gothings.core.GwMessage;
 import com.lmax.disruptor.EventHandler;
 import com.lmax.disruptor.RingBuffer;
 import com.lmax.disruptor.dsl.Disruptor;
 import org.apache.commons.lang3.Validate;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.concurrent.*;
 
 /**
  * @author Wagner Macedo
  */
-public class Sink<T> {
+public class Sink {
     private final ExecutorService executor;
-    private final Disruptor<SinkEvent<T>> disruptor;
-    private final RingBuffer<SinkEvent<T>> ringBuffer;
+    private final Disruptor<SinkEvent> disruptor;
+    private final RingBuffer<SinkEvent> ringBuffer;
 
     private final ValueSinkLink leftLink;
     private final ValueSinkLink rightLink;
@@ -35,11 +34,11 @@ public class Sink<T> {
         disruptor.start();
     }
 
-    public SinkLink<T> getLeftLink() {
+    public SinkLink getLeftLink() {
         return leftLink;
     }
 
-    public SinkLink<T> getRightLink() {
+    public SinkLink getRightLink() {
         return rightLink;
     }
 
@@ -58,37 +57,37 @@ public class Sink<T> {
         disruptor.shutdown();
     }
 
-    private static final class SinkEvent<T> {
-        private T value;
-        private SinkLink<T> sourceLink;
+    private static final class SinkEvent {
+        private GwMessage value;
+        private SinkLink sourceLink;
 
-        T getValue() {
+        GwMessage getValue() {
             return value;
         }
 
-        void setValue(T value) {
+        void setValue(GwMessage value) {
             this.value = value;
         }
 
-        SinkLink<T> getSourceLink() {
+        SinkLink getSourceLink() {
             return sourceLink;
         }
 
-        void setSourceLink(SinkLink<T> sourceLink) {
+        void setSourceLink(SinkLink sourceLink) {
             this.sourceLink = sourceLink;
         }
     }
 
-    private final class ValueSinkLink implements SinkLink<T> {
-        private SinkListener<T> listener;
+    private final class ValueSinkLink implements SinkLink {
+        private SinkListener listener;
 
         @Override
-        public void send(T value) {
+        public void send(GwMessage value) {
             Validate.notNull(value);
             checkStart();
 
             final long sequence = ringBuffer.next();
-            final SinkEvent<T> event = ringBuffer.get(sequence);
+            final SinkEvent event = ringBuffer.get(sequence);
 
             event.setValue(value);
             event.setSourceLink(this);
@@ -97,18 +96,18 @@ public class Sink<T> {
         }
 
         @Override
-        public void setListener(SinkListener<T> listener) {
+        public void setListener(SinkListener listener) {
             Validate.validState(this.listener == null, "listener already set");
             this.listener = listener;
             eventHandler.addLink();
         }
 
-        SinkListener<T> getListener() {
+        SinkListener getListener() {
             return listener;
         }
     }
 
-    private final class ValueSinkEventHandler implements EventHandler<SinkEvent<T>> {
+    private final class ValueSinkEventHandler implements EventHandler<SinkEvent> {
         private final CountDownLatch latch = new CountDownLatch(2);
 
         void addLink() {
@@ -123,7 +122,7 @@ public class Sink<T> {
         }
 
         @Override
-        public void onEvent(final SinkEvent<T> event, long sequence, boolean endOfBatch) {
+        public void onEvent(final SinkEvent event, long sequence, boolean endOfBatch) {
             final ValueSinkLink targetLink = (event.getSourceLink() == leftLink) ? rightLink : leftLink;
             try {
                 targetLink.getListener().valueReceived(event.getValue());

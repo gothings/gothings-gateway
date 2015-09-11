@@ -40,7 +40,7 @@ public class CommunicationManager {
     }
 
     public void register(final GwPlugin plugin) {
-        final SinkLink<GwMessage> serverLink = plugin.serverLink();
+        final SinkLink serverLink = plugin.serverLink();
         if (serverLink != null) {
             serverLink.setListener(msg -> {
                 // ignore answer messages
@@ -50,7 +50,7 @@ public class CommunicationManager {
             });
         }
 
-        final SinkLink<GwMessage> clientLink = plugin.clientLink();
+        final SinkLink clientLink = plugin.clientLink();
         if (clientLink != null) {
             clientLink.setListener(msg -> {
                 // ignore request messages

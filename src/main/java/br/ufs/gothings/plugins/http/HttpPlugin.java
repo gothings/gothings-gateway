@@ -1,6 +1,5 @@
 package br.ufs.gothings.plugins.http;
 
-import br.ufs.gothings.core.GwMessage;
 import br.ufs.gothings.core.GwPlugin;
 import br.ufs.gothings.core.Settings;
 import br.ufs.gothings.core.sink.Sink;
@@ -18,7 +17,7 @@ public class HttpPlugin implements GwPlugin {
     private final HttpPluginServer server;
     private final Settings settings;
     private final AtomicBoolean started = new AtomicBoolean(false);
-    private final Sink<GwMessage> srvSink = new Sink<>();
+    private final Sink srvSink = new Sink();
 
     public HttpPlugin() {
         server = new NanoHTTPDServer();
@@ -46,12 +45,12 @@ public class HttpPlugin implements GwPlugin {
     }
 
     @Override
-    public SinkLink<GwMessage> clientLink() {
+    public SinkLink clientLink() {
         return null;
     }
 
     @Override
-    public SinkLink<GwMessage> serverLink() {
+    public SinkLink serverLink() {
         return srvSink.getLeftLink();
     }
 
