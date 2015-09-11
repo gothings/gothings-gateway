@@ -35,10 +35,15 @@ public class Settings {
     public synchronized <T> void put(String name, T value) {
         writeCheck();
         final Key<T> key = getKey(name);
+        put(key, value);
+    }
+
+    public synchronized <T> void put(Key<T> key, T value) {
+        writeCheck();
         if (value == null) {
             properties.remove(key.getName());
         } else if (!key.getClassType().isInstance(value)) {
-            throw new IllegalArgumentException("value is not a type of " + key.getClassType());
+            throw new ClassCastException("value is not a type of " + key.getClassType());
         } else if (!key.validate(value)) {
             throw new IllegalArgumentException("value `" + value + "` didn't pass in the validation");
         }
@@ -71,7 +76,7 @@ public class Settings {
 
     private final Map<String, Key<?>> localKeys = new HashMap<>();
 
-    public synchronized <T> void registerKey(final String name, final Class<T> cls, final Function<T, Boolean> validator) {
+    public synchronized <T> Key<T> registerKey(final String name, final Class<T> cls, final Function<T, Boolean> validator) {
         Validate.notNull(name, "name");
         Validate.notNull(cls, "cls");
         Validate.isTrue(!globalKeys.containsKey(name), "the key '%s' cannot be used because is a global key", name);
@@ -79,6 +84,7 @@ public class Settings {
 
         final Key<T> key = new Key<>(name, cls, validator);
         localKeys.put(name, key);
+        return key;
     }
 
     public static final class Key<T> {
