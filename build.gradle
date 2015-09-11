@@ -21,7 +21,7 @@ repositories {
 }
 
 dependencies {
-    compile 'io.netty:netty-all:4.0.30.Final'
+    compile 'io.netty:netty-buffer:4.0.30.Final'
     compile 'com.lmax:disruptor:3.3.2'
     compile 'org.apache.commons:commons-lang3:3.4'
     compile 'org.eclipse.paho:org.eclipse.paho.client.mqttv3:1.0.2'
