@@ -22,11 +22,16 @@ public class Payload {
     }
 
     public void set(final InputStream in) throws IOException {
+        set(in, true);
+    }
+
+    public void set(final InputStream in, boolean check) throws IOException {
         data.clear();
         final byte[] bytes = new byte[1024];
 
         while (true) {
-            final int read = in.read(bytes, 0, min(in.available(), 1024));
+            final int len = check ? min(in.available(), 1024) : 1024;
+            final int read = in.read(bytes, 0, len);
             if (read > 0) {
                 data.writeBytes(bytes, 0, read);
             } else {
