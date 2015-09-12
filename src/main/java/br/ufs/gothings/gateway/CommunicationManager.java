@@ -50,7 +50,7 @@ public class CommunicationManager {
                 if (msg.isAnswer()) {
                     logger.error("%s server plugin sent a non-answer to the Communication Manager", plugin.getProtocol());
                 } else {
-                    sequencesMap.put(msg.sequence(), plugin);
+                    sequencesMap.put(msg.getSequence(), plugin);
                     inputController.receiveForwarding(COMMUNICATION_MANAGER, msg);
                 }
             });
@@ -131,7 +131,7 @@ public class CommunicationManager {
     }
 
     private void responseToPlugin(final GwMessage msg) {
-        final Long sequence = msg.sequence();
+        final Long sequence = msg.getSequence();
 
         // response to a sequenced message
         if (sequence != null) {

@@ -47,7 +47,7 @@ class NanoHTTPDServer implements HttpPluginServer {
                 if (!msg.isAnswer()) {
                     return;
                 }
-                final SynchronousQueue<GwMessage> pipe = getPipe(msg.sequence());
+                final SynchronousQueue<GwMessage> pipe = getPipe(msg.getSequence());
                 pipe.put(msg);
             });
         }
@@ -64,7 +64,7 @@ class NanoHTTPDServer implements HttpPluginServer {
             if (gw_request != null) {
                 messageLink.send(gw_request);
                 try {
-                    final GwMessage gw_response = getAnswer(gw_request.sequence(), 1, TimeUnit.MINUTES);
+                    final GwMessage gw_response = getAnswer(gw_request.getSequence(), 1, TimeUnit.MINUTES);
 
                     final Response http_response = new Response(Status.OK, null, "");
                     http_response.setData(gw_response.payload().asInputStream());

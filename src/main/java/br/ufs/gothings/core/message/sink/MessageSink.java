@@ -7,11 +7,14 @@ import com.lmax.disruptor.dsl.Disruptor;
 import org.apache.commons.lang3.Validate;
 
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * @author Wagner Macedo
  */
 public class MessageSink {
+    private static final AtomicLong MESSAGES_SEQUENCE = new AtomicLong(0);
+
     private final ExecutorService executor;
     private final Disruptor<MessageEvent> disruptor;
     private final RingBuffer<MessageEvent> ringBuffer;
@@ -89,6 +92,9 @@ public class MessageSink {
             final long sequence = ringBuffer.next();
             final MessageEvent event = ringBuffer.get(sequence);
 
+            if (!msg.isAnswer()) {
+                msg.setSequence(MESSAGES_SEQUENCE.incrementAndGet());
+            }
             event.setMessage(msg);
             event.setSourceLink(this);
 
