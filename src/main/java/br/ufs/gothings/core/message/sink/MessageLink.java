@@ -2,11 +2,13 @@ package br.ufs.gothings.core.message.sink;
 
 import br.ufs.gothings.core.GwMessage;
 
+import java.util.concurrent.Future;
+
 /**
  * @author Wagner Macedo
  */
 public interface MessageLink {
-    void send(GwMessage msg);
+    Future<GwMessage> send(GwMessage msg);
 
     void setListener(MessageListener listener);
 }
