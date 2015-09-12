@@ -28,7 +28,7 @@ public class Payload {
         while (true) {
             final int read = in.read(bytes, 0, min(in.available(), 1024));
             if (read > 0) {
-                data.writeBytes(bytes);
+                data.writeBytes(bytes, 0, read);
             } else {
                 break;
             }
