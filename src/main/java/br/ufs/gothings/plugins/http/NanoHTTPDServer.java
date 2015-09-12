@@ -20,8 +20,11 @@ import java.util.concurrent.TimeoutException;
  * @author Wagner Macedo
  */
 class NanoHTTPDServer implements HttpPluginServer {
+
+    private Server server;
+
     public void start(final MessageLink messageLink, final Settings settings) throws InterruptedException{
-        final Server server = new Server(messageLink, settings.get(Settings.SERVER_PORT));
+        server = new Server(messageLink, settings.get(Settings.SERVER_PORT));
         try {
             server.start();
         } catch (IOException e) {
@@ -30,10 +33,10 @@ class NanoHTTPDServer implements HttpPluginServer {
     }
 
     public void stop() throws InterruptedException {
-
+        server.stop();
     }
 
-    private static final class Server extends NanoHTTPD {
+    static final class Server extends NanoHTTPD {
         private final MessageLink messageLink;
         private final Map<Long, SynchronousQueue<GwMessage>> answers = new ConcurrentHashMap<>();
 
