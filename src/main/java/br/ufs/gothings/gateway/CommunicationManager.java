@@ -27,7 +27,7 @@ public class CommunicationManager {
     private static Logger logger = LogManager.getFormatterLogger(CommunicationManager.class);
 
     private final Map<String, GwPlugin> pluginsMap = new ConcurrentHashMap<>();
-    private final Map<Long, GwPlugin> sequencesMap = new ConcurrentHashMap<>();
+    private final Map<Long, GwPlugin> requestsMap = new ConcurrentHashMap<>();
     private final Map<Block, BlockId> blocksMap = new IdentityHashMap<>(4);
 
     private final Block inputController;
@@ -55,7 +55,6 @@ public class CommunicationManager {
                         logger.error("%s server plugin sent a request to the Communication Manager", plugin.getProtocol());
                         break;
                     case REPLY:
-                        sequencesMap.put(((SequencedMessage) msg).getSequence(), plugin);
                         inputController.receiveForwarding(COMMUNICATION_MANAGER, msg);
                         break;
                 }
@@ -71,6 +70,7 @@ public class CommunicationManager {
                         logger.error("%s client plugin sent an reply to the Communication Manager", plugin.getProtocol());
                         break;
                     case REQUEST:
+                        requestsMap.put(((SequencedMessage) msg).getSequence(), plugin);
                         interconnectionController.receiveForwarding(COMMUNICATION_MANAGER, msg);
                         break;
                 }
@@ -144,7 +144,7 @@ public class CommunicationManager {
 
         // reply to a sequenced message
         if (sequence != null) {
-            final GwPlugin target = sequencesMap.remove(sequence);
+            final GwPlugin target = requestsMap.remove(sequence);
             if (target == null) {
                 return;
             }
