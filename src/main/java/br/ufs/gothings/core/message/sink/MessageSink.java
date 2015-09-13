@@ -20,14 +20,14 @@ public class MessageSink {
     private final Disruptor<MessageEvent> disruptor;
     private final RingBuffer<MessageEvent> ringBuffer;
 
-    private final Map<Long, CompletableFuture<GwMessage>> linkAnswers;
+    private final Map<Long, CompletableFuture<GwMessage>> linkReplies;
     private final InternalMessageLink leftLink;
     private final InternalMessageLink rightLink;
     private final MessageEventHandler eventHandler;
 
     @SuppressWarnings("unchecked")
     public MessageSink() {
-        linkAnswers = new ConcurrentHashMap<>();
+        linkReplies = new ConcurrentHashMap<>();
         leftLink = new InternalMessageLink();
         rightLink = new InternalMessageLink();
         eventHandler = new MessageEventHandler();
@@ -96,15 +96,15 @@ public class MessageSink {
             final MessageEvent event = ringBuffer.get(sequence);
 
             final CompletableFuture<GwMessage> future;
-            if (!msg.isAnswer()) {
+            if (!msg.isReply()) {
                 msg.setSequence(MESSAGES_SEQUENCE.incrementAndGet());
                 future = new CompletableFuture<>();
-                linkAnswers.put(msg.getSequence(), future);
+                linkReplies.put(msg.getSequence(), future);
             } else {
                 future = null;
-                final CompletableFuture<GwMessage> answerFuture = linkAnswers.remove(msg.getSequence());
-                Validate.notNull(answerFuture, "not found a message with sequence %d to send the answer", msg.getSequence());
-                answerFuture.complete(msg);
+                final CompletableFuture<GwMessage> reply = linkReplies.remove(msg.getSequence());
+                Validate.notNull(reply, "not found a message with sequence %d to send the reply", msg.getSequence());
+                reply.complete(msg);
             }
             event.setMessage(msg);
             event.setSourceLink(this);

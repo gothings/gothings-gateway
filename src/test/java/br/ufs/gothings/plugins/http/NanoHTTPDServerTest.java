@@ -36,9 +36,9 @@ public class NanoHTTPDServerTest {
             final String path = h.pathHeader().get();
             final ByteBuf buf = Unpooled.buffer().writeInt(operation.name().length() + path.length());
 
-            final GwMessage answer = GwMessage.newAnswerMessage(msg);
-            answer.payload().set(buf.nioBuffer());
-            link.send(answer);
+            final GwMessage reply = GwMessage.newReplyMessage(msg);
+            reply.payload().set(buf.nioBuffer());
+            link.send(reply);
         });
 
         final NanoHTTPDServer.Server server = new NanoHTTPDServer.Server(sink.getRightLink(), 0);
@@ -94,10 +94,10 @@ public class NanoHTTPDServerTest {
         final MessageSink sink = new MessageSink();
         final MessageLink link = sink.getLeftLink();
         link.setUp(msg -> {
-            final GwMessage answer = GwMessage.newAnswerMessage(msg);
-            answer.payload().set("{\"array\":[1,2,3]}", Charset.defaultCharset());
-            answer.headers().contentTypeHeader().set("application/json");
-            link.send(answer);
+            final GwMessage reply = GwMessage.newReplyMessage(msg);
+            reply.payload().set("{\"array\":[1,2,3]}", Charset.defaultCharset());
+            reply.headers().contentTypeHeader().set("application/json");
+            link.send(reply);
         });
 
         final NanoHTTPDServer.Server server = new NanoHTTPDServer.Server(sink.getRightLink(), 0);

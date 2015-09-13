@@ -29,14 +29,14 @@ public class MqttPluginClientTest {
         final MessageLink link = sink.getLeftLink();
         link.setUp(pipe::put);
 
-        GwMessage msg = GwMessage.newMessage();
+        GwMessage msg = GwMessage.newRequestMessage();
         msg.headers().targetsHeader().add("localhost");
         msg.headers().operationHeader().set(Operation.READ);
         msg.headers().pathHeader().set("temperature");
         link.send(msg);
 
         msg = pipe.take();
-        assertTrue(msg.isAnswer());
+        assertTrue(msg.isReply());
         assertEquals("localhost", msg.headers().targetsHeader().get(0));
         assertEquals("temperature", msg.headers().pathHeader().get());
         assertEquals("88 C", msg.payload().asString(Charset.defaultCharset()));

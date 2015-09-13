@@ -46,9 +46,9 @@ public class CommunicationManager {
         final MessageLink serverLink = plugin.serverLink();
         if (serverLink != null) {
             serverLink.setUp(msg -> {
-                // ignore answer messages
-                if (msg.isAnswer()) {
-                    logger.error("%s server plugin sent a non-answer to the Communication Manager", plugin.getProtocol());
+                // ignore reply messages
+                if (msg.isReply()) {
+                    logger.error("%s server plugin sent a request to the Communication Manager", plugin.getProtocol());
                 } else {
                     sequencesMap.put(msg.getSequence(), plugin);
                     inputController.receiveForwarding(COMMUNICATION_MANAGER, msg);
@@ -60,8 +60,8 @@ public class CommunicationManager {
         if (clientLink != null) {
             clientLink.setUp(msg -> {
                 // ignore request messages
-                if (!msg.isAnswer()) {
-                    logger.error("%s client plugin sent an answer to the Communication Manager", plugin.getProtocol());
+                if (!msg.isReply()) {
+                    logger.error("%s client plugin sent an reply to the Communication Manager", plugin.getProtocol());
                 } else {
                     interconnectionController.receiveForwarding(COMMUNICATION_MANAGER, msg);
                 }

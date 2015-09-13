@@ -61,7 +61,7 @@ public final class MqttPluginClient {
 
                 @Override
                 public void messageArrived(String topic, MqttMessage mqttMessage) throws Exception {
-                    final GwMessage msg = GwMessage.newAnswerMessage();
+                    final GwMessage msg = GwMessage.newReplyMessage();
                     msg.payload().set(mqttMessage.getPayload());
                     final GwHeaders h = msg.headers();
                     h.targetsHeader().add(host);

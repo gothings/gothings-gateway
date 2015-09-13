@@ -79,7 +79,7 @@ class NanoHTTPDServer implements HttpPluginServer {
             final Method method = session.getMethod();
             switch (method) {
                 case GET: case PUT: case POST: case DELETE:
-                    final GwMessage msg = GwMessage.newMessage();
+                    final GwMessage msg = GwMessage.newRequestMessage();
 
                     // filling GwHeaders
                     final GwHeaders h = msg.headers();
