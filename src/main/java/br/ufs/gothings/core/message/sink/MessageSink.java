@@ -102,9 +102,12 @@ public class MessageSink {
                 linkReplies.put(msg.getSequence(), future);
             } else {
                 future = null;
-                final CompletableFuture<GwMessage> reply = linkReplies.remove(msg.getSequence());
-                Validate.notNull(reply, "not found a message with sequence %d to send the reply", msg.getSequence());
-                reply.complete(msg);
+                final Long m_seq = msg.getSequence();
+                if (m_seq != null) {
+                    final CompletableFuture<GwMessage> reply = linkReplies.remove(m_seq);
+                    Validate.notNull(reply, "not found a message with sequence %d to send the reply", m_seq);
+                    reply.complete(msg);
+                }
             }
             event.setMessage(msg);
             event.setSourceLink(this);
