@@ -11,8 +11,8 @@ import fi.iki.elonen.NanoHTTPD.Response.Status;
 
 import java.io.IOException;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.SynchronousQueue;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
@@ -38,18 +38,11 @@ class NanoHTTPDServer implements HttpPluginServer {
 
     static final class Server extends NanoHTTPD {
         private final MessageLink messageLink;
-        private final Map<Long, SynchronousQueue<GwMessage>> answers = new ConcurrentHashMap<>();
 
         public Server(final MessageLink messageLink, final int port) {
             super(port);
             this.messageLink = messageLink;
-            this.messageLink.setListener(msg -> {
-                if (!msg.isAnswer()) {
-                    return;
-                }
-                final SynchronousQueue<GwMessage> pipe = getPipe(msg.getSequence());
-                pipe.put(msg);
-            });
+            this.messageLink.setListener(null);
         }
 
         @Override
@@ -62,9 +55,9 @@ class NanoHTTPDServer implements HttpPluginServer {
             }
 
             if (gw_request != null) {
-                messageLink.send(gw_request);
+                final Future<GwMessage> future = messageLink.send(gw_request);
                 try {
-                    final GwMessage gw_response = getAnswer(gw_request.getSequence(), 1, TimeUnit.MINUTES);
+                    final GwMessage gw_response = future.get(1, TimeUnit.MINUTES);
 
                     final Response http_response = new Response(Status.OK, null, "");
                     http_response.setData(gw_response.payload().asInputStream());
@@ -72,7 +65,8 @@ class NanoHTTPDServer implements HttpPluginServer {
 
                     return http_response;
                 }
-                catch (InterruptedException | TimeoutException e) {
+                // handle possible errors
+                catch (InterruptedException | ExecutionException | TimeoutException e) {
                     return new Response(Status.INTERNAL_ERROR, null, "");
                 }
             }
@@ -139,21 +133,6 @@ class NanoHTTPDServer implements HttpPluginServer {
         private static void addHttpHeader(Response response, String key, CharSequence value) {
             if (value != null) {
                 response.addHeader(key, String.valueOf(value));
-            }
-        }
-
-        private SynchronousQueue<GwMessage> getPipe(long sequence) {
-            return answers.computeIfAbsent(sequence, k -> new SynchronousQueue<>());
-        }
-
-        private GwMessage getAnswer(long sequence, long timeout, TimeUnit unit) throws InterruptedException, TimeoutException {
-            final SynchronousQueue<GwMessage> pipe = getPipe(sequence);
-
-            final GwMessage polled = pipe.poll(timeout, unit);
-            if (polled == null) {
-                throw new TimeoutException();
-            } else {
-                return polled;
             }
         }
     }
