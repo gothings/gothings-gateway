@@ -6,6 +6,7 @@ import br.ufs.gothings.core.GwPlugin;
 import br.ufs.gothings.core.Settings;
 import br.ufs.gothings.core.message.GwReply;
 import br.ufs.gothings.core.message.GwRequest;
+import br.ufs.gothings.core.message.SequencedMessage;
 import br.ufs.gothings.core.message.sink.MessageLink;
 import br.ufs.gothings.gateway.block.Block;
 import br.ufs.gothings.gateway.block.BlockId;
@@ -54,7 +55,7 @@ public class CommunicationManager {
                         logger.error("%s server plugin sent a request to the Communication Manager", plugin.getProtocol());
                         break;
                     case REPLY:
-                        sequencesMap.put(msg.getSequence(), plugin);
+                        sequencesMap.put(((SequencedMessage) msg).getSequence(), plugin);
                         inputController.receiveForwarding(COMMUNICATION_MANAGER, msg);
                         break;
                 }

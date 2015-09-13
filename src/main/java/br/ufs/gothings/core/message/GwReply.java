@@ -1,11 +1,9 @@
 package br.ufs.gothings.core.message;
 
-import br.ufs.gothings.core.GwMessage;
-
 /**
  * @author Wagner Macedo
  */
-public final class GwReply extends GwMessage {
+public final class GwReply extends SequencedMessage {
     { type = MessageType.REPLY; }
 
     public GwReply() {
