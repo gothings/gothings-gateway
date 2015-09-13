@@ -6,26 +6,24 @@ import org.apache.commons.lang3.Validate;
 /**
  * @author Wagner Macedo
  */
-public final class GwMessage {
+public abstract class GwMessage {
     private final GwHeaders headers;
     private final Payload payload;
-    private final boolean reply;
 
     private Long sequence;
 
-    private GwMessage(GwHeaders headers, Payload payload, Long sequence, boolean reply) {
+    protected GwMessage(GwHeaders headers, Payload payload, Long sequence) {
         this.headers = headers;
         this.payload = payload;
         this.sequence = sequence;
-        this.reply = reply;
     }
 
-    private GwMessage(Long sequence, boolean reply) {
-        this(new GwHeaders(), new Payload(), sequence, reply);
+    protected GwMessage(Long sequence) {
+        this(new GwHeaders(), new Payload(), sequence);
     }
 
-    private GwMessage() {
-        this(null, false);
+    protected GwMessage() {
+        this(null);
     }
 
     public final GwHeaders headers() {
@@ -36,32 +34,14 @@ public final class GwMessage {
         return payload;
     }
 
-    public Long getSequence() {
+    public final Long getSequence() {
         return sequence;
     }
 
-    public void setSequence(final long sequence) {
+    public final void setSequence(final long sequence) {
         Validate.validState(this.sequence == null, "message sequence already set");
         this.sequence = sequence;
     }
 
-    public boolean isReply() {
-        return reply;
-    }
-
-    public static GwMessage newRequestMessage() {
-        return new GwMessage();
-    }
-
-    public static GwMessage newReplyMessage() {
-        return new GwMessage(null, true);
-    }
-
-    public static GwMessage newReplyMessage(Long sequence) {
-        return new GwMessage(sequence, true);
-    }
-
-    public static GwMessage newReplyMessage(GwMessage msg) {
-        return new GwMessage(msg.headers, msg.payload, msg.sequence, true);
-    }
+    public abstract boolean isReply();
 }

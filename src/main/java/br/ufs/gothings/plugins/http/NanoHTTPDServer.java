@@ -3,6 +3,8 @@ package br.ufs.gothings.plugins.http;
 import br.ufs.gothings.core.GwHeaders;
 import br.ufs.gothings.core.GwMessage;
 import br.ufs.gothings.core.Settings;
+import br.ufs.gothings.core.message.GwReply;
+import br.ufs.gothings.core.message.GwRequest;
 import br.ufs.gothings.core.message.headers.ComplexHeader;
 import br.ufs.gothings.core.message.headers.Operation;
 import br.ufs.gothings.core.message.sink.MessageLink;
@@ -47,7 +49,7 @@ class NanoHTTPDServer implements HttpPluginServer {
 
         @Override
         public Response serve(final IHTTPSession session) {
-            final GwMessage gw_request;
+            final GwRequest gw_request;
             try {
                 gw_request = parseHttpRequest(session);
             } catch (IOException e) {
@@ -57,11 +59,11 @@ class NanoHTTPDServer implements HttpPluginServer {
             if (gw_request != null) {
                 final Future<GwMessage> future = messageLink.send(gw_request);
                 try {
-                    final GwMessage gw_response = future.get(1, TimeUnit.MINUTES);
+                    final GwReply gw_reply = (GwReply) future.get(1, TimeUnit.MINUTES);
 
                     final Response http_response = new Response(Status.OK, null, "");
-                    http_response.setData(gw_response.payload().asInputStream());
-                    fillHttpResponseHeaders(http_response, gw_response.headers());
+                    http_response.setData(gw_reply.payload().asInputStream());
+                    fillHttpResponseHeaders(http_response, gw_reply.headers());
 
                     return http_response;
                 }
@@ -75,11 +77,11 @@ class NanoHTTPDServer implements HttpPluginServer {
             return new Response(Status.METHOD_NOT_ALLOWED, null, "");
         }
 
-        private static GwMessage parseHttpRequest(final IHTTPSession session) throws IOException {
+        private static GwRequest parseHttpRequest(final IHTTPSession session) throws IOException {
             final Method method = session.getMethod();
             switch (method) {
                 case GET: case PUT: case POST: case DELETE:
-                    final GwMessage msg = GwMessage.newRequestMessage();
+                    final GwRequest msg = new GwRequest();
 
                     // filling GwHeaders
                     final GwHeaders h = msg.headers();

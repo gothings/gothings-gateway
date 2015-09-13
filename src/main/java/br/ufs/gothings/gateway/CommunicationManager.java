@@ -4,9 +4,11 @@ import br.ufs.gothings.core.GwHeaders;
 import br.ufs.gothings.core.GwMessage;
 import br.ufs.gothings.core.GwPlugin;
 import br.ufs.gothings.core.Settings;
+import br.ufs.gothings.core.message.GwReply;
+import br.ufs.gothings.core.message.GwRequest;
+import br.ufs.gothings.core.message.sink.MessageLink;
 import br.ufs.gothings.gateway.block.Block;
 import br.ufs.gothings.gateway.block.BlockId;
-import br.ufs.gothings.core.message.sink.MessageLink;
 import br.ufs.gothings.gateway.exceptions.InvalidForwardingException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -101,7 +103,7 @@ public class CommunicationManager {
             case INTERCONNECTION_CONTROLLER:
                 switch (targetId) {
                     case COMMUNICATION_MANAGER:
-                        requestToPlugin(msg);
+                        requestToPlugin((GwRequest) msg);
                         break;
                     case OUTPUT_CONTROLLER:
                         outputController.receiveForwarding(sourceId, msg);
@@ -114,7 +116,7 @@ public class CommunicationManager {
             case OUTPUT_CONTROLLER:
                 switch (targetId) {
                     case COMMUNICATION_MANAGER:
-                        responseToPlugin(msg);
+                        replyToPlugin((GwReply) msg);
                         break;
                     default:
                         throw new InvalidForwardingException("sourceBlock => targetId");
@@ -126,14 +128,14 @@ public class CommunicationManager {
         }
     }
 
-    private void requestToPlugin(final GwMessage msg) {
+    private void requestToPlugin(final GwRequest msg) {
         // TODO: method stub
     }
 
-    private void responseToPlugin(final GwMessage msg) {
+    private void replyToPlugin(final GwReply msg) {
         final Long sequence = msg.getSequence();
 
-        // response to a sequenced message
+        // reply to a sequenced message
         if (sequence != null) {
             final GwPlugin target = sequencesMap.remove(sequence);
             if (target == null) {
@@ -142,7 +144,7 @@ public class CommunicationManager {
             // TODO: stub
         }
 
-        // response to an unsequenced message
+        // reply to an unsequenced message
         else {
             final GwHeaders h = msg.headers();
             // TODO: stub

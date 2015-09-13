@@ -1,7 +1,8 @@
 package br.ufs.gothings.plugins.http;
 
 import br.ufs.gothings.core.GwHeaders;
-import br.ufs.gothings.core.GwMessage;
+import br.ufs.gothings.core.message.GwReply;
+import br.ufs.gothings.core.message.GwRequest;
 import br.ufs.gothings.core.message.Payload;
 import br.ufs.gothings.core.message.headers.Operation;
 import br.ufs.gothings.core.message.sink.MessageLink;
@@ -36,7 +37,7 @@ public class NanoHTTPDServerTest {
             final String path = h.pathHeader().get();
             final ByteBuf buf = Unpooled.buffer().writeInt(operation.name().length() + path.length());
 
-            final GwMessage reply = GwMessage.newReplyMessage(msg);
+            final GwReply reply = new GwReply((GwRequest) msg);
             reply.payload().set(buf.nioBuffer());
             link.send(reply);
         });
@@ -94,7 +95,7 @@ public class NanoHTTPDServerTest {
         final MessageSink sink = new MessageSink();
         final MessageLink link = sink.getLeftLink();
         link.setUp(msg -> {
-            final GwMessage reply = GwMessage.newReplyMessage(msg);
+            final GwReply reply = new GwReply((GwRequest) msg);
             reply.payload().set("{\"array\":[1,2,3]}", Charset.defaultCharset());
             reply.headers().contentTypeHeader().set("application/json");
             link.send(reply);

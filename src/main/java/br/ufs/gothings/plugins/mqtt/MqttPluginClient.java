@@ -2,9 +2,11 @@ package br.ufs.gothings.plugins.mqtt;
 
 import br.ufs.gothings.core.GwHeaders;
 import br.ufs.gothings.core.GwMessage;
+import br.ufs.gothings.core.message.GwReply;
+import br.ufs.gothings.core.message.GwRequest;
 import br.ufs.gothings.core.message.headers.Operation;
-import br.ufs.gothings.core.message.sink.MessageListener;
 import br.ufs.gothings.core.message.sink.MessageLink;
+import br.ufs.gothings.core.message.sink.MessageListener;
 import org.apache.commons.lang3.ArrayUtils;
 import org.eclipse.paho.client.mqttv3.*;
 
@@ -33,7 +35,7 @@ public final class MqttPluginClient {
             final String host = msg.headers().targetsHeader().get(0);
 
             final MqttConnection conn = getMqttConnection(host);
-            conn.sendMessage(msg);
+            conn.sendMessage((GwRequest) msg);
         }
     }
 
@@ -61,7 +63,7 @@ public final class MqttPluginClient {
 
                 @Override
                 public void messageArrived(String topic, MqttMessage mqttMessage) throws Exception {
-                    final GwMessage msg = GwMessage.newReplyMessage();
+                    final GwReply msg = new GwReply();
                     msg.payload().set(mqttMessage.getPayload());
                     final GwHeaders h = msg.headers();
                     h.targetsHeader().add(host);
@@ -79,7 +81,7 @@ public final class MqttPluginClient {
             connectionToken = client.connect(new MqttConnectOptions());
         }
 
-        public void sendMessage(GwMessage msg) throws MqttException {
+        public void sendMessage(GwRequest msg) throws MqttException {
             connectionToken.waitForCompletion();
             final GwHeaders h = msg.headers();
             final Operation operation = h.operationHeader().get();
