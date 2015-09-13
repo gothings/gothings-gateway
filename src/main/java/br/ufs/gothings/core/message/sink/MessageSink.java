@@ -8,6 +8,8 @@ import com.lmax.disruptor.EventHandler;
 import com.lmax.disruptor.RingBuffer;
 import com.lmax.disruptor.dsl.Disruptor;
 import org.apache.commons.lang3.Validate;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.util.Map;
 import java.util.concurrent.*;
@@ -17,6 +19,8 @@ import java.util.concurrent.atomic.AtomicLong;
  * @author Wagner Macedo
  */
 public class MessageSink {
+    private static Logger logger = LogManager.getFormatterLogger(MessageSink.class);
+
     private static final AtomicLong MESSAGES_SEQUENCE = new AtomicLong(0);
 
     private final ExecutorService executor;
@@ -57,6 +61,7 @@ public class MessageSink {
         } catch (InterruptedException ignored) {
             // do nothing
         } catch (TimeoutException e) {
+            logger.error("tried to access an unready sink");
             throw new IllegalStateException("sink is not ready yet");
         }
     }
@@ -87,12 +92,19 @@ public class MessageSink {
         }
     }
 
+    private static void checkLinkArg(final GwMessage msg, final String name) {
+        if (msg == null) {
+            logger.error("link received a null %s", name);
+            throw new NullPointerException(name);
+        }
+    }
+
     private final class InternalMessageLink implements MessageLink {
         private MessageListener listener;
 
         @Override
         public Future<GwReply> sendRequest(GwRequest request) {
-            Validate.notNull(request);
+            checkLinkArg(request, "request");
             checkStart();
 
             request.setSequence(MESSAGES_SEQUENCE.incrementAndGet());
@@ -107,25 +119,33 @@ public class MessageSink {
 
         @Override
         public void sendReply(final GwReply reply) {
-            Validate.notNull(reply);
+            checkLinkArg(reply, "reply");
             checkStart();
 
             final Long m_seq = reply.getSequence();
+            if (m_seq == null) {
+                logger.error("received a reply without a sequence number");
+                throw new IllegalArgumentException("reply without a sequence");
+            }
+
             final CompletableFuture<GwReply> replyFuture = linkReplies.remove(m_seq);
-            Validate.notNull(replyFuture, "not found a message with sequence %d to send the reply", m_seq);
+            if (replyFuture == null) {
+                logger.error("not found a message with sequence %d to send the reply", m_seq);
+                throw new IllegalArgumentException("sequence " + m_seq + " not found");
+            }
             replyFuture.complete(reply);
         }
 
         @Override
         public void broadcast(final GwNews news) {
-            Validate.notNull(news);
+            checkLinkArg(news, "news");
             checkStart();
 
             disruptorPublish(news);
         }
 
         @Override
-        public void setUp(MessageListener listener) {
+        public void setUp(final MessageListener listener) {
             Validate.validState(this.listener == null, "link already set up");
             this.listener = listener;
             eventHandler.addLink();
