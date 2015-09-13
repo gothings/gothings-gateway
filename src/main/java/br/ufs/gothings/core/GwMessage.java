@@ -1,5 +1,6 @@
 package br.ufs.gothings.core;
 
+import br.ufs.gothings.core.message.MessageType;
 import br.ufs.gothings.core.message.Payload;
 import org.apache.commons.lang3.Validate;
 
@@ -12,6 +13,7 @@ public abstract class GwMessage {
     private final GwHeaders headers;
     private final Payload payload;
 
+    protected MessageType type;
     private Long sequence;
     protected final AtomicBoolean allowSequence = new AtomicBoolean(true);
 
@@ -37,6 +39,10 @@ public abstract class GwMessage {
         return payload;
     }
 
+    public final MessageType getType() {
+        return type;
+    }
+
     public final Long getSequence() {
         return sequence;
     }
@@ -46,6 +52,4 @@ public abstract class GwMessage {
                 "message sequence already set or not allowed to set");
         this.sequence = sequence;
     }
-
-    public abstract boolean isReply();
 }

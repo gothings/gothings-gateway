@@ -6,6 +6,8 @@ import br.ufs.gothings.core.GwMessage;
  * @author Wagner Macedo
  */
 public final class GwReply extends GwMessage {
+    { type = MessageType.REPLY; }
+
     public GwReply() {
         super(null);
         allowSequence.set(false);
@@ -17,10 +19,5 @@ public final class GwReply extends GwMessage {
 
     public GwReply(GwRequest req) {
         super(req.headers(), req.payload(), req.getSequence());
-    }
-
-    @Override
-    public boolean isReply() {
-        return true;
     }
 }

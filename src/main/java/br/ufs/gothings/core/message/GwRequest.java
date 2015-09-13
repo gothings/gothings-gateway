@@ -6,8 +6,5 @@ import br.ufs.gothings.core.GwMessage;
  * @author Wagner Macedo
  */
 public final class GwRequest extends GwMessage {
-    @Override
-    public boolean isReply() {
-        return false;
-    }
+    { type = MessageType.REQUEST; }
 }

@@ -48,12 +48,15 @@ public class CommunicationManager {
         final MessageLink serverLink = plugin.serverLink();
         if (serverLink != null) {
             serverLink.setUp(msg -> {
-                // ignore reply messages
-                if (msg.isReply()) {
-                    logger.error("%s server plugin sent a request to the Communication Manager", plugin.getProtocol());
-                } else {
-                    sequencesMap.put(msg.getSequence(), plugin);
-                    inputController.receiveForwarding(COMMUNICATION_MANAGER, msg);
+                switch (msg.getType()) {
+                    // ignore request messages
+                    case REQUEST:
+                        logger.error("%s server plugin sent a request to the Communication Manager", plugin.getProtocol());
+                        break;
+                    case REPLY:
+                        sequencesMap.put(msg.getSequence(), plugin);
+                        inputController.receiveForwarding(COMMUNICATION_MANAGER, msg);
+                        break;
                 }
             });
         }
@@ -61,11 +64,14 @@ public class CommunicationManager {
         final MessageLink clientLink = plugin.clientLink();
         if (clientLink != null) {
             clientLink.setUp(msg -> {
-                // ignore request messages
-                if (!msg.isReply()) {
-                    logger.error("%s client plugin sent an reply to the Communication Manager", plugin.getProtocol());
-                } else {
-                    interconnectionController.receiveForwarding(COMMUNICATION_MANAGER, msg);
+                switch (msg.getType()) {
+                    // ignore reply messages
+                    case REPLY:
+                        logger.error("%s client plugin sent an reply to the Communication Manager", plugin.getProtocol());
+                        break;
+                    case REQUEST:
+                        interconnectionController.receiveForwarding(COMMUNICATION_MANAGER, msg);
+                        break;
                 }
             });
         }
