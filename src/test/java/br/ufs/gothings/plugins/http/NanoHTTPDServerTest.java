@@ -2,7 +2,6 @@ package br.ufs.gothings.plugins.http;
 
 import br.ufs.gothings.core.GwHeaders;
 import br.ufs.gothings.core.GwMessage;
-import br.ufs.gothings.core.Settings;
 import br.ufs.gothings.core.message.Payload;
 import br.ufs.gothings.core.message.headers.Operation;
 import br.ufs.gothings.core.message.sink.MessageLink;
@@ -19,7 +18,6 @@ import java.io.IOException;
 import java.net.URISyntaxException;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.junit.Assert.*;
 
@@ -31,7 +29,7 @@ public class NanoHTTPDServerTest {
     public void testGatewayPayloadIsUsed() throws IOException, URISyntaxException {
         final MessageSink sink = new MessageSink();
         final MessageLink link = sink.getLeftLink();
-        link.setListener(msg -> {
+        link.setUp(msg -> {
             final GwHeaders h = msg.headers();
 
             final Operation operation = h.operationHeader().get();
@@ -95,7 +93,7 @@ public class NanoHTTPDServerTest {
     public void testGatewayHeadersAreUsed() throws IOException, URISyntaxException {
         final MessageSink sink = new MessageSink();
         final MessageLink link = sink.getLeftLink();
-        link.setListener(msg -> {
+        link.setUp(msg -> {
             final GwMessage answer = GwMessage.newAnswerMessage(msg);
             answer.payload().set("{\"array\":[1,2,3]}", Charset.defaultCharset());
             answer.headers().contentTypeHeader().set("application/json");

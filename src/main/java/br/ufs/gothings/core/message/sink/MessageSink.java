@@ -114,14 +114,10 @@ public class MessageSink {
         }
 
         @Override
-        public void setListener(MessageListener listener) {
-            Validate.validState(this.listener == null, "listener already set");
+        public void setUp(MessageListener listener) {
+            Validate.validState(this.listener == null, "link already set up");
             this.listener = listener;
             eventHandler.addLink();
-        }
-
-        MessageListener getListener() {
-            return listener;
         }
     }
 
@@ -143,7 +139,7 @@ public class MessageSink {
         public void onEvent(final MessageEvent event, long sequence, boolean endOfBatch) {
             final InternalMessageLink targetLink = (event.getSourceLink() == leftLink) ? rightLink : leftLink;
             try {
-                targetLink.getListener().valueReceived(event.getMessage());
+                targetLink.listener.valueReceived(event.getMessage());
             } catch (Exception ignored) {
                 // Any errors are silently ignored
             }

@@ -23,7 +23,7 @@ public final class MqttPluginClient {
 
     public MqttPluginClient(final MessageLink messageLink) {
         this.messageLink = messageLink;
-        this.messageLink.setListener(new MessageSinkListener());
+        this.messageLink.setUp(new MessageSinkListener());
         connections = new HashMap<>();
     }
 

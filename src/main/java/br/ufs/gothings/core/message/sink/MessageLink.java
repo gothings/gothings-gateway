@@ -10,5 +10,5 @@ import java.util.concurrent.Future;
 public interface MessageLink {
     Future<GwMessage> send(GwMessage msg);
 
-    void setListener(MessageListener listener);
+    void setUp(MessageListener listener);
 }

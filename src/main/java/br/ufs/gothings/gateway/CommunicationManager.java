@@ -45,7 +45,7 @@ public class CommunicationManager {
     public void register(final GwPlugin plugin) {
         final MessageLink serverLink = plugin.serverLink();
         if (serverLink != null) {
-            serverLink.setListener(msg -> {
+            serverLink.setUp(msg -> {
                 // ignore answer messages
                 if (msg.isAnswer()) {
                     logger.error("%s server plugin sent a non-answer to the Communication Manager", plugin.getProtocol());
@@ -58,7 +58,7 @@ public class CommunicationManager {
 
         final MessageLink clientLink = plugin.clientLink();
         if (clientLink != null) {
-            clientLink.setListener(msg -> {
+            clientLink.setUp(msg -> {
                 // ignore request messages
                 if (!msg.isAnswer()) {
                     logger.error("%s client plugin sent an answer to the Communication Manager", plugin.getProtocol());

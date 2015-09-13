@@ -27,7 +27,7 @@ public class MqttPluginClientTest {
 
         final SynchronousQueue<GwMessage> pipe = new SynchronousQueue<>();
         final MessageLink link = sink.getLeftLink();
-        link.setListener(pipe::put);
+        link.setUp(pipe::put);
 
         GwMessage msg = GwMessage.newMessage();
         msg.headers().targetsHeader().add("localhost");

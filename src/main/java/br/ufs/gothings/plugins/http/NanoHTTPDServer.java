@@ -42,7 +42,7 @@ class NanoHTTPDServer implements HttpPluginServer {
         public Server(final MessageLink messageLink, final int port) {
             super(port);
             this.messageLink = messageLink;
-            this.messageLink.setListener(null);
+            this.messageLink.setUp(null);
         }
 
         @Override
