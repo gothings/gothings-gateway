@@ -69,7 +69,7 @@ public final class MqttPluginClient {
                     h.targetsHeader().add(host);
                     h.pathHeader().set(topic);
 
-                    messageLink.send(msg);
+                    messageLink.sendReply(msg);
                 }
 
                 // TODO: what to do here?

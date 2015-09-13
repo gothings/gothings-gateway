@@ -39,7 +39,7 @@ public class NanoHTTPDServerTest {
 
             final GwReply reply = new GwReply((GwRequest) msg);
             reply.payload().set(buf.nioBuffer());
-            link.send(reply);
+            link.sendReply(reply);
         });
 
         final NanoHTTPDServer.Server server = new NanoHTTPDServer.Server(sink.getRightLink(), 0);
@@ -98,7 +98,7 @@ public class NanoHTTPDServerTest {
             final GwReply reply = new GwReply((GwRequest) msg);
             reply.payload().set("{\"array\":[1,2,3]}", Charset.defaultCharset());
             reply.headers().contentTypeHeader().set("application/json");
-            link.send(reply);
+            link.sendReply(reply);
         });
 
         final NanoHTTPDServer.Server server = new NanoHTTPDServer.Server(sink.getRightLink(), 0);

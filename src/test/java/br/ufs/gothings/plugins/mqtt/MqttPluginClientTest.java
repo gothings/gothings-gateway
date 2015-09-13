@@ -35,7 +35,7 @@ public class MqttPluginClientTest {
         req.headers().targetsHeader().add("localhost");
         req.headers().operationHeader().set(Operation.READ);
         req.headers().pathHeader().set("temperature");
-        link.send(req);
+        link.sendRequest(req);
 
         final GwReply reply = (GwReply) pipe.take();
         assertEquals("localhost", reply.headers().targetsHeader().get(0));

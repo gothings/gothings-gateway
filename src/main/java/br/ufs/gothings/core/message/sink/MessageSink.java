@@ -1,6 +1,8 @@
 package br.ufs.gothings.core.message.sink;
 
 import br.ufs.gothings.core.GwMessage;
+import br.ufs.gothings.core.message.GwReply;
+import br.ufs.gothings.core.message.GwRequest;
 import com.lmax.disruptor.EventHandler;
 import com.lmax.disruptor.RingBuffer;
 import com.lmax.disruptor.dsl.Disruptor;
@@ -20,7 +22,7 @@ public class MessageSink {
     private final Disruptor<MessageEvent> disruptor;
     private final RingBuffer<MessageEvent> ringBuffer;
 
-    private final Map<Long, CompletableFuture<GwMessage>> linkReplies;
+    private final Map<Long, CompletableFuture<GwReply>> linkReplies;
     private final InternalMessageLink leftLink;
     private final InternalMessageLink rightLink;
     private final MessageEventHandler eventHandler;
@@ -88,32 +90,30 @@ public class MessageSink {
         private MessageListener listener;
 
         @Override
-        public Future<GwMessage> send(GwMessage msg) {
-            Validate.notNull(msg);
+        public Future<GwReply> sendRequest(GwRequest request) {
+            Validate.notNull(request);
             checkStart();
 
-            final long sequence = ringBuffer.next();
-            final MessageEvent event = ringBuffer.get(sequence);
+            request.setSequence(MESSAGES_SEQUENCE.incrementAndGet());
 
-            final CompletableFuture<GwMessage> future;
-            if (!msg.isReply()) {
-                msg.setSequence(MESSAGES_SEQUENCE.incrementAndGet());
-                future = new CompletableFuture<>();
-                linkReplies.put(msg.getSequence(), future);
-            } else {
-                future = null;
-                final Long m_seq = msg.getSequence();
-                if (m_seq != null) {
-                    final CompletableFuture<GwMessage> reply = linkReplies.remove(m_seq);
-                    Validate.notNull(reply, "not found a message with sequence %d to send the reply", m_seq);
-                    reply.complete(msg);
-                }
-            }
-            event.setMessage(msg);
-            event.setSourceLink(this);
+            final CompletableFuture<GwReply> future = new CompletableFuture<>();
+            linkReplies.put(request.getSequence(), future);
 
-            ringBuffer.publish(sequence);
+            disruptorPublish(request);
+
             return future;
+        }
+
+        @Override
+        public void sendReply(final GwReply reply) {
+            final Long m_seq = reply.getSequence();
+            if (m_seq != null) {
+                final CompletableFuture<GwReply> replyFuture = linkReplies.remove(m_seq);
+                Validate.notNull(replyFuture, "not found a message with sequence %d to send the reply", m_seq);
+                replyFuture.complete(reply);
+            } else {
+                disruptorPublish(reply);
+            }
         }
 
         @Override
@@ -121,6 +121,14 @@ public class MessageSink {
             Validate.validState(this.listener == null, "link already set up");
             this.listener = listener;
             eventHandler.addLink();
+        }
+
+        private void disruptorPublish(final GwMessage msg) {
+            final long sequence = ringBuffer.next();
+            final MessageEvent event = ringBuffer.get(sequence);
+            event.setMessage(msg);
+            event.setSourceLink(this);
+            ringBuffer.publish(sequence);
         }
     }
 

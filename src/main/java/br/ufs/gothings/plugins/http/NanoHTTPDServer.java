@@ -1,7 +1,6 @@
 package br.ufs.gothings.plugins.http;
 
 import br.ufs.gothings.core.GwHeaders;
-import br.ufs.gothings.core.GwMessage;
 import br.ufs.gothings.core.Settings;
 import br.ufs.gothings.core.message.GwReply;
 import br.ufs.gothings.core.message.GwRequest;
@@ -57,9 +56,9 @@ class NanoHTTPDServer implements HttpPluginServer {
             }
 
             if (gw_request != null) {
-                final Future<GwMessage> future = messageLink.send(gw_request);
+                final Future<GwReply> future = messageLink.sendRequest(gw_request);
                 try {
-                    final GwReply gw_reply = (GwReply) future.get(1, TimeUnit.MINUTES);
+                    final GwReply gw_reply = future.get(1, TimeUnit.MINUTES);
 
                     final Response http_response = new Response(Status.OK, null, "");
                     http_response.setData(gw_reply.payload().asInputStream());
