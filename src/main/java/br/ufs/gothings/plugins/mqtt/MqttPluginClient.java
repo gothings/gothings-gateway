@@ -2,7 +2,7 @@ package br.ufs.gothings.plugins.mqtt;
 
 import br.ufs.gothings.core.GwHeaders;
 import br.ufs.gothings.core.GwMessage;
-import br.ufs.gothings.core.message.GwReply;
+import br.ufs.gothings.core.message.GwNews;
 import br.ufs.gothings.core.message.GwRequest;
 import br.ufs.gothings.core.message.headers.Operation;
 import br.ufs.gothings.core.message.sink.MessageLink;
@@ -63,13 +63,13 @@ public final class MqttPluginClient {
 
                 @Override
                 public void messageArrived(String topic, MqttMessage mqttMessage) throws Exception {
-                    final GwReply msg = new GwReply();
+                    final GwNews msg = new GwNews();
                     msg.payload().set(mqttMessage.getPayload());
                     final GwHeaders h = msg.headers();
                     h.targetsHeader().add(host);
                     h.pathHeader().set(topic);
 
-                    messageLink.sendReply(msg);
+                    messageLink.broadcast(msg);
                 }
 
                 // TODO: what to do here?

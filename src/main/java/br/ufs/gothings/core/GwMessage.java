@@ -12,9 +12,13 @@ public abstract class GwMessage {
     private final GwHeaders headers;
     private final Payload payload;
 
+    protected GwMessage() {
+        this(null, null);
+    }
+
     protected GwMessage(GwHeaders headers, Payload payload) {
-        this.headers = headers;
-        this.payload = payload;
+        this.headers = (headers != null) ? headers : new GwHeaders();
+        this.payload = (payload != null) ? payload : new Payload();
     }
 
     public final GwHeaders headers() {

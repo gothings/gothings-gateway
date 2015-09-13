@@ -1,6 +1,7 @@
 package br.ufs.gothings.core.message.sink;
 
 import br.ufs.gothings.core.GwMessage;
+import br.ufs.gothings.core.message.GwNews;
 import br.ufs.gothings.core.message.GwReply;
 import br.ufs.gothings.core.message.GwRequest;
 import com.lmax.disruptor.EventHandler;
@@ -106,14 +107,21 @@ public class MessageSink {
 
         @Override
         public void sendReply(final GwReply reply) {
+            Validate.notNull(reply);
+            checkStart();
+
             final Long m_seq = reply.getSequence();
-            if (m_seq != null) {
-                final CompletableFuture<GwReply> replyFuture = linkReplies.remove(m_seq);
-                Validate.notNull(replyFuture, "not found a message with sequence %d to send the reply", m_seq);
-                replyFuture.complete(reply);
-            } else {
-                disruptorPublish(reply);
-            }
+            final CompletableFuture<GwReply> replyFuture = linkReplies.remove(m_seq);
+            Validate.notNull(replyFuture, "not found a message with sequence %d to send the reply", m_seq);
+            replyFuture.complete(reply);
+        }
+
+        @Override
+        public void broadcast(final GwNews news) {
+            Validate.notNull(news);
+            checkStart();
+
+            disruptorPublish(news);
         }
 
         @Override
