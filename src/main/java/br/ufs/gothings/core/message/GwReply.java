@@ -8,6 +8,7 @@ import br.ufs.gothings.core.GwMessage;
 public final class GwReply extends GwMessage {
     public GwReply() {
         super(null);
+        allowSequence.set(false);
     }
 
     public GwReply(final Long sequence) {

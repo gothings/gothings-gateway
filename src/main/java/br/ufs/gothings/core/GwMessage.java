@@ -3,6 +3,8 @@ package br.ufs.gothings.core;
 import br.ufs.gothings.core.message.Payload;
 import org.apache.commons.lang3.Validate;
 
+import java.util.concurrent.atomic.AtomicBoolean;
+
 /**
  * @author Wagner Macedo
  */
@@ -11,6 +13,7 @@ public abstract class GwMessage {
     private final Payload payload;
 
     private Long sequence;
+    protected final AtomicBoolean allowSequence = new AtomicBoolean(true);
 
     protected GwMessage(GwHeaders headers, Payload payload, Long sequence) {
         this.headers = headers;
@@ -39,7 +42,8 @@ public abstract class GwMessage {
     }
 
     public final void setSequence(final long sequence) {
-        Validate.validState(this.sequence == null, "message sequence already set");
+        Validate.validState(this.sequence == null || !allowSequence.get(),
+                "message sequence already set or not allowed to set");
         this.sequence = sequence;
     }
 
