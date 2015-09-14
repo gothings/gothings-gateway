@@ -6,11 +6,6 @@ package br.ufs.gothings.core.message;
 public final class GwReply extends SequencedMessage {
     { type = MessageType.REPLY; }
 
-    public GwReply() {
-        super(null);
-        allowSequence.set(false);
-    }
-
     public GwReply(final Long sequence) {
         super(sequence);
     }
