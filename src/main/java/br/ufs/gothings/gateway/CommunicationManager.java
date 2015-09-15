@@ -49,12 +49,13 @@ public class CommunicationManager {
         if (serverLink != null) {
             serverLink.setUp(msg -> {
                 switch (msg.getType()) {
-                    // ignore request messages
+                    // ignore reply messages
                     case REQUEST:
-                        logger.error("%s server plugin sent a request to the Communication Manager", plugin.getProtocol());
+                        requestsMap.put(msg.getSequence(), plugin);
+                        inputController.receiveForwarding(COMMUNICATION_MANAGER, msg);
                         break;
                     case REPLY:
-                        inputController.receiveForwarding(COMMUNICATION_MANAGER, msg);
+                        logger.error("%s server plugin sent a request to the Communication Manager", plugin.getProtocol());
                         break;
                 }
             });
@@ -64,12 +65,11 @@ public class CommunicationManager {
         if (clientLink != null) {
             clientLink.setUp(msg -> {
                 switch (msg.getType()) {
-                    // ignore reply messages
-                    case REPLY:
+                    // ignore request messages
+                    case REQUEST:
                         logger.error("%s client plugin sent an reply to the Communication Manager", plugin.getProtocol());
                         break;
-                    case REQUEST:
-                        requestsMap.put(msg.getSequence(), plugin);
+                    case REPLY:
                         interconnectionController.receiveForwarding(COMMUNICATION_MANAGER, msg);
                         break;
                 }
