@@ -21,6 +21,15 @@ public abstract class DataMessage extends GwMessage {
         this.payload = (payload != null) ? payload : new Payload();
     }
 
+    protected DataMessage(final GwHeaders headers, final Payload payload, final Long sequence) {
+        this(headers, payload);
+        this.sequence = sequence;
+    }
+
+    protected DataMessage(Long sequence) {
+        this(null, null, sequence);
+    }
+
     public final GwHeaders headers() {
         return headers;
     }
