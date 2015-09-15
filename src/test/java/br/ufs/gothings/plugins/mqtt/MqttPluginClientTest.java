@@ -32,14 +32,14 @@ public class MqttPluginClientTest {
         link.setUp(pipe::put);
 
         final GwRequest req = new GwRequest();
-        req.headers().targetsHeader().add("localhost");
+        req.headers().targetHeader().set("localhost");
         req.headers().operationHeader().set(Operation.READ);
         req.headers().pathHeader().set("temperature");
         link.sendRequest(req);
 
         final DataMessage reply = pipe.take();
         assertTrue("reply is not instance of GwNews", reply instanceof GwReply);
-        assertEquals("localhost", reply.headers().targetsHeader().get(0));
+        assertEquals("localhost", reply.headers().targetHeader().get());
         assertEquals("temperature", reply.headers().pathHeader().get());
         assertEquals("88 C", reply.payload().asString(Charset.defaultCharset()));
     }

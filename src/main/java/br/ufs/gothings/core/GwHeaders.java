@@ -37,8 +37,8 @@ public class GwHeaders {
         return getHeader(Name.SOURCE, String.class);
     }
 
-    public ComplexHeader<String> targetsHeader() {
-        return getComplexHeader(Name.TARGET, String.class, LinkedHashSet::new);
+    public Header<String> targetHeader() {
+        return getHeader(Name.TARGET, String.class);
     }
 
     public Header<Operation> operationHeader() {

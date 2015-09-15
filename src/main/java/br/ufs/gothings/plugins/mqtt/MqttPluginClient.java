@@ -32,7 +32,7 @@ public final class MqttPluginClient {
     private class MessageSinkListener implements MessageListener {
         @Override
         public void valueReceived(DataMessage msg) throws MqttException {
-            final String host = msg.headers().targetsHeader().get(0);
+            final String host = msg.headers().targetHeader().get();
 
             final MqttConnection conn = getMqttConnection(host);
             conn.sendMessage((GwRequest) msg);
@@ -66,7 +66,7 @@ public final class MqttPluginClient {
                     final GwReply msg = new GwReply();
                     msg.payload().set(mqttMessage.getPayload());
                     final GwHeaders h = msg.headers();
-                    h.targetsHeader().add(host);
+                    h.targetHeader().set(host);
                     h.pathHeader().set(topic);
 
                     messageLink.broadcast(msg);
