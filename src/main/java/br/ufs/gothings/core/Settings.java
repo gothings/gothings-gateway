@@ -1,5 +1,6 @@
 package br.ufs.gothings.core;
 
+import br.ufs.gothings.core.common.Key;
 import org.apache.commons.lang3.Validate;
 
 import java.util.HashMap;
@@ -85,37 +86,5 @@ public class Settings {
         final Key<T> key = new Key<>(name, cls, validator);
         localKeys.put(name, key);
         return key;
-    }
-
-    public static final class Key<T> {
-        private final String name;
-        private final Class<T> classType;
-        private final Function<T, Boolean> validator;
-
-        private Key(final String name, final Class<T> classType, final Function<T, Boolean> validator) {
-            this.name = name;
-            this.classType = classType;
-            this.validator = validator;
-        }
-
-        public String getName() {
-            return name;
-        }
-
-        public Class<T> getClassType() {
-            return classType;
-        }
-
-        public boolean validate(T value) {
-            if (validator == null) {
-                return true;
-            } else {
-                try {
-                    return validator.apply(value);
-                } catch (Exception e) {
-                    return false;
-                }
-            }
-        }
     }
 }

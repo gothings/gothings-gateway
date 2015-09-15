@@ -2,6 +2,7 @@ package br.ufs.gothings.gateway;
 
 import br.ufs.gothings.core.GwPlugin;
 import br.ufs.gothings.core.Settings;
+import br.ufs.gothings.core.common.Key;
 import com.esotericsoftware.yamlbeans.YamlException;
 import com.esotericsoftware.yamlbeans.YamlReader;
 import org.apache.commons.cli.*;
@@ -47,7 +48,7 @@ public final class Gateway {
             final Settings settings = plugin.settings();
             for (final Entry<String, String> entry : p.getProperties().entrySet()) {
                 final String name = entry.getKey();
-                final Settings.Key<?> key = settings.getKey(name);
+                final Key<?> key = settings.getKey(name);
                 if (key == null) {
                     throw new GatewayConfigException("property '%s' not registered for %s protocol", name, protocol);
                 }
@@ -61,7 +62,7 @@ public final class Gateway {
     }
 
     @SuppressWarnings("unchecked")
-    private static <T> T convert(final String value, final Settings.Key<?> key) {
+    private static <T> T convert(final String value, final Key<?> key) {
         final Class<?> cls = key.getClassType();
         if (cls == String.class)
             return (T) value;
