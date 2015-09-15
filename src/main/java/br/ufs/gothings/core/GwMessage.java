@@ -33,4 +33,9 @@ public abstract class GwMessage {
     public final void lockSequence() {
         sequenceLock.set(true);
     }
+
+    public final boolean isSequenced() {
+        lockSequence();
+        return getSequence() != null;
+    }
 }

@@ -1,6 +1,5 @@
 package br.ufs.gothings.core.message.sink;
 
-import br.ufs.gothings.core.message.GwNews;
 import br.ufs.gothings.core.message.GwReply;
 import br.ufs.gothings.core.message.GwRequest;
 
@@ -14,7 +13,7 @@ public interface MessageLink {
 
     void sendReply(GwReply reply);
 
-    void broadcast(GwNews news);
+    void broadcast(GwReply reply);
 
     void setUp(MessageListener listener);
 }

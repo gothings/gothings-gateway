@@ -2,7 +2,6 @@ package br.ufs.gothings.core.message.sink;
 
 import br.ufs.gothings.core.message.DataMessage;
 import br.ufs.gothings.core.GwMessage;
-import br.ufs.gothings.core.message.GwNews;
 import br.ufs.gothings.core.message.GwReply;
 import br.ufs.gothings.core.message.GwRequest;
 import com.lmax.disruptor.EventHandler;
@@ -123,12 +122,12 @@ public class MessageSink {
             checkLinkArg(reply, "reply");
             checkStart();
 
-            final Long m_seq = reply.getSequence();
-            if (m_seq == null) {
+            if (!reply.isSequenced()) {
                 logger.error("received a reply without a sequence number");
                 throw new IllegalArgumentException("reply without a sequence");
             }
 
+            final Long m_seq = reply.getSequence();
             final CompletableFuture<GwReply> replyFuture = linkReplies.remove(m_seq);
             if (replyFuture == null) {
                 logger.error("not found a message with sequence %d to send the reply", m_seq);
@@ -138,11 +137,16 @@ public class MessageSink {
         }
 
         @Override
-        public void broadcast(final GwNews news) {
-            checkLinkArg(news, "news");
+        public void broadcast(final GwReply reply) {
+            checkLinkArg(reply, "reply");
             checkStart();
 
-            disruptorPublish(news);
+            if (reply.isSequenced()) {
+                logger.error("tried to broadcast a sequenced reply");
+                throw new IllegalArgumentException("only a sequenced reply can be broadcast");
+            }
+
+            disruptorPublish(reply);
         }
 
         @Override
