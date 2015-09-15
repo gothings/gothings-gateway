@@ -27,6 +27,8 @@ public final class Key<T> {
     public boolean validate(T value) {
         if (validator == null) {
             return true;
+        } else if (!classType.isInstance(value)) {
+            throw new ClassCastException("value is not a type of " + classType);
         } else {
             try {
                 return validator.apply(value);

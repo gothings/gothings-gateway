@@ -43,8 +43,6 @@ public class Settings {
         writeCheck();
         if (value == null) {
             properties.remove(key.getName());
-        } else if (!key.getClassType().isInstance(value)) {
-            throw new ClassCastException("value is not a type of " + key.getClassType());
         } else if (!key.validate(value)) {
             throw new IllegalArgumentException("value `" + value + "` didn't pass in the validation");
         }
