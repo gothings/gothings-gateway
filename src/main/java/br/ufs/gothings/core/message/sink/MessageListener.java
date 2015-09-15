@@ -1,10 +1,10 @@
 package br.ufs.gothings.core.message.sink;
 
-import br.ufs.gothings.core.GwMessage;
+import br.ufs.gothings.core.message.DataMessage;
 
 /**
  * @author Wagner Macedo
  */
 public interface MessageListener {
-    void valueReceived(GwMessage msg) throws Exception;
+    void valueReceived(DataMessage msg) throws Exception;
 }

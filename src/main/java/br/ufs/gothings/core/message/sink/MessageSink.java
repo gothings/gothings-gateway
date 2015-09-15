@@ -1,5 +1,6 @@
 package br.ufs.gothings.core.message.sink;
 
+import br.ufs.gothings.core.message.DataMessage;
 import br.ufs.gothings.core.GwMessage;
 import br.ufs.gothings.core.message.GwNews;
 import br.ufs.gothings.core.message.GwReply;
@@ -72,14 +73,14 @@ public class MessageSink {
     }
 
     private static final class MessageEvent {
-        private GwMessage message;
+        private DataMessage message;
         private MessageLink sourceLink;
 
-        GwMessage getMessage() {
+        DataMessage getMessage() {
             return message;
         }
 
-        void setMessage(GwMessage message) {
+        void setMessage(DataMessage message) {
             this.message = message;
         }
 
@@ -151,7 +152,7 @@ public class MessageSink {
             eventHandler.addLink();
         }
 
-        private void disruptorPublish(final GwMessage msg) {
+        private void disruptorPublish(final DataMessage msg) {
             final long sequence = ringBuffer.next();
             final MessageEvent event = ringBuffer.get(sequence);
             event.setMessage(msg);

@@ -1,6 +1,6 @@
 package br.ufs.gothings.plugins.mqtt;
 
-import br.ufs.gothings.core.GwMessage;
+import br.ufs.gothings.core.message.DataMessage;
 import br.ufs.gothings.core.message.GwNews;
 import br.ufs.gothings.core.message.GwRequest;
 import br.ufs.gothings.core.message.headers.Operation;
@@ -27,7 +27,7 @@ public class MqttPluginClientTest {
         final MessageSink sink = new MessageSink();
         new MqttPluginClient(sink.getRightLink());
 
-        final SynchronousQueue<GwMessage> pipe = new SynchronousQueue<>();
+        final SynchronousQueue<DataMessage> pipe = new SynchronousQueue<>();
         final MessageLink link = sink.getLeftLink();
         link.setUp(pipe::put);
 
@@ -37,7 +37,7 @@ public class MqttPluginClientTest {
         req.headers().pathHeader().set("temperature");
         link.sendRequest(req);
 
-        final GwMessage reply = pipe.take();
+        final DataMessage reply = pipe.take();
         assertTrue("reply is not instance of GwNews", reply instanceof GwNews);
         assertEquals("localhost", reply.headers().targetsHeader().get(0));
         assertEquals("temperature", reply.headers().pathHeader().get());

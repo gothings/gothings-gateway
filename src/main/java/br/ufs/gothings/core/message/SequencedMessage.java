@@ -1,13 +1,12 @@
 package br.ufs.gothings.core.message;
 
 import br.ufs.gothings.core.GwHeaders;
-import br.ufs.gothings.core.GwMessage;
 import org.apache.commons.lang3.Validate;
 
 /**
  * @author Wagner Macedo
  */
-public abstract class SequencedMessage extends GwMessage {
+public abstract class SequencedMessage extends DataMessage {
     private Long sequence;
 
     protected SequencedMessage(final GwHeaders headers, final Payload payload, final Long sequence) {
