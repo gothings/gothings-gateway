@@ -2,7 +2,6 @@ package br.ufs.gothings.core.message;
 
 import br.ufs.gothings.core.GwHeaders;
 import br.ufs.gothings.core.GwMessage;
-import br.ufs.gothings.core.message.Payload;
 
 /**
  * @author Wagner Macedo
@@ -23,11 +22,7 @@ public abstract class DataMessage extends GwMessage {
 
     protected DataMessage(final GwHeaders headers, final Payload payload, final Long sequence) {
         this(headers, payload);
-        this.sequence = sequence;
-    }
-
-    protected DataMessage(Long sequence) {
-        this(null, null, sequence);
+        this.setSequence(sequence);
     }
 
     public final GwHeaders headers() {

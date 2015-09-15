@@ -5,9 +5,4 @@ package br.ufs.gothings.core.message;
  */
 public final class GwRequest extends DataMessage {
     { type = MessageType.REQUEST; }
-
-    public GwRequest() {
-        // start without a sequence
-        super(null);
-    }
 }
