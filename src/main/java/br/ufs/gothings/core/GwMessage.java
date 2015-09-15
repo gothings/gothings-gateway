@@ -1,6 +1,5 @@
 package br.ufs.gothings.core;
 
-import br.ufs.gothings.core.message.MessageType;
 import org.apache.commons.lang3.Validate;
 
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -10,6 +9,10 @@ import java.util.concurrent.atomic.AtomicReference;
  * @author Wagner Macedo
  */
 public abstract class GwMessage {
+    public enum MessageType {
+        REQUEST, REPLY,
+    }
+
     protected MessageType type;
 
     private final AtomicReference<Long> sequence = new AtomicReference<>();
