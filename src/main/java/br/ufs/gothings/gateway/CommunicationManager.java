@@ -6,6 +6,7 @@ import br.ufs.gothings.core.Settings;
 import br.ufs.gothings.core.message.GwReply;
 import br.ufs.gothings.core.message.GwRequest;
 import br.ufs.gothings.core.message.sink.MessageLink;
+import br.ufs.gothings.core.util.MapUtils;
 import br.ufs.gothings.gateway.block.Block;
 import br.ufs.gothings.gateway.block.BlockId;
 import br.ufs.gothings.gateway.block.Forwarding;
@@ -27,21 +28,17 @@ public class CommunicationManager {
 
     private final Map<String, GwPlugin> pluginsMap = new ConcurrentHashMap<>();
     private final Map<Long, GwPlugin> requestsMap = new ConcurrentHashMap<>();
-    private final Map<Block, BlockId> blocksMap = new IdentityHashMap<>(4);
-
-    private final Block inputController;
-    private final Block interconnectionController;
-    private final Block outputController;
+    private final Map<Block, BlockId> blocksMap = new IdentityHashMap<>();
 
     CommunicationManager() {
-        inputController = new InputController(this);
-        interconnectionController = new InterconnectionController(this);
-        outputController = new OutputController(this);
+        final Block ic = new InputController(this);
+        final Block icc = new InterconnectionController(this);
+        final Block oc = new OutputController(this);
 
-        blocksMap.put(null, COMMUNICATION_MANAGER);
-        blocksMap.put(inputController, INPUT_CONTROLLER);
-        blocksMap.put(interconnectionController, INTERCONNECTION_CONTROLLER);
-        blocksMap.put(outputController, OUTPUT_CONTROLLER);
+        // Indexing blocks
+        blocksMap.put(ic, INPUT_CONTROLLER);
+        blocksMap.put(icc, INTERCONNECTION_CONTROLLER);
+        blocksMap.put(oc, OUTPUT_CONTROLLER);
     }
 
     public void register(final GwPlugin plugin) {
@@ -53,8 +50,7 @@ public class CommunicationManager {
                     case REQUEST:
                         requestsMap.put(msg.getSequence(), plugin);
                         final Forwarding fwd = new Forwarding(msg, null);
-                        fwd.markUsed();
-                        inputController.receiveForwarding(COMMUNICATION_MANAGER, fwd);
+                        forward(COMMUNICATION_MANAGER, INPUT_CONTROLLER, fwd);
                         break;
                     case REPLY:
                         logger.error("%s server plugin sent a request to the Communication Manager", plugin.getProtocol());
@@ -73,8 +69,7 @@ public class CommunicationManager {
                         break;
                     case REPLY:
                         final Forwarding fwd = new Forwarding(msg, null);
-                        fwd.markUsed();
-                        interconnectionController.receiveForwarding(COMMUNICATION_MANAGER, fwd);
+                        forward(COMMUNICATION_MANAGER, INTERCONNECTION_CONTROLLER, fwd);
                         break;
                 }
             });
@@ -99,51 +94,41 @@ public class CommunicationManager {
 
     public void forward(final Block sourceBlock, final BlockId targetId, final Forwarding fwd) throws InvalidForwardingException {
         final BlockId sourceId = blocksMap.get(sourceBlock);
-        switch (sourceId) {
-            case INPUT_CONTROLLER:
-                switch (targetId) {
-                    case INTERCONNECTION_CONTROLLER:
-                        if (fwd.markUsed()) {
-                            interconnectionController.receiveForwarding(sourceId, fwd);
-                        }
-                        break;
-                    default:
-                        throw new InvalidForwardingException("sourceBlock => targetId");
-                }
-                break;
-
-            case INTERCONNECTION_CONTROLLER:
-                switch (targetId) {
-                    case COMMUNICATION_MANAGER:
-                        if (fwd.markUsed()) {
-                            requestToPlugin((GwRequest) fwd.getMessage());
-                        }
-                        break;
-                    case OUTPUT_CONTROLLER:
-                        if (fwd.markUsed()) {
-                            outputController.receiveForwarding(sourceId, fwd);
-                        }
-                        break;
-                    default:
-                        throw new InvalidForwardingException("sourceBlock => targetId");
-                }
-                break;
-
-            case OUTPUT_CONTROLLER:
-                switch (targetId) {
-                    case COMMUNICATION_MANAGER:
-                        if (fwd.markUsed()) {
-                            replyToPlugin((GwReply) fwd.getMessage());
-                        }
-                        break;
-                    default:
-                        throw new InvalidForwardingException("sourceBlock => targetId");
-                }
-                break;
-
-            default:
-                throw new InvalidForwardingException("sourceBlock");
+        if (sourceId == null) {
+            throw new InvalidForwardingException("source block instance not found");
         }
+        forward(sourceId, targetId, fwd);
+    }
+
+    private void forward(final BlockId sourceId, final BlockId targetId, final Forwarding fwd) throws InvalidForwardingException {
+        // Check if source block can forward to target block
+        if (!sourceId.canForward(targetId)) {
+            throw new InvalidForwardingException(sourceId + " => " + targetId);
+        }
+
+        // Only forwards if was not forwarded before
+        if (!fwd.markUsed()) {
+            throw new InvalidForwardingException("wrapper already forwarded");
+        }
+
+        // If target block is the communication manager...
+        if (targetId == COMMUNICATION_MANAGER) {
+            // ...depending on source the message is handled as a request or a reply
+            switch (sourceId) {
+                case INTERCONNECTION_CONTROLLER:
+                    requestToPlugin((GwRequest) fwd.getMessage());
+                    break;
+                case OUTPUT_CONTROLLER:
+                    replyToPlugin((GwReply) fwd.getMessage());
+                    break;
+            }
+            return;
+        }
+
+        // If nothing happens then forwards to the target block
+        final Block targetBlock = MapUtils.getKey(blocksMap, targetId);
+        assert targetBlock != null;
+        targetBlock.receiveForwarding(sourceId, fwd);
     }
 
     private void requestToPlugin(final GwRequest msg) {
@@ -168,5 +153,4 @@ public class CommunicationManager {
             // TODO: stub
         }
     }
-
 }
