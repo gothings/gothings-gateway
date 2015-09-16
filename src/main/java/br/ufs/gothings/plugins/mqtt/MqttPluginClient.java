@@ -79,10 +79,10 @@ public final class MqttPluginClient {
                 }
             });
             connectionToken = client.connect(new MqttConnectOptions());
+            connectionToken.waitForCompletion();
         }
 
         public void sendMessage(GwRequest msg) throws MqttException {
-            connectionToken.waitForCompletion();
             final GwHeaders h = msg.headers();
             final Operation operation = h.get(GwHeaders.OPERATION);
             final String topic = h.get(GwHeaders.PATH);
