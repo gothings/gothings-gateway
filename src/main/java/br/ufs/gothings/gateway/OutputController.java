@@ -21,7 +21,7 @@ public class OutputController implements Block {
     public void receiveForwarding(final BlockId sourceId, final Forwarding fwd) throws InvalidForwardingException {
         final GwMessage message = fwd.getMessage();
         performListeners((GwReply) message);
-        manager.forward(this, BlockId.COMMUNICATION_MANAGER, new Forwarding(message, null));
+        manager.forward(this, BlockId.COMMUNICATION_MANAGER, new Forwarding(message, fwd.getExtraInfo()));
     }
 
     private void performListeners(final GwReply msg) {

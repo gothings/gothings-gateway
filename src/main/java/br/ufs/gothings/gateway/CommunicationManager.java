@@ -49,7 +49,7 @@ public class CommunicationManager {
                     // ignore reply messages
                     case REQUEST:
                         requestsMap.put(msg.getSequence(), plugin);
-                        final Forwarding fwd = new Forwarding(msg, null);
+                        final Forwarding fwd = new Forwarding(msg, plugin.getProtocol());
                         forward(COMMUNICATION_MANAGER, INPUT_CONTROLLER, fwd);
                         break;
                     case REPLY:
@@ -68,7 +68,7 @@ public class CommunicationManager {
                         logger.error("%s client plugin sent an reply to the Communication Manager", plugin.getProtocol());
                         break;
                     case REPLY:
-                        final Forwarding fwd = new Forwarding(msg, null);
+                        final Forwarding fwd = new Forwarding(msg, plugin.getProtocol());
                         forward(COMMUNICATION_MANAGER, INTERCONNECTION_CONTROLLER, fwd);
                         break;
                 }
@@ -116,10 +116,10 @@ public class CommunicationManager {
             // ...depending on source the message is handled as a request or a reply
             switch (sourceId) {
                 case INTERCONNECTION_CONTROLLER:
-                    requestToPlugin((GwRequest) fwd.getMessage());
+                    requestToPlugin((GwRequest) fwd.getMessage(), (String) fwd.getExtraInfo());
                     break;
                 case OUTPUT_CONTROLLER:
-                    replyToPlugin((GwReply) fwd.getMessage());
+                    replyToPlugin((GwReply) fwd.getMessage(), (String) fwd.getExtraInfo());
                     break;
             }
             return;
@@ -131,11 +131,11 @@ public class CommunicationManager {
         targetBlock.receiveForwarding(sourceId, fwd);
     }
 
-    private void requestToPlugin(final GwRequest msg) {
+    private void requestToPlugin(final GwRequest msg, final String context) {
         // TODO: method stub
     }
 
-    private void replyToPlugin(final GwReply msg) {
+    private void replyToPlugin(final GwReply msg, final String context) {
         final Long sequence = msg.getSequence();
 
         // reply to a sequenced message

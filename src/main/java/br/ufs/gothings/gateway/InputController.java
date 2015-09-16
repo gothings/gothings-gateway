@@ -21,7 +21,7 @@ public class InputController implements Block {
     public void receiveForwarding(final BlockId sourceId, final Forwarding fwd) throws InvalidForwardingException {
         final GwMessage message = fwd.getMessage();
         performListeners((GwRequest) message);
-        manager.forward(this, BlockId.INTERCONNECTION_CONTROLLER, new Forwarding(message, null));
+        manager.forward(this, BlockId.INTERCONNECTION_CONTROLLER, new Forwarding(message, fwd.getExtraInfo()));
     }
 
     private void performListeners(final GwRequest msg) {
