@@ -1,5 +1,6 @@
 package br.ufs.gothings.gateway;
 
+import br.ufs.gothings.core.GwHeaders;
 import br.ufs.gothings.core.GwMessage;
 import br.ufs.gothings.core.message.GwReply;
 import br.ufs.gothings.core.message.GwRequest;
@@ -44,7 +45,7 @@ public class InterconnectionController implements Block {
     }
 
     private GwReply getCache(final GwRequest req) {
-        if (req.headers().operationHeader().get() != Operation.READ) {
+        if (req.headers().get(GwHeaders.OPERATION) != Operation.READ) {
             return null;
         }
 

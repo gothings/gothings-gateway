@@ -4,7 +4,6 @@ import br.ufs.gothings.core.GwHeaders;
 import br.ufs.gothings.core.Settings;
 import br.ufs.gothings.core.message.GwReply;
 import br.ufs.gothings.core.message.GwRequest;
-import br.ufs.gothings.core.message.headers.ComplexHeader;
 import br.ufs.gothings.core.message.headers.Operation;
 import br.ufs.gothings.core.message.sink.MessageLink;
 import fi.iki.elonen.NanoHTTPD;
@@ -84,28 +83,28 @@ class NanoHTTPDServer implements HttpPluginServer {
 
                     // filling GwHeaders
                     final GwHeaders h = msg.headers();
-                    h.pathHeader().set(session.getUri());
+                    h.set(GwHeaders.PATH, session.getUri());
 
                     // get http headers
                     final Map<String, String> sessionHeaders = session.getHeaders();
 
                     switch (method) {
                         case GET:
-                            h.operationHeader().set(Operation.READ);
+                            h.set(GwHeaders.OPERATION, Operation.READ);
                             addExpectedTypes(h, sessionHeaders);
                             break;
                         case PUT:
                             msg.payload().set(session.getInputStream());
-                            h.operationHeader().set(Operation.UPDATE);
-                            h.contentTypeHeader().set(sessionHeaders.get("content-type"));
+                            h.set(GwHeaders.OPERATION, Operation.UPDATE);
+                            h.set(GwHeaders.CONTENT_TYPE, sessionHeaders.get("content-type"));
                             break;
                         case POST:
                             msg.payload().set(session.getInputStream());
-                            h.operationHeader().set(Operation.CREATE);
-                            h.contentTypeHeader().set(sessionHeaders.get("content-type"));
+                            h.set(GwHeaders.OPERATION, Operation.CREATE);
+                            h.set(GwHeaders.CONTENT_TYPE, sessionHeaders.get("content-type"));
                             break;
                         case DELETE:
-                            h.operationHeader().set(Operation.DELETE);
+                            h.set(GwHeaders.OPERATION, Operation.DELETE);
                             break;
                     }
 
@@ -119,16 +118,15 @@ class NanoHTTPDServer implements HttpPluginServer {
         private static void addExpectedTypes(final GwHeaders gw_headers, final Map<String, String> headers) {
             final String acceptValues = headers.get("accept");
             if (acceptValues != null) {
-                final ComplexHeader<String> expectedTypes = gw_headers.expectedTypesHeader();
                 for (String type : acceptValues.split(",")) {
                     final int pos = type.indexOf(';');
-                    expectedTypes.add(pos != -1 ? type.substring(0, pos) : type);
+                    gw_headers.add(GwHeaders.EXPECTED_TYPES, pos != -1 ? type.substring(0, pos) : type);
                 }
             }
         }
 
         private static void fillHttpResponseHeaders(Response response, GwHeaders gwh) {
-            addHttpHeader(response, "content-type", gwh.contentTypeHeader().get());
+            addHttpHeader(response, "content-type", gwh.get(GwHeaders.CONTENT_TYPE));
         }
 
         private static void addHttpHeader(Response response, String key, CharSequence value) {

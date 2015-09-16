@@ -32,7 +32,7 @@ public final class MqttPluginClient {
     private class MessageSinkListener implements MessageListener {
         @Override
         public void valueReceived(DataMessage msg) throws MqttException {
-            final String host = msg.headers().targetHeader().get();
+            final String host = msg.headers().get(GwHeaders.TARGET);
 
             final MqttConnection conn = getMqttConnection(host);
             conn.sendMessage((GwRequest) msg);
@@ -66,8 +66,8 @@ public final class MqttPluginClient {
                     final GwReply msg = new GwReply();
                     msg.payload().set(mqttMessage.getPayload());
                     final GwHeaders h = msg.headers();
-                    h.targetHeader().set(host);
-                    h.pathHeader().set(topic);
+                    h.set(GwHeaders.TARGET, host);
+                    h.set(GwHeaders.PATH, topic);
 
                     messageLink.broadcast(msg);
                 }
@@ -84,9 +84,9 @@ public final class MqttPluginClient {
         public void sendMessage(GwRequest msg) throws MqttException {
             connectionToken.waitForCompletion();
             final GwHeaders h = msg.headers();
-            final Operation operation = h.operationHeader().get();
-            final String topic = h.pathHeader().get();
-            final int qos = max(0, min(2, h.qosHeader().get()));
+            final Operation operation = h.get(GwHeaders.OPERATION);
+            final String topic = h.get(GwHeaders.PATH);
+            final int qos = max(0, min(2, h.get(GwHeaders.QOS)));
             switch (operation) {
                 // CREATE or UPDATE is mapped as a publish, but this plugin treats CREATE as a retained message
                 case CREATE:
