@@ -1,6 +1,6 @@
 package br.ufs.gothings.core;
 
-import br.ufs.gothings.core.common.Key;
+import br.ufs.gothings.core.common.AbstractKey;
 import org.apache.commons.lang3.Validate;
 
 import java.util.HashMap;
@@ -30,7 +30,7 @@ public class Settings {
 
     @SuppressWarnings("unchecked")
     public synchronized <T> T get(Key<T> key) {
-        return (T) properties.get(key.getName());
+        return (T) properties.get(key.getKeyId());
     }
 
     public synchronized <T> void put(String name, T value) {
@@ -42,11 +42,11 @@ public class Settings {
     public synchronized <T> void put(Key<T> key, T value) {
         writeCheck();
         if (value == null) {
-            properties.remove(key.getName());
+            properties.remove(key.getKeyId());
         } else if (!key.validate(value)) {
             throw new IllegalArgumentException("value `" + value + "` didn't pass in the validation");
         }
-        properties.put(key.getName(), value);
+        properties.put(key.getKeyId(), value);
     }
 
     @SuppressWarnings("unchecked")
@@ -84,5 +84,11 @@ public class Settings {
         final Key<T> key = new Key<>(name, cls, validator);
         localKeys.put(name, key);
         return key;
+    }
+
+    public static final class Key<T> extends AbstractKey<String, T> {
+        protected Key(final String keyId, final Class<T> classType, final Function<T, Boolean> validator) {
+            super(keyId, classType, validator);
+        }
     }
 }

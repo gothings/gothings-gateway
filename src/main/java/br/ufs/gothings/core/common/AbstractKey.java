@@ -5,26 +5,26 @@ import java.util.function.Function;
 /**
  * @author Wagner Macedo
  */
-public final class Key<T> {
-    private final String name;
+public abstract class AbstractKey<K, T> {
+    private final K keyId;
     private final Class<T> classType;
     private final Function<T, Boolean> validator;
 
-    public Key(final String name, final Class<T> classType, final Function<T, Boolean> validator) {
-        this.name = name;
+    protected AbstractKey(final K keyId, final Class<T> classType, final Function<T, Boolean> validator) {
+        this.keyId = keyId;
         this.classType = classType;
         this.validator = validator;
     }
 
-    public String getName() {
-        return name;
+    public final K getKeyId() {
+        return keyId;
     }
 
-    public Class<T> getClassType() {
+    public final Class<T> getClassType() {
         return classType;
     }
 
-    public boolean validate(T value) {
+    public final boolean validate(T value) {
         if (validator == null) {
             return true;
         } else if (!classType.isInstance(value)) {

@@ -2,7 +2,7 @@ package br.ufs.gothings.gateway;
 
 import br.ufs.gothings.core.GwPlugin;
 import br.ufs.gothings.core.Settings;
-import br.ufs.gothings.core.common.Key;
+import br.ufs.gothings.core.Settings.Key;
 import com.esotericsoftware.yamlbeans.YamlException;
 import com.esotericsoftware.yamlbeans.YamlReader;
 import org.apache.commons.cli.*;
