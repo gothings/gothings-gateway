@@ -10,6 +10,8 @@ import br.ufs.gothings.core.util.MapUtils;
 import br.ufs.gothings.gateway.block.Block;
 import br.ufs.gothings.gateway.block.BlockId;
 import br.ufs.gothings.gateway.block.Forwarding;
+import br.ufs.gothings.gateway.block.Forwarding.InfoName;
+import br.ufs.gothings.gateway.block.Token;
 import br.ufs.gothings.gateway.exceptions.InvalidForwardingException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -30,9 +32,12 @@ public class CommunicationManager {
     private final Map<Long, GwPlugin> requestsMap = new ConcurrentHashMap<>();
     private final Map<Block, BlockId> blocksMap = new IdentityHashMap<>();
 
+    private final Token mainToken = new Token();
+    private final Token targetToken = new Token();
+
     CommunicationManager() {
         final Block ic = new InputController(this);
-        final Block icc = new InterconnectionController(this);
+        final Block icc = new InterconnectionController(this, targetToken);
         final Block oc = new OutputController(this);
 
         // Indexing blocks
@@ -49,7 +54,9 @@ public class CommunicationManager {
                     // ignore reply messages
                     case REQUEST:
                         requestsMap.put(msg.getSequence(), plugin);
-                        final Forwarding fwd = new Forwarding(msg, plugin.getProtocol());
+                        final Forwarding fwd = new Forwarding(msg, mainToken);
+                        fwd.setExtraInfo(mainToken, InfoName.SOURCE_PROTOCOL, plugin.getProtocol());
+                        fwd.addExtraInfoToken(mainToken, targetToken, InfoName.TARGET_PROTOCOL);
                         forward(COMMUNICATION_MANAGER, INPUT_CONTROLLER, fwd);
                         break;
                     case REPLY:
@@ -68,7 +75,9 @@ public class CommunicationManager {
                         logger.error("%s client plugin sent an reply to the Communication Manager", plugin.getProtocol());
                         break;
                     case REPLY:
-                        final Forwarding fwd = new Forwarding(msg, plugin.getProtocol());
+                        final Forwarding fwd = new Forwarding(msg, mainToken);
+                        fwd.setExtraInfo(mainToken, InfoName.SOURCE_PROTOCOL, plugin.getProtocol());
+                        fwd.addExtraInfoToken(mainToken, targetToken, InfoName.TARGET_PROTOCOL);
                         forward(COMMUNICATION_MANAGER, INTERCONNECTION_CONTROLLER, fwd);
                         break;
                 }
@@ -101,25 +110,37 @@ public class CommunicationManager {
     }
 
     private void forward(final BlockId sourceId, final BlockId targetId, final Forwarding fwd) throws InvalidForwardingException {
+        // Consider this forwarding invalid if was not created by communication manager
+        if (!fwd.isMainToken(mainToken)) {
+            throw new InvalidForwardingException("forwarding token is not of communication manager");
+        }
+
         // Check if source block can forward to target block
         if (!sourceId.canForward(targetId)) {
             throw new InvalidForwardingException(sourceId + " => " + targetId);
         }
 
-        // Only forwards if was not forwarded before
-        if (!fwd.markUsed()) {
-            throw new InvalidForwardingException("wrapper already forwarded");
-        }
+        // Increment this forwarding pass
+        fwd.pass(mainToken);
 
         // If target block is the communication manager...
         if (targetId == COMMUNICATION_MANAGER) {
             // ...depending on source the message is handled as a request or a reply
             switch (sourceId) {
                 case INTERCONNECTION_CONTROLLER:
-                    requestToPlugin((GwRequest) fwd.getMessage(), (String) fwd.getExtraInfo());
+                    // check number of passes
+                    if (fwd.getPasses() < 3) {
+                        throw new InvalidForwardingException("invalid number of passes");
+                    }
+                    requestToPlugin((GwRequest) fwd.getMessage(), fwd.getExtraInfo(InfoName.TARGET_PROTOCOL));
                     break;
                 case OUTPUT_CONTROLLER:
-                    replyToPlugin((GwReply) fwd.getMessage(), (String) fwd.getExtraInfo());
+                    // check number of passes
+                    final int passes = fwd.getPasses();
+                    if (passes < 3 || passes > 4) {
+                        throw new InvalidForwardingException("invalid number of passes");
+                    }
+                    replyToPlugin((GwReply) fwd.getMessage(), fwd.getExtraInfo(InfoName.TARGET_PROTOCOL));
                     break;
             }
             return;
@@ -131,11 +152,11 @@ public class CommunicationManager {
         targetBlock.receiveForwarding(sourceId, fwd);
     }
 
-    private void requestToPlugin(final GwRequest msg, final String context) {
+    private void requestToPlugin(final GwRequest msg, final String targetProtocol) {
         // TODO: method stub
     }
 
-    private void replyToPlugin(final GwReply msg, final String context) {
+    private void replyToPlugin(final GwReply msg, final String targetProtocol) {
         final Long sequence = msg.getSequence();
 
         // reply to a sequenced message
