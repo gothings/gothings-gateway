@@ -12,7 +12,6 @@ import br.ufs.gothings.gateway.block.BlockId;
 import br.ufs.gothings.gateway.block.Forwarding;
 import br.ufs.gothings.gateway.block.Forwarding.InfoName;
 import br.ufs.gothings.gateway.block.Token;
-import br.ufs.gothings.gateway.exceptions.InvalidForwardingException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -101,23 +100,26 @@ public class CommunicationManager {
         }
     }
 
-    public void forward(final Block sourceBlock, final BlockId targetId, final Forwarding fwd) throws InvalidForwardingException {
+    public void forward(final Block sourceBlock, final BlockId targetId, final Forwarding fwd) {
         final BlockId sourceId = blocksMap.get(sourceBlock);
         if (sourceId == null) {
-            throw new InvalidForwardingException("source block instance not found");
+            logger.error("source block instance not found");
+            return;
         }
         forward(sourceId, targetId, fwd);
     }
 
-    private void forward(final BlockId sourceId, final BlockId targetId, final Forwarding fwd) throws InvalidForwardingException {
+    private void forward(final BlockId sourceId, final BlockId targetId, final Forwarding fwd) {
         // Consider this forwarding invalid if was not created by communication manager
         if (!fwd.isMainToken(mainToken)) {
-            throw new InvalidForwardingException("forwarding token is not of communication manager");
+            logger.error("forwarding token is not of communication manager");
+            return;
         }
 
         // Check if source block can forward to target block
         if (!sourceId.canForward(targetId)) {
-            throw new InvalidForwardingException(sourceId + " => " + targetId);
+            logger.error("%s => %s", sourceId, targetId);
+            return;
         }
 
         // Increment this forwarding pass
@@ -126,19 +128,21 @@ public class CommunicationManager {
         // If target block is the communication manager...
         if (targetId == COMMUNICATION_MANAGER) {
             // ...depending on source the message is handled as a request or a reply
+            final int passes = fwd.getPasses();
             switch (sourceId) {
                 case INTERCONNECTION_CONTROLLER:
                     // check number of passes
-                    if (fwd.getPasses() < 3) {
-                        throw new InvalidForwardingException("invalid number of passes");
+                    if (passes < 3) {
+                        logger.error("%d passes at %s => %s", passes, sourceId, targetId);
+                        return;
                     }
                     requestToPlugin((GwRequest) fwd.getMessage(), fwd.getExtraInfo(InfoName.TARGET_PROTOCOL));
                     break;
                 case OUTPUT_CONTROLLER:
                     // check number of passes
-                    final int passes = fwd.getPasses();
                     if (passes < 3 || passes > 4) {
-                        throw new InvalidForwardingException("invalid number of passes");
+                        logger.error("%d passes at %s => %s", passes, sourceId, targetId);
+                        return;
                     }
                     replyToPlugin((GwReply) fwd.getMessage(), fwd.getExtraInfo(InfoName.TARGET_PROTOCOL));
                     break;
@@ -149,7 +153,13 @@ public class CommunicationManager {
         // If nothing happens then forwards to the target block
         final Block targetBlock = MapUtils.getKey(blocksMap, targetId);
         assert targetBlock != null;
-        targetBlock.receiveForwarding(sourceId, fwd);
+        try {
+            targetBlock.receiveForwarding(sourceId, fwd);
+        } catch (Exception e) {
+            if (logger.isErrorEnabled()) {
+                logger.error(targetId + " failed to handle forwarding from " + sourceId, e);
+            }
+        }
     }
 
     private void requestToPlugin(final GwRequest msg, final String targetProtocol) {

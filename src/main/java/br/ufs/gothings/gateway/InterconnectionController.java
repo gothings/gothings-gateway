@@ -9,7 +9,6 @@ import br.ufs.gothings.gateway.block.BlockId;
 import br.ufs.gothings.gateway.block.Forwarding;
 import br.ufs.gothings.gateway.block.Forwarding.InfoName;
 import br.ufs.gothings.gateway.block.Token;
-import br.ufs.gothings.gateway.exceptions.InvalidForwardingException;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.NameValuePair;
 import org.apache.http.client.utils.URIBuilder;
@@ -31,7 +30,7 @@ public class InterconnectionController implements Block {
     }
 
     @Override
-    public void receiveForwarding(final BlockId sourceId, final Forwarding fwd) throws InvalidForwardingException {
+    public void receiveForwarding(final BlockId sourceId, final Forwarding fwd) {
         switch (sourceId) {
             case INPUT_CONTROLLER:
                 final GwRequest request = (GwRequest) fwd.getMessage();

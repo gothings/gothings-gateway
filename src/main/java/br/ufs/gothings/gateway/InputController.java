@@ -5,7 +5,6 @@ import br.ufs.gothings.core.message.GwRequest;
 import br.ufs.gothings.gateway.block.Block;
 import br.ufs.gothings.gateway.block.BlockId;
 import br.ufs.gothings.gateway.block.Forwarding;
-import br.ufs.gothings.gateway.exceptions.InvalidForwardingException;
 
 /**
  * @author Wagner Macedo
@@ -18,7 +17,7 @@ public class InputController implements Block {
     }
 
     @Override
-    public void receiveForwarding(final BlockId sourceId, final Forwarding fwd) throws InvalidForwardingException {
+    public void receiveForwarding(final BlockId sourceId, final Forwarding fwd) {
         final GwMessage message = fwd.getMessage();
         performListeners((GwRequest) message);
         manager.forward(this, BlockId.INTERCONNECTION_CONTROLLER, fwd);

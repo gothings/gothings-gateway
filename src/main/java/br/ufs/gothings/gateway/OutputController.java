@@ -5,7 +5,6 @@ import br.ufs.gothings.core.message.GwReply;
 import br.ufs.gothings.gateway.block.Block;
 import br.ufs.gothings.gateway.block.BlockId;
 import br.ufs.gothings.gateway.block.Forwarding;
-import br.ufs.gothings.gateway.exceptions.InvalidForwardingException;
 
 /**
  * @author Wagner Macedo
@@ -18,7 +17,7 @@ public class OutputController implements Block {
     }
 
     @Override
-    public void receiveForwarding(final BlockId sourceId, final Forwarding fwd) throws InvalidForwardingException {
+    public void receiveForwarding(final BlockId sourceId, final Forwarding fwd) {
         final GwMessage message = fwd.getMessage();
         performListeners((GwReply) message);
         manager.forward(this, BlockId.COMMUNICATION_MANAGER, fwd);
