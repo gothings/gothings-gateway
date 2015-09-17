@@ -9,8 +9,8 @@ import br.ufs.gothings.core.message.sink.MessageLink;
 import br.ufs.gothings.core.util.MapUtils;
 import br.ufs.gothings.gateway.block.Block;
 import br.ufs.gothings.gateway.block.BlockId;
-import br.ufs.gothings.gateway.block.Forwarding;
-import br.ufs.gothings.gateway.block.Forwarding.InfoName;
+import br.ufs.gothings.gateway.block.Package;
+import br.ufs.gothings.gateway.block.Package.InfoName;
 import br.ufs.gothings.gateway.block.Token;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -53,10 +53,10 @@ public class CommunicationManager {
                     // ignore reply messages
                     case REQUEST:
                         requestsMap.put(msg.getSequence(), plugin);
-                        final Forwarding fwd = new Forwarding(msg, mainToken);
-                        fwd.setExtraInfo(mainToken, InfoName.SOURCE_PROTOCOL, plugin.getProtocol());
-                        fwd.addExtraInfoToken(mainToken, targetToken, InfoName.TARGET_PROTOCOL);
-                        forward(COMMUNICATION_MANAGER, INPUT_CONTROLLER, fwd);
+                        final Package pkg = new Package(msg, mainToken);
+                        pkg.setExtraInfo(mainToken, InfoName.SOURCE_PROTOCOL, plugin.getProtocol());
+                        pkg.addExtraInfoToken(mainToken, targetToken, InfoName.TARGET_PROTOCOL);
+                        forward(COMMUNICATION_MANAGER, INPUT_CONTROLLER, pkg);
                         break;
                     case REPLY:
                         logger.error("%s server plugin sent a request to the Communication Manager", plugin.getProtocol());
@@ -74,10 +74,10 @@ public class CommunicationManager {
                         logger.error("%s client plugin sent an reply to the Communication Manager", plugin.getProtocol());
                         break;
                     case REPLY:
-                        final Forwarding fwd = new Forwarding(msg, mainToken);
-                        fwd.setExtraInfo(mainToken, InfoName.SOURCE_PROTOCOL, plugin.getProtocol());
-                        fwd.addExtraInfoToken(mainToken, targetToken, InfoName.TARGET_PROTOCOL);
-                        forward(COMMUNICATION_MANAGER, INTERCONNECTION_CONTROLLER, fwd);
+                        final Package pkg = new Package(msg, mainToken);
+                        pkg.setExtraInfo(mainToken, InfoName.SOURCE_PROTOCOL, plugin.getProtocol());
+                        pkg.addExtraInfoToken(mainToken, targetToken, InfoName.TARGET_PROTOCOL);
+                        forward(COMMUNICATION_MANAGER, INTERCONNECTION_CONTROLLER, pkg);
                         break;
                 }
             });
@@ -100,19 +100,19 @@ public class CommunicationManager {
         }
     }
 
-    public void forward(final Block sourceBlock, final BlockId targetId, final Forwarding fwd) {
+    public void forward(final Block sourceBlock, final BlockId targetId, final Package pkg) {
         final BlockId sourceId = blocksMap.get(sourceBlock);
         if (sourceId == null) {
             logger.error("source block instance not found");
             return;
         }
-        forward(sourceId, targetId, fwd);
+        forward(sourceId, targetId, pkg);
     }
 
-    private void forward(final BlockId sourceId, final BlockId targetId, final Forwarding fwd) {
-        // Consider this forwarding invalid if was not created by communication manager
-        if (!fwd.isMainToken(mainToken)) {
-            logger.error("forwarding token is not of communication manager");
+    private void forward(final BlockId sourceId, final BlockId targetId, final Package pkg) {
+        // Consider this package invalid if was not created by communication manager
+        if (!pkg.isMainToken(mainToken)) {
+            logger.error("package main token is not of the communication manager");
             return;
         }
 
@@ -122,13 +122,13 @@ public class CommunicationManager {
             return;
         }
 
-        // Increment this forwarding pass
-        fwd.pass(mainToken);
+        // Increment this package pass
+        pkg.pass(mainToken);
 
         // If target block is the communication manager...
         if (targetId == COMMUNICATION_MANAGER) {
             // ...depending on source the message is handled as a request or a reply
-            final int passes = fwd.getPasses();
+            final int passes = pkg.getPasses();
             switch (sourceId) {
                 case INTERCONNECTION_CONTROLLER:
                     // check number of passes
@@ -136,7 +136,7 @@ public class CommunicationManager {
                         logger.error("%d passes at %s => %s", passes, sourceId, targetId);
                         return;
                     }
-                    requestToPlugin((GwRequest) fwd.getMessage(), fwd.getExtraInfo(InfoName.TARGET_PROTOCOL));
+                    requestToPlugin((GwRequest) pkg.getMessage(), pkg.getExtraInfo(InfoName.TARGET_PROTOCOL));
                     break;
                 case OUTPUT_CONTROLLER:
                     // check number of passes
@@ -144,7 +144,7 @@ public class CommunicationManager {
                         logger.error("%d passes at %s => %s", passes, sourceId, targetId);
                         return;
                     }
-                    replyToPlugin((GwReply) fwd.getMessage(), fwd.getExtraInfo(InfoName.TARGET_PROTOCOL));
+                    replyToPlugin((GwReply) pkg.getMessage(), pkg.getExtraInfo(InfoName.TARGET_PROTOCOL));
                     break;
             }
             return;
@@ -154,7 +154,7 @@ public class CommunicationManager {
         final Block targetBlock = MapUtils.getKey(blocksMap, targetId);
         assert targetBlock != null;
         try {
-            targetBlock.receiveForwarding(sourceId, fwd);
+            targetBlock.receiveForwarding(sourceId, pkg);
         } catch (Exception e) {
             if (logger.isErrorEnabled()) {
                 logger.error(targetId + " failed to handle forwarding from " + sourceId, e);

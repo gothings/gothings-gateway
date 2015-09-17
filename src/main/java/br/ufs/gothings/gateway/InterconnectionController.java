@@ -6,8 +6,8 @@ import br.ufs.gothings.core.message.GwRequest;
 import br.ufs.gothings.core.message.headers.Operation;
 import br.ufs.gothings.gateway.block.Block;
 import br.ufs.gothings.gateway.block.BlockId;
-import br.ufs.gothings.gateway.block.Forwarding;
-import br.ufs.gothings.gateway.block.Forwarding.InfoName;
+import br.ufs.gothings.gateway.block.Package;
+import br.ufs.gothings.gateway.block.Package.InfoName;
 import br.ufs.gothings.gateway.block.Token;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.NameValuePair;
@@ -30,10 +30,10 @@ public class InterconnectionController implements Block {
     }
 
     @Override
-    public void receiveForwarding(final BlockId sourceId, final Forwarding fwd) {
+    public void receiveForwarding(final BlockId sourceId, final Package pkg) {
         switch (sourceId) {
             case INPUT_CONTROLLER:
-                final GwRequest request = (GwRequest) fwd.getMessage();
+                final GwRequest request = (GwRequest) pkg.getMessage();
                 final GwHeaders headers = request.headers();
 
                 final URI uri = createURI(headers.get(GwHeaders.PATH));
@@ -42,7 +42,7 @@ public class InterconnectionController implements Block {
                 }
 
                 final String targetProtocol = uri.getScheme();
-                fwd.setExtraInfo(accessToken, InfoName.TARGET_PROTOCOL, targetProtocol);
+                pkg.setExtraInfo(accessToken, InfoName.TARGET_PROTOCOL, targetProtocol);
 
                 final String target = uri.getRawAuthority();
                 headers.set(GwHeaders.TARGET, target);
@@ -53,15 +53,15 @@ public class InterconnectionController implements Block {
 
                 final GwReply cached = getCache(request, targetProtocol);
                 if (cached != null) {
-                    manager.forward(this, BlockId.OUTPUT_CONTROLLER, fwd);
+                    manager.forward(this, BlockId.OUTPUT_CONTROLLER, pkg);
                 } else {
-                    manager.forward(this, BlockId.COMMUNICATION_MANAGER, fwd);
+                    manager.forward(this, BlockId.COMMUNICATION_MANAGER, pkg);
                 }
                 break;
             case COMMUNICATION_MANAGER:
-                final GwReply reply = (GwReply) fwd.getMessage();
-                setCache(reply, fwd.getExtraInfo(InfoName.SOURCE_PROTOCOL));
-                manager.forward(this, BlockId.OUTPUT_CONTROLLER, fwd);
+                final GwReply reply = (GwReply) pkg.getMessage();
+                setCache(reply, pkg.getExtraInfo(InfoName.SOURCE_PROTOCOL));
+                manager.forward(this, BlockId.OUTPUT_CONTROLLER, pkg);
                 break;
         }
     }

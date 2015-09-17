@@ -11,7 +11,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 /**
  * @author Wagner Macedo
  */
-public class Forwarding {
+public class Package {
     private final GwMessage message;
 
     private final Map<InfoName, Entry<Set<Token>, Object>> extraInfo =
@@ -20,7 +20,7 @@ public class Forwarding {
     private final Token mainToken;
     private final AtomicInteger passes = new AtomicInteger(0);
 
-    public Forwarding(GwMessage message, final Token mainToken) {
+    public Package(GwMessage message, final Token mainToken) {
         this.message = message;
         this.mainToken = mainToken;
     }
