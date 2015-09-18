@@ -42,11 +42,7 @@ public class Package {
         return authToken == ctx.mainToken;
     }
 
-    public int getPasses() {
-        return passes.get();
-    }
-
-    public int pass(final Token authToken) {
+    public int incrementPass(final Token authToken) {
         if (authToken != ctx.mainToken) {
             throw new IllegalArgumentException("only main token can increment pass");
         }

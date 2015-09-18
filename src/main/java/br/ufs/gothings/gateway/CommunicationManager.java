@@ -128,12 +128,11 @@ public class CommunicationManager {
         }
 
         // Increment this package pass
-        pkg.pass(mainToken);
+        final int passes = pkg.incrementPass(mainToken);
 
         // If target block is the communication manager...
         if (targetId == COMMUNICATION_MANAGER) {
             // ...depending on source the message is handled as a request or a reply
-            final int passes = pkg.getPasses();
             final String targetProtocol = pkg.getExtraInfo(mainToken).getTargetProtocol();
             switch (sourceId) {
                 case INTERCONNECTION_CONTROLLER:
