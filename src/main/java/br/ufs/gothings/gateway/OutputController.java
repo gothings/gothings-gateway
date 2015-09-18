@@ -18,7 +18,7 @@ public class OutputController implements Block {
 
     @Override
     public void receiveForwarding(final BlockId sourceId, final Package pkg) {
-        final GwMessage message = pkg.getMessage();
+        final GwMessage message = pkg.getInfo().getMessage();
         performListeners((GwReply) message);
         manager.forward(this, BlockId.COMMUNICATION_MANAGER, pkg);
     }

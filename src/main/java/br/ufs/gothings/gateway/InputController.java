@@ -18,7 +18,7 @@ public class InputController implements Block {
 
     @Override
     public void receiveForwarding(final BlockId sourceId, final Package pkg) {
-        final GwMessage message = pkg.getMessage();
+        final GwMessage message = pkg.getInfo().getMessage();
         performListeners((GwRequest) message);
         manager.forward(this, BlockId.INTERCONNECTION_CONTROLLER, pkg);
     }

@@ -4,38 +4,47 @@ import br.ufs.gothings.core.GwMessage;
 
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.IntStream;
 
 /**
  * @author Wagner Macedo
  */
 public class Package {
-    private final GwMessage message;
+    // Information masks
+    public static final int ALL             = 0b11111111;
+    public static final int MESSAGE         = 0b00000001;
+    public static final int SOURCE_PROTOCOL = 0b00000010;
+    public static final int TARGET_PROTOCOL = 0b00000100;
 
-    // Extra info
+    // Package information
+    private GwMessage message;
     private String sourceProtocol;
     private String targetProtocol;
 
     private final PackageContext ctx;
-    private final ExtraInfo extraInfo;
+    private final PackageInfo fullAccessInfo;
+    private final PackageInfo readOnlyInfo;
 
     private final AtomicInteger passes = new AtomicInteger(0);
 
-    private Package(final GwMessage message, final PackageContext ctx) {
-        this.message = message;
+    private Package(final PackageContext ctx) {
         this.ctx = ctx;
-        this.extraInfo = new ExtraInfo(this, ctx.mainToken);
+        this.fullAccessInfo = new PackageInfo(this, ctx.mainToken);
+        this.readOnlyInfo = new PackageInfo(this, null);
     }
 
-    public GwMessage getMessage() {
-        return message;
+    public PackageInfo getInfo() {
+        return getInfo(null);
     }
 
-    public ExtraInfo getExtraInfo(final Token authToken) {
+    public PackageInfo getInfo(final Token authToken) {
         if (authToken == ctx.mainToken) {
-            return extraInfo;
-        } else {
-            return new ExtraInfo(this, authToken);
+            return fullAccessInfo;
         }
+        if (authToken == null) {
+            return readOnlyInfo;
+        }
+        return new PackageInfo(this, authToken);
     }
 
     public boolean isMainToken(final Token authToken) {
@@ -49,18 +58,26 @@ public class Package {
         return passes.incrementAndGet();
     }
 
-    public static final class ExtraInfo {
-        public static final int ALL             = 0b11111111;
-
-        public static final int SOURCE_PROTOCOL = 0b00000001;
-        public static final int TARGET_PROTOCOL = 0b00000010;
-
+    public static final class PackageInfo {
         private final Package pkg;
         private final int authMask;
 
-        private ExtraInfo(Package pkg, Token authToken) {
+        private PackageInfo(Package pkg, Token authToken) {
             this.pkg = pkg;
-            this.authMask = pkg.ctx.authTokens.getOrDefault(authToken, 0);
+            if (authToken == pkg.ctx.mainToken) {
+                this.authMask = ALL;
+            } else {
+                this.authMask = (authToken == null) ? 0 : pkg.ctx.authTokens.getOrDefault(authToken, 0);
+            }
+        }
+
+        public GwMessage getMessage() {
+            return pkg.message;
+        }
+
+        public void setMessage(final GwMessage message) {
+            checkAuth(MESSAGE);
+            pkg.message = message;
         }
 
         public String getSourceProtocol() {
@@ -97,21 +114,21 @@ public class Package {
 
         private PackageFactory(final Token mainToken) {
             ctx = new PackageContext(mainToken);
-            ctx.authTokens.put(mainToken, ExtraInfo.ALL);
         }
 
-        public Package newPackage(final GwMessage message) {
-            return new Package(message, ctx);
+        public Package newPackage() {
+            return new Package(ctx);
         }
 
-        public void addExtraInfoToken(final Token authToken, final int authMask) {
+        public void addToken(final Token authToken, final int... infoMasks) {
+            final int authMask = IntStream.of(infoMasks).reduce(0, (a, b) -> a | b);
             ctx.authTokens.put(authToken, authMask);
         }
     }
 
     private static class PackageContext {
         private final Token mainToken;
-        private final Map<Token, Integer> authTokens = Collections.synchronizedMap(new IdentityHashMap<>(2));
+        private final Map<Token, Integer> authTokens = new IdentityHashMap<>(2);
 
         private PackageContext(final Token mainToken) {
             this.mainToken = mainToken;

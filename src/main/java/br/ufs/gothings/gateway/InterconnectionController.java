@@ -6,7 +6,7 @@ import br.ufs.gothings.core.message.GwRequest;
 import br.ufs.gothings.core.message.headers.Operation;
 import br.ufs.gothings.gateway.block.*;
 import br.ufs.gothings.gateway.block.Package;
-import br.ufs.gothings.gateway.block.Package.ExtraInfo;
+import br.ufs.gothings.gateway.block.Package.PackageInfo;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.NameValuePair;
 import org.apache.http.client.utils.URIBuilder;
@@ -33,11 +33,11 @@ public class InterconnectionController implements Block {
 
     @Override
     public void receiveForwarding(final BlockId sourceId, final Package pkg) {
-        final ExtraInfo extraInfo = pkg.getExtraInfo(accessToken);
+        final PackageInfo pkgInfo = pkg.getInfo(accessToken);
 
         switch (sourceId) {
             case INPUT_CONTROLLER:
-                final GwRequest request = (GwRequest) pkg.getMessage();
+                final GwRequest request = (GwRequest) pkgInfo.getMessage();
                 final GwHeaders headers = request.headers();
 
                 final URI uri;
@@ -46,13 +46,13 @@ public class InterconnectionController implements Block {
                 } catch (URISyntaxException e) {
                     if (logger.isErrorEnabled()) {
                         logger.error("could not parse URI from path sent by %s plugin: %s",
-                                extraInfo.getSourceProtocol(), e.getInput());
+                                pkgInfo.getSourceProtocol(), e.getInput());
                     }
                     return;
                 }
 
                 final String targetProtocol = uri.getScheme();
-                extraInfo.setTargetProtocol(targetProtocol);
+                pkgInfo.setTargetProtocol(targetProtocol);
 
                 final String target = uri.getRawAuthority();
                 headers.set(GwHeaders.TARGET, target);
@@ -63,14 +63,15 @@ public class InterconnectionController implements Block {
 
                 final GwReply cached = getCache(request, targetProtocol);
                 if (cached != null) {
+                    pkgInfo.setMessage(cached);
                     manager.forward(this, BlockId.OUTPUT_CONTROLLER, pkg);
                 } else {
                     manager.forward(this, BlockId.COMMUNICATION_MANAGER, pkg);
                 }
                 break;
             case COMMUNICATION_MANAGER:
-                final GwReply reply = (GwReply) pkg.getMessage();
-                setCache(reply, extraInfo.getSourceProtocol());
+                final GwReply reply = (GwReply) pkgInfo.getMessage();
+                setCache(reply, pkgInfo.getSourceProtocol());
                 manager.forward(this, BlockId.OUTPUT_CONTROLLER, pkg);
                 break;
         }

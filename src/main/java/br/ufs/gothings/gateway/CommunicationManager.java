@@ -11,7 +11,7 @@ import br.ufs.gothings.core.util.MapUtils;
 import br.ufs.gothings.gateway.block.Block;
 import br.ufs.gothings.gateway.block.BlockId;
 import br.ufs.gothings.gateway.block.Package;
-import br.ufs.gothings.gateway.block.Package.ExtraInfo;
+import br.ufs.gothings.gateway.block.Package.PackageInfo;
 import br.ufs.gothings.gateway.block.Package.PackageFactory;
 import br.ufs.gothings.gateway.block.Token;
 import org.apache.logging.log4j.LogManager;
@@ -39,7 +39,8 @@ public class CommunicationManager {
     CommunicationManager() {
         // PackageFactory configuration
         final Token targetToken = new Token();
-        pkgFactory.addExtraInfoToken(targetToken, ExtraInfo.TARGET_PROTOCOL);
+        pkgFactory.addToken(targetToken,
+                Package.MESSAGE, Package.TARGET_PROTOCOL);
 
         final Block ic = new InputController(this);
         final Block icc = new InterconnectionController(this, targetToken);
@@ -59,9 +60,10 @@ public class CommunicationManager {
                     // ignore reply messages
                     case REQUEST:
                         requestsMap.put(msg.getSequence(), plugin);
-                        final Package pkg = pkgFactory.newPackage(msg);
-                        final ExtraInfo extraInfo = pkg.getExtraInfo(mainToken);
-                        extraInfo.setSourceProtocol(plugin.getProtocol());
+                        final Package pkg = pkgFactory.newPackage();
+                        final PackageInfo pkgInfo = pkg.getInfo(mainToken);
+                        pkgInfo.setMessage(msg);
+                        pkgInfo.setSourceProtocol(plugin.getProtocol());
                         forward(COMMUNICATION_MANAGER, INPUT_CONTROLLER, pkg);
                         break;
                     case REPLY:
@@ -80,9 +82,10 @@ public class CommunicationManager {
                         logger.error("%s client plugin sent an reply to the Communication Manager", plugin.getProtocol());
                         break;
                     case REPLY:
-                        final Package pkg = pkgFactory.newPackage(msg);
-                        final ExtraInfo extraInfo = pkg.getExtraInfo(mainToken);
-                        extraInfo.setSourceProtocol(plugin.getProtocol());
+                        final Package pkg = pkgFactory.newPackage();
+                        final PackageInfo pkgInfo = pkg.getInfo(mainToken);
+                        pkgInfo.setMessage(msg);
+                        pkgInfo.setSourceProtocol(plugin.getProtocol());
                         forward(COMMUNICATION_MANAGER, INTERCONNECTION_CONTROLLER, pkg);
                         break;
                 }
@@ -134,8 +137,8 @@ public class CommunicationManager {
         // If target block is the communication manager...
         if (targetId == COMMUNICATION_MANAGER) {
             // ...depending on source the message is handled as a request or a reply
-            final GwMessage message = pkg.getMessage();
-            final String targetProtocol = pkg.getExtraInfo(mainToken).getTargetProtocol();
+            final PackageInfo pkgInfo = pkg.getInfo(mainToken);
+            final GwMessage message = pkgInfo.getMessage();
             switch (sourceId) {
                 case INTERCONNECTION_CONTROLLER:
                     // check number of passes
@@ -147,12 +150,12 @@ public class CommunicationManager {
                     if (!(message instanceof GwRequest)) {
                         if (logger.isErrorEnabled()) {
                             logger.error("%s plugin sent a %s as request",
-                                    pkg.getExtraInfo(mainToken).getSourceProtocol(),
+                                    pkgInfo.getSourceProtocol(),
                                     message.getClass().getSimpleName());
                         }
                         return;
                     }
-                    requestToPlugin((GwRequest) message, targetProtocol);
+                    requestToPlugin((GwRequest) message, pkgInfo.getTargetProtocol());
                     break;
                 case OUTPUT_CONTROLLER:
                     // check number of passes
@@ -164,12 +167,12 @@ public class CommunicationManager {
                     if (!(message instanceof GwReply)) {
                         if (logger.isErrorEnabled()) {
                             logger.error("%s plugin sent a %s as reply",
-                                    pkg.getExtraInfo(mainToken).getSourceProtocol(),
+                                    pkgInfo.getSourceProtocol(),
                                     message.getClass().getSimpleName());
                         }
                         return;
                     }
-                    replyToPlugin((GwReply) message, targetProtocol);
+                    replyToPlugin((GwReply) message, pkgInfo.getTargetProtocol());
                     break;
             }
             return;
