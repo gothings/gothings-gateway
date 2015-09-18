@@ -10,6 +10,8 @@ import br.ufs.gothings.gateway.block.Package.ExtraInfo;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.NameValuePair;
 import org.apache.http.client.utils.URIBuilder;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -19,6 +21,8 @@ import java.util.List;
  * @author Wagner Macedo
  */
 public class InterconnectionController implements Block {
+    private static Logger logger = LogManager.getFormatterLogger(InterconnectionController.class);
+
     private final CommunicationManager manager;
     private final Token accessToken;
 
@@ -36,8 +40,14 @@ public class InterconnectionController implements Block {
                 final GwRequest request = (GwRequest) pkg.getMessage();
                 final GwHeaders headers = request.headers();
 
-                final URI uri = createURI(headers.get(GwHeaders.PATH));
-                if (uri == null) {
+                final URI uri;
+                try {
+                    uri = createURI(headers.get(GwHeaders.PATH));
+                } catch (URISyntaxException e) {
+                    if (logger.isErrorEnabled()) {
+                        logger.error("could not parse URI from path sent by %s plugin: %s",
+                                extraInfo.getSourceProtocol(), e.getInput());
+                    }
                     return;
                 }
 
@@ -79,20 +89,15 @@ public class InterconnectionController implements Block {
         return null;
     }
 
-    private URI createURI(final String path) {
+    private URI createURI(final String path) throws URISyntaxException {
         final String s_uri = path.replaceFirst("^/+", "").replaceFirst("/+", "://");
-        try {
-            final URIBuilder uri = new URIBuilder(s_uri);
+        final URIBuilder uri = new URIBuilder(s_uri);
 
-            // sort query parameters
-            final List<NameValuePair> params = uri.getQueryParams();
-            params.sort((o1, o2) -> o1.getName().compareTo(o2.getName()));
-            uri.setParameters(params);
+        // sort query parameters
+        final List<NameValuePair> params = uri.getQueryParams();
+        params.sort((o1, o2) -> o1.getName().compareTo(o2.getName()));
+        uri.setParameters(params);
 
-            return uri.build();
-        }
-        catch (URISyntaxException e) {
-            return null;
-        }
+        return uri.build();
     }
 }
