@@ -11,6 +11,7 @@ import br.ufs.gothings.gateway.block.Block;
 import br.ufs.gothings.gateway.block.BlockId;
 import br.ufs.gothings.gateway.block.Package;
 import br.ufs.gothings.gateway.block.Package.ExtraInfo;
+import br.ufs.gothings.gateway.block.Package.PackageFactory;
 import br.ufs.gothings.gateway.block.Token;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -32,9 +33,13 @@ public class CommunicationManager {
     private final Map<Block, BlockId> blocksMap = new IdentityHashMap<>();
 
     private final Token mainToken = new Token();
-    private final Token targetToken = new Token();
+    private final PackageFactory pkgFactory = Package.getFactory(mainToken);
 
     CommunicationManager() {
+        // PackageFactory configuration
+        final Token targetToken = new Token();
+        pkgFactory.addExtraInfoToken(targetToken, ExtraInfo.TARGET_PROTOCOL);
+
         final Block ic = new InputController(this);
         final Block icc = new InterconnectionController(this, targetToken);
         final Block oc = new OutputController(this);
@@ -53,10 +58,9 @@ public class CommunicationManager {
                     // ignore reply messages
                     case REQUEST:
                         requestsMap.put(msg.getSequence(), plugin);
-                        final Package pkg = new Package(msg, mainToken);
+                        final Package pkg = pkgFactory.newPackage(msg);
                         final ExtraInfo extraInfo = pkg.getExtraInfo(mainToken);
                         extraInfo.setSourceProtocol(plugin.getProtocol());
-                        extraInfo.addToken(targetToken, ExtraInfo.TARGET_PROTOCOL);
                         forward(COMMUNICATION_MANAGER, INPUT_CONTROLLER, pkg);
                         break;
                     case REPLY:
@@ -75,10 +79,9 @@ public class CommunicationManager {
                         logger.error("%s client plugin sent an reply to the Communication Manager", plugin.getProtocol());
                         break;
                     case REPLY:
-                        final Package pkg = new Package(msg, mainToken);
+                        final Package pkg = pkgFactory.newPackage(msg);
                         final ExtraInfo extraInfo = pkg.getExtraInfo(mainToken);
                         extraInfo.setSourceProtocol(plugin.getProtocol());
-                        extraInfo.addToken(targetToken, ExtraInfo.TARGET_PROTOCOL);
                         forward(COMMUNICATION_MANAGER, INTERCONNECTION_CONTROLLER, pkg);
                         break;
                 }

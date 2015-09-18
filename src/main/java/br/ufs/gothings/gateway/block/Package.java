@@ -15,41 +15,39 @@ public class Package {
     private String sourceProtocol;
     private String targetProtocol;
 
-    private final Map<Token, Integer> authTokens = Collections.synchronizedMap(new IdentityHashMap<>(2));
-    private final Token mainToken;
+    private final PackageContext ctx;
     private final ExtraInfo extraInfo;
 
     private final AtomicInteger passes = new AtomicInteger(0);
 
-    public Package(final GwMessage message, final Token mainToken) {
+    private Package(final GwMessage message, final PackageContext ctx) {
         this.message = message;
-        this.mainToken = mainToken;
-        this.authTokens.put(mainToken, ExtraInfo.ALL);
-        this.extraInfo = new ExtraInfo(this, mainToken);
+        this.ctx = ctx;
+        this.extraInfo = new ExtraInfo(this, ctx.mainToken);
     }
 
     public GwMessage getMessage() {
         return message;
     }
 
-    public ExtraInfo getExtraInfo(Token authToken) {
-        if (authToken == mainToken) {
+    public ExtraInfo getExtraInfo(final Token authToken) {
+        if (authToken == ctx.mainToken) {
             return extraInfo;
         } else {
             return new ExtraInfo(this, authToken);
         }
     }
 
-    public boolean isMainToken(Token authToken) {
-        return authToken == mainToken;
+    public boolean isMainToken(final Token authToken) {
+        return authToken == ctx.mainToken;
     }
 
     public int getPasses() {
         return passes.get();
     }
 
-    public int pass(final Token token) {
-        if (token != this.mainToken) {
+    public int pass(final Token authToken) {
+        if (authToken != ctx.mainToken) {
             throw new IllegalArgumentException("only main token can increment pass");
         }
         return passes.incrementAndGet();
@@ -66,7 +64,7 @@ public class Package {
 
         private ExtraInfo(Package pkg, Token authToken) {
             this.pkg = pkg;
-            this.authMask = pkg.authTokens.getOrDefault(authToken, 0);
+            this.authMask = pkg.ctx.authTokens.getOrDefault(authToken, 0);
         }
 
         public String getSourceProtocol() {
@@ -92,10 +90,35 @@ public class Package {
                 throw new IllegalStateException("token not authorized");
             }
         }
+    }
 
-        public void addToken(final Token authToken, final int authMask) {
-            checkAuth(ALL);
-            pkg.authTokens.put(authToken, authMask);
+    public static PackageFactory getFactory(final Token mainToken) {
+        return new PackageFactory(mainToken);
+    }
+
+    public static class PackageFactory {
+        private final PackageContext ctx;
+
+        private PackageFactory(final Token mainToken) {
+            ctx = new PackageContext(mainToken);
+            ctx.authTokens.put(mainToken, ExtraInfo.ALL);
+        }
+
+        public Package newPackage(final GwMessage message) {
+            return new Package(message, ctx);
+        }
+
+        public void addExtraInfoToken(final Token authToken, final int authMask) {
+            ctx.authTokens.put(authToken, authMask);
+        }
+    }
+
+    private static class PackageContext {
+        private final Token mainToken;
+        private final Map<Token, Integer> authTokens = Collections.synchronizedMap(new IdentityHashMap<>(2));
+
+        private PackageContext(final Token mainToken) {
+            this.mainToken = mainToken;
         }
     }
 }
