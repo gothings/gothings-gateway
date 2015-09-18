@@ -1,11 +1,8 @@
 package br.ufs.gothings.gateway.block;
 
 import br.ufs.gothings.core.GwMessage;
-import br.ufs.gothings.core.common.AbstractKey;
 
 import java.util.*;
-import java.util.AbstractMap.SimpleEntry;
-import java.util.Map.Entry;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -14,56 +11,37 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class Package {
     private final GwMessage message;
 
-    private final Map<InfoName, Entry<Set<Token>, Object>> extraInfo =
-            Collections.synchronizedMap(new IdentityHashMap<>(2));
+    // Extra info
+    private String sourceProtocol;
+    private String targetProtocol;
 
+    private final Map<Token, Integer> authTokens = Collections.synchronizedMap(new IdentityHashMap<>(2));
     private final Token mainToken;
+    private final ExtraInfo extraInfo;
+
     private final AtomicInteger passes = new AtomicInteger(0);
 
-    public Package(GwMessage message, final Token mainToken) {
+    public Package(final GwMessage message, final Token mainToken) {
         this.message = message;
         this.mainToken = mainToken;
+        this.authTokens.put(mainToken, ExtraInfo.ALL);
+        this.extraInfo = new ExtraInfo(this, mainToken);
     }
 
     public GwMessage getMessage() {
         return message;
     }
 
-    @SuppressWarnings("unchecked")
-    public <T> T getExtraInfo(InfoName<T> infoName) {
-        final Entry<Set<Token>, Object> entry = extraInfo.get(infoName);
-        return entry != null ? (T) entry.getValue() : null;
-    }
-
-    public <T> void setExtraInfo(Token token, InfoName<T> infoName, T value) {
-        Entry<Set<Token>, Object> entry = null;
-        if (token != mainToken) {
-            entry = getEntry(infoName);
-            if (!entry.getKey().contains(token)) {
-                throw new IllegalArgumentException("access denied for this token");
-            }
+    public ExtraInfo getExtraInfo(Token authToken) {
+        if (authToken == mainToken) {
+            return extraInfo;
+        } else {
+            return new ExtraInfo(this, authToken);
         }
-
-        if (entry == null) {
-            entry = getEntry(infoName);
-        }
-
-        entry.setValue(value);
     }
 
-    public <T> void addExtraInfoToken(Token mainToken, Token newToken, InfoName<T> infoName) {
-        if (mainToken != this.mainToken) {
-            throw new IllegalArgumentException("only main token can add a token");
-        }
-        getEntry(infoName).getKey().add(newToken);
-    }
-
-    private <T> Entry<Set<Token>, Object> getEntry(final InfoName<T> infoName) {
-        return extraInfo.computeIfAbsent(infoName, k -> new SimpleEntry<>(new HashSet<>(), null));
-    }
-
-    public boolean isMainToken(Token token) {
-        return token == mainToken;
+    public boolean isMainToken(Token authToken) {
+        return authToken == mainToken;
     }
 
     public int getPasses() {
@@ -77,13 +55,47 @@ public class Package {
         return passes.incrementAndGet();
     }
 
-    public static final class InfoName<T> extends AbstractKey<Void, T> {
-        public static final InfoName<String>
-                SOURCE_PROTOCOL = new InfoName<>(String.class),
-                TARGET_PROTOCOL = new InfoName<>(String.class);
+    public static final class ExtraInfo {
+        public static final int ALL             = 0b11111111;
 
-        private InfoName(final Class<T> classType) {
-            super(null, classType, null);
+        public static final int SOURCE_PROTOCOL = 0b00000001;
+        public static final int TARGET_PROTOCOL = 0b00000010;
+
+        private final Package pkg;
+        private final int authMask;
+
+        private ExtraInfo(Package pkg, Token authToken) {
+            this.pkg = pkg;
+            this.authMask = pkg.authTokens.getOrDefault(authToken, 0);
+        }
+
+        public String getSourceProtocol() {
+            return pkg.sourceProtocol;
+        }
+
+        public void setSourceProtocol(final String sourceProtocol) {
+            checkAuth(SOURCE_PROTOCOL);
+            pkg.sourceProtocol = sourceProtocol;
+        }
+
+        public String getTargetProtocol() {
+            return pkg.targetProtocol;
+        }
+
+        public void setTargetProtocol(final String targetProtocol) {
+            checkAuth(TARGET_PROTOCOL);
+            pkg.targetProtocol = targetProtocol;
+        }
+
+        private void checkAuth(final int fieldMask) {
+            if ((authMask & fieldMask) != fieldMask) {
+                throw new IllegalStateException("token not authorized");
+            }
+        }
+
+        public void addToken(final Token authToken, final int authMask) {
+            checkAuth(ALL);
+            pkg.authTokens.put(authToken, authMask);
         }
     }
 }

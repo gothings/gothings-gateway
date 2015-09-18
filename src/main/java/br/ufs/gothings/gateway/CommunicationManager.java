@@ -10,7 +10,7 @@ import br.ufs.gothings.core.util.MapUtils;
 import br.ufs.gothings.gateway.block.Block;
 import br.ufs.gothings.gateway.block.BlockId;
 import br.ufs.gothings.gateway.block.Package;
-import br.ufs.gothings.gateway.block.Package.InfoName;
+import br.ufs.gothings.gateway.block.Package.ExtraInfo;
 import br.ufs.gothings.gateway.block.Token;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -54,8 +54,9 @@ public class CommunicationManager {
                     case REQUEST:
                         requestsMap.put(msg.getSequence(), plugin);
                         final Package pkg = new Package(msg, mainToken);
-                        pkg.setExtraInfo(mainToken, InfoName.SOURCE_PROTOCOL, plugin.getProtocol());
-                        pkg.addExtraInfoToken(mainToken, targetToken, InfoName.TARGET_PROTOCOL);
+                        final ExtraInfo extraInfo = pkg.getExtraInfo(mainToken);
+                        extraInfo.setSourceProtocol(plugin.getProtocol());
+                        extraInfo.addToken(targetToken, ExtraInfo.TARGET_PROTOCOL);
                         forward(COMMUNICATION_MANAGER, INPUT_CONTROLLER, pkg);
                         break;
                     case REPLY:
@@ -75,8 +76,9 @@ public class CommunicationManager {
                         break;
                     case REPLY:
                         final Package pkg = new Package(msg, mainToken);
-                        pkg.setExtraInfo(mainToken, InfoName.SOURCE_PROTOCOL, plugin.getProtocol());
-                        pkg.addExtraInfoToken(mainToken, targetToken, InfoName.TARGET_PROTOCOL);
+                        final ExtraInfo extraInfo = pkg.getExtraInfo(mainToken);
+                        extraInfo.setSourceProtocol(plugin.getProtocol());
+                        extraInfo.addToken(targetToken, ExtraInfo.TARGET_PROTOCOL);
                         forward(COMMUNICATION_MANAGER, INTERCONNECTION_CONTROLLER, pkg);
                         break;
                 }
@@ -129,6 +131,7 @@ public class CommunicationManager {
         if (targetId == COMMUNICATION_MANAGER) {
             // ...depending on source the message is handled as a request or a reply
             final int passes = pkg.getPasses();
+            final String targetProtocol = pkg.getExtraInfo(mainToken).getTargetProtocol();
             switch (sourceId) {
                 case INTERCONNECTION_CONTROLLER:
                     // check number of passes
@@ -136,7 +139,7 @@ public class CommunicationManager {
                         logger.error("%d passes at %s => %s", passes, sourceId, targetId);
                         return;
                     }
-                    requestToPlugin((GwRequest) pkg.getMessage(), pkg.getExtraInfo(InfoName.TARGET_PROTOCOL));
+                    requestToPlugin((GwRequest) pkg.getMessage(), targetProtocol);
                     break;
                 case OUTPUT_CONTROLLER:
                     // check number of passes
@@ -144,7 +147,7 @@ public class CommunicationManager {
                         logger.error("%d passes at %s => %s", passes, sourceId, targetId);
                         return;
                     }
-                    replyToPlugin((GwReply) pkg.getMessage(), pkg.getExtraInfo(InfoName.TARGET_PROTOCOL));
+                    replyToPlugin((GwReply) pkg.getMessage(), targetProtocol);
                     break;
             }
             return;

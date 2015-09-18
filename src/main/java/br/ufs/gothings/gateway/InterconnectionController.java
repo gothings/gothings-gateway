@@ -4,11 +4,9 @@ import br.ufs.gothings.core.GwHeaders;
 import br.ufs.gothings.core.message.GwReply;
 import br.ufs.gothings.core.message.GwRequest;
 import br.ufs.gothings.core.message.headers.Operation;
-import br.ufs.gothings.gateway.block.Block;
-import br.ufs.gothings.gateway.block.BlockId;
+import br.ufs.gothings.gateway.block.*;
 import br.ufs.gothings.gateway.block.Package;
-import br.ufs.gothings.gateway.block.Package.InfoName;
-import br.ufs.gothings.gateway.block.Token;
+import br.ufs.gothings.gateway.block.Package.ExtraInfo;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.NameValuePair;
 import org.apache.http.client.utils.URIBuilder;
@@ -31,6 +29,8 @@ public class InterconnectionController implements Block {
 
     @Override
     public void receiveForwarding(final BlockId sourceId, final Package pkg) {
+        final ExtraInfo extraInfo = pkg.getExtraInfo(accessToken);
+
         switch (sourceId) {
             case INPUT_CONTROLLER:
                 final GwRequest request = (GwRequest) pkg.getMessage();
@@ -42,7 +42,7 @@ public class InterconnectionController implements Block {
                 }
 
                 final String targetProtocol = uri.getScheme();
-                pkg.setExtraInfo(accessToken, InfoName.TARGET_PROTOCOL, targetProtocol);
+                extraInfo.setTargetProtocol(targetProtocol);
 
                 final String target = uri.getRawAuthority();
                 headers.set(GwHeaders.TARGET, target);
@@ -60,7 +60,7 @@ public class InterconnectionController implements Block {
                 break;
             case COMMUNICATION_MANAGER:
                 final GwReply reply = (GwReply) pkg.getMessage();
-                setCache(reply, pkg.getExtraInfo(InfoName.SOURCE_PROTOCOL));
+                setCache(reply, extraInfo.getSourceProtocol());
                 manager.forward(this, BlockId.OUTPUT_CONTROLLER, pkg);
                 break;
         }
