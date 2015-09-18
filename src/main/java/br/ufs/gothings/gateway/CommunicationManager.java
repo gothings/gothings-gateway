@@ -1,6 +1,7 @@
 package br.ufs.gothings.gateway;
 
 import br.ufs.gothings.core.GwHeaders;
+import br.ufs.gothings.core.GwMessage;
 import br.ufs.gothings.core.GwPlugin;
 import br.ufs.gothings.core.Settings;
 import br.ufs.gothings.core.message.GwReply;
@@ -133,6 +134,7 @@ public class CommunicationManager {
         // If target block is the communication manager...
         if (targetId == COMMUNICATION_MANAGER) {
             // ...depending on source the message is handled as a request or a reply
+            final GwMessage message = pkg.getMessage();
             final String targetProtocol = pkg.getExtraInfo(mainToken).getTargetProtocol();
             switch (sourceId) {
                 case INTERCONNECTION_CONTROLLER:
@@ -141,7 +143,16 @@ public class CommunicationManager {
                         logger.error("%d passes at %s => %s", passes, sourceId, targetId);
                         return;
                     }
-                    requestToPlugin((GwRequest) pkg.getMessage(), targetProtocol);
+                    // log message instance errors
+                    if (!(message instanceof GwRequest)) {
+                        if (logger.isErrorEnabled()) {
+                            logger.error("%s plugin sent a %s as request",
+                                    pkg.getExtraInfo(mainToken).getSourceProtocol(),
+                                    message.getClass().getSimpleName());
+                        }
+                        return;
+                    }
+                    requestToPlugin((GwRequest) message, targetProtocol);
                     break;
                 case OUTPUT_CONTROLLER:
                     // check number of passes
@@ -149,7 +160,16 @@ public class CommunicationManager {
                         logger.error("%d passes at %s => %s", passes, sourceId, targetId);
                         return;
                     }
-                    replyToPlugin((GwReply) pkg.getMessage(), targetProtocol);
+                    // log message instance errors
+                    if (!(message instanceof GwReply)) {
+                        if (logger.isErrorEnabled()) {
+                            logger.error("%s plugin sent a %s as reply",
+                                    pkg.getExtraInfo(mainToken).getSourceProtocol(),
+                                    message.getClass().getSimpleName());
+                        }
+                        return;
+                    }
+                    replyToPlugin((GwReply) message, targetProtocol);
                     break;
             }
             return;
