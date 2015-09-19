@@ -1,6 +1,5 @@
 package br.ufs.gothings.gateway;
 
-import br.ufs.gothings.core.GwHeaders;
 import br.ufs.gothings.core.GwMessage;
 import br.ufs.gothings.core.GwPlugin;
 import br.ufs.gothings.core.Settings;
@@ -30,7 +29,6 @@ public class CommunicationManager {
     private static Logger logger = LogManager.getFormatterLogger(CommunicationManager.class);
 
     private final Map<String, GwPlugin> pluginsMap = new ConcurrentHashMap<>();
-    private final Map<Long, GwPlugin> requestsMap = new ConcurrentHashMap<>();
     private final Map<Block, BlockId> blocksMap = new IdentityHashMap<>();
 
     private final Token mainToken = new Token();
@@ -59,7 +57,6 @@ public class CommunicationManager {
                 switch (msg.getType()) {
                     // ignore reply messages
                     case REQUEST:
-                        requestsMap.put(msg.getSequence(), plugin);
                         final Package pkg = pkgFactory.newPackage();
                         final PackageInfo pkgInfo = pkg.getInfo(mainToken);
                         pkgInfo.setMessage(msg);
@@ -195,21 +192,6 @@ public class CommunicationManager {
     }
 
     private void replyToPlugin(final GwReply msg, final String targetProtocol) {
-        final Long sequence = msg.getSequence();
-
-        // reply to a sequenced message
-        if (sequence != null) {
-            final GwPlugin target = requestsMap.remove(sequence);
-            if (target == null) {
-                return;
-            }
-            // TODO: stub
-        }
-
-        // reply to an unsequenced message
-        else {
-            final GwHeaders h = msg.headers();
-            // TODO: stub
-        }
+        // TODO: method stub
     }
 }
