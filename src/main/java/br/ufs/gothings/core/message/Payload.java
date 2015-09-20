@@ -15,7 +15,15 @@ import static java.lang.Math.min;
  * @author Wagner Macedo
  */
 public class Payload {
-    private final ByteBuf data = Unpooled.buffer();
+    private final ByteBuf data;
+
+    public Payload() {
+        this(Unpooled.buffer());
+    }
+
+    private Payload(final ByteBuf data) {
+        this.data = data;
+    }
 
     public void set(byte[] bytes) {
         data.clear().writeBytes(bytes);
@@ -62,5 +70,9 @@ public class Payload {
 
     public String asString(Charset charset) {
         return data.toString(charset);
+    }
+
+    public Payload asReadOnly() {
+        return new Payload(Unpooled.unmodifiableBuffer(this.data));
     }
 }

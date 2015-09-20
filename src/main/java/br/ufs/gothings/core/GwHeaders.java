@@ -94,4 +94,91 @@ public class GwHeaders {
     public void setQoS(final int qos) {
         this.qos = qos;
     }
+
+    public final GwHeaders asReadOnly() {
+        return new UnmodifiableHeaders(this);
+    }
+
+    private static final class UnmodifiableHeaders extends GwHeaders {
+        private final GwHeaders wrapped;
+
+        public UnmodifiableHeaders(GwHeaders wrapped) {
+            this.wrapped = wrapped;
+        }
+
+        @Override
+        public String getContentType() {
+            return wrapped.getContentType();
+        }
+
+        @Override
+        public Collection<String> getExpectedTypes() {
+            return wrapped.getExpectedTypes();
+        }
+
+        @Override
+        public Operation getOperation() {
+            return wrapped.getOperation();
+        }
+
+        @Override
+        public String getPath() {
+            return wrapped.getPath();
+        }
+
+        @Override
+        public int getQoS() {
+            return wrapped.getQoS();
+        }
+
+        @Override
+        public String getSource() {
+            return wrapped.getSource();
+        }
+
+        @Override
+        public String getTarget() {
+            return wrapped.getTarget();
+        }
+
+        @Override
+        public void setTarget(final String target) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public void setSource(final String source) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public void setQoS(final int qos) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public void setPath(final String path) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public void setOperation(final Operation operation) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public void setExpectedTypes(final Collection<String> expectedTypes) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public void setContentType(final String contentType) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public void addExpectedType(final String expectedType) {
+            throw new UnsupportedOperationException();
+        }
+    }
 }

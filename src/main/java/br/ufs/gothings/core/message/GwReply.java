@@ -1,5 +1,7 @@
 package br.ufs.gothings.core.message;
 
+import br.ufs.gothings.core.GwHeaders;
+
 /**
  * @author Wagner Macedo
  */
@@ -22,5 +24,21 @@ public final class GwReply extends DataMessage {
     public GwReply() {
         super();
         lockSequence();
+    }
+
+    public GwReply(final GwHeaders headers, final Payload payload, final Long sequence) {
+        super(headers, payload, sequence);
+    }
+
+    /**
+     * Construct a read-only view of this reply with a new sequence
+     *
+     * @param sequence  new sequence
+     * @return a read-only reply
+     */
+    public GwReply asReadOnly(final Long sequence) {
+        final GwReply reply = new GwReply(this.headers().asReadOnly(), this.payload().asReadOnly(), sequence);
+        reply.lockSequence();
+        return reply;
     }
 }

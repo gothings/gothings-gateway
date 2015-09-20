@@ -189,11 +189,31 @@ public class CommunicationManager {
         }
     }
 
-    private void requestToPlugin(final GwRequest msg, final String targetProtocol) {
-        // TODO: method stub
+    private void requestToPlugin(final GwRequest request, final String targetProtocol) {
+        final GwPlugin plugin = pluginsMap.get(targetProtocol);
+        if (plugin != null) {
+            final MessageLink clientLink = plugin.clientLink();
+            if (clientLink != null) {
+                clientLink.sendRequest(request);
+            }
+        }
     }
 
-    private void replyToPlugin(final GwReply msg, final Map<String, Iterable<Long>> replyTo) {
-        // TODO: method stub
+    private void replyToPlugin(final GwReply reply, final Map<String, Iterable<Long>> replyTo) {
+        replyTo.forEach((protocol, sequences) -> {
+            final GwPlugin plugin = pluginsMap.get(protocol);
+            if (plugin != null) {
+                final MessageLink serverLink = plugin.serverLink();
+                if (serverLink != null) {
+                    for (final Long sequence : sequences) {
+                        if (sequence == null) {
+                            serverLink.broadcast(reply.asReadOnly(null));
+                        } else {
+                            serverLink.sendReply(reply.asReadOnly(sequence));
+                        }
+                    }
+                }
+            }
+        });
     }
 }
