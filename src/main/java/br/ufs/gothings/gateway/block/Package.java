@@ -15,11 +15,13 @@ public class Package {
     public static final int MESSAGE         = 0b00000001;
     public static final int SOURCE_PROTOCOL = 0b00000010;
     public static final int TARGET_PROTOCOL = 0b00000100;
+    public static final int REPLY_TO        = 0b00001000;
 
     // Package information
     private GwMessage message;
     private String sourceProtocol;
     private String targetProtocol;
+    private Map<String, Iterable<Long>> replyTo;
 
     private final PackageContext ctx;
     private final PackageInfo fullAccessInfo;
@@ -96,6 +98,15 @@ public class Package {
         public void setTargetProtocol(final String targetProtocol) {
             checkAuth(TARGET_PROTOCOL);
             pkg.targetProtocol = targetProtocol;
+        }
+
+        public Map<String, Iterable<Long>> getReplyTo() {
+            return pkg.replyTo;
+        }
+
+        public void setReplyTo(final Map<String, Iterable<Long>> replyTo) {
+            checkAuth(REPLY_TO);
+            pkg.replyTo = replyTo;
         }
 
         private void checkAuth(final int fieldMask) {

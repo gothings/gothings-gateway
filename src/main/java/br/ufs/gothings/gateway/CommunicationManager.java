@@ -36,12 +36,14 @@ public class CommunicationManager {
 
     CommunicationManager() {
         // PackageFactory configuration
-        final Token targetToken = new Token();
-        pkgFactory.addToken(targetToken,
-                Package.MESSAGE, Package.TARGET_PROTOCOL);
+        final Token iccToken = new Token();
+        pkgFactory.addToken(iccToken,
+                Package.MESSAGE,
+                Package.TARGET_PROTOCOL,
+                Package.REPLY_TO);
 
         final Block ic = new InputController(this);
-        final Block icc = new InterconnectionController(this, targetToken);
+        final Block icc = new InterconnectionController(this, iccToken);
         final Block oc = new OutputController(this);
 
         // Indexing blocks
@@ -169,7 +171,7 @@ public class CommunicationManager {
                         }
                         return;
                     }
-                    replyToPlugin((GwReply) message, pkgInfo.getTargetProtocol());
+                    replyToPlugin((GwReply) message, pkgInfo.getReplyTo());
                     break;
             }
             return;
@@ -191,7 +193,7 @@ public class CommunicationManager {
         // TODO: method stub
     }
 
-    private void replyToPlugin(final GwReply msg, final String targetProtocol) {
+    private void replyToPlugin(final GwReply msg, final Map<String, Iterable<Long>> replyTo) {
         // TODO: method stub
     }
 }

@@ -1,6 +1,8 @@
 package br.ufs.gothings.gateway;
 
 import br.ufs.gothings.core.GwHeaders;
+import br.ufs.gothings.core.GwMessage;
+import br.ufs.gothings.core.message.DataMessage;
 import br.ufs.gothings.core.message.GwReply;
 import br.ufs.gothings.core.message.GwRequest;
 import br.ufs.gothings.core.message.headers.Operation;
@@ -49,7 +51,7 @@ public class InterconnectionController implements Block {
 
                 final URI uri;
                 try {
-                    uri = createURI(headers.get(GwHeaders.PATH));
+                    uri = createURI(request);
                 } catch (URISyntaxException e) {
                     if (logger.isErrorEnabled()) {
                         logger.error("could not parse URI from path sent by %s plugin: %s",
@@ -86,10 +88,21 @@ public class InterconnectionController implements Block {
             }
             case COMMUNICATION_MANAGER: {
                 final GwReply reply = (GwReply) pkgInfo.getMessage();
-//                final URI uri = ...;
-//                final Map<String, Iterable<Long>> subscribers = subscriptions.get(uri.toString());
-//                pkgInfo.setReplyTo(subscribers);
-                setCache(reply, pkgInfo.getSourceProtocol());
+                final String sourceProtocol = pkgInfo.getSourceProtocol();
+
+                try {
+                    final URI uri = createURI(reply, sourceProtocol);
+                    final Map<String, Iterable<Long>> subscribers = subscriptions.get(uri.toString());
+                    pkgInfo.setReplyTo(subscribers);
+                } catch (URISyntaxException e) {
+                    if (logger.isErrorEnabled()) {
+                        logger.error("error on assembling URI from reply of %s plugin: %s",
+                                sourceProtocol, e.getInput());
+                    }
+                    return;
+                }
+
+                setCache(reply, sourceProtocol);
                 manager.forward(this, BlockId.OUTPUT_CONTROLLER, pkg);
                 break;
             }
@@ -109,7 +122,8 @@ public class InterconnectionController implements Block {
         return null;
     }
 
-    private URI createURI(final String path) throws URISyntaxException {
+    private URI createURI(final GwRequest msg) throws URISyntaxException {
+        final String path = msg.headers().get(GwHeaders.PATH);
         final String s_uri = path.replaceFirst("^/+", "").replaceFirst("/+", "://");
         final URIBuilder uri = new URIBuilder(s_uri);
 
@@ -119,6 +133,13 @@ public class InterconnectionController implements Block {
         uri.setParameters(params);
 
         return uri.build();
+    }
+
+    private URI createURI(final GwReply msg, final String sourceProtocol) throws URISyntaxException {
+        final String target = msg.headers().get(GwHeaders.TARGET);
+        final String path = msg.headers().get(GwHeaders.PATH).replaceFirst("^/+", "");
+
+        return new URI(String.format("%s://%s/%s", sourceProtocol, target, path));
     }
 
     /**
