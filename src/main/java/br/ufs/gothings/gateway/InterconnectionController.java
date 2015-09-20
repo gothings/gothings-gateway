@@ -65,7 +65,7 @@ public class InterconnectionController implements Block {
                 headers.setTarget(target);
 
                 final String targetAndPath = uri.getRawSchemeSpecificPart();
-                final String path = StringUtils.replaceOnce(targetAndPath, target, "");
+                final String path = StringUtils.replaceOnce(targetAndPath, "//" + target, "");
                 headers.setPath(path);
 
                 final Operation operation = headers.getOperation();
@@ -127,8 +127,10 @@ public class InterconnectionController implements Block {
 
         // sort query parameters
         final List<NameValuePair> params = uri.getQueryParams();
-        params.sort((o1, o2) -> o1.getName().compareTo(o2.getName()));
-        uri.setParameters(params);
+        if (!params.isEmpty()) {
+            params.sort((o1, o2) -> o1.getName().compareTo(o2.getName()));
+            uri.setParameters(params);
+        }
 
         return uri.build();
     }
