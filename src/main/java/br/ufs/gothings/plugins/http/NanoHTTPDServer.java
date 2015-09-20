@@ -83,28 +83,28 @@ class NanoHTTPDServer implements HttpPluginServer {
 
                     // filling GwHeaders
                     final GwHeaders h = msg.headers();
-                    h.set(GwHeaders.PATH, session.getUri());
+                    h.setPath(session.getUri());
 
                     // get http headers
                     final Map<String, String> sessionHeaders = session.getHeaders();
 
                     switch (method) {
                         case GET:
-                            h.set(GwHeaders.OPERATION, Operation.READ);
+                            h.setOperation(Operation.READ);
                             addExpectedTypes(h, sessionHeaders);
                             break;
                         case PUT:
                             msg.payload().set(session.getInputStream());
-                            h.set(GwHeaders.OPERATION, Operation.UPDATE);
-                            h.set(GwHeaders.CONTENT_TYPE, sessionHeaders.get("content-type"));
+                            h.setOperation(Operation.UPDATE);
+                            h.setContentType(sessionHeaders.get("content-type"));
                             break;
                         case POST:
                             msg.payload().set(session.getInputStream());
-                            h.set(GwHeaders.OPERATION, Operation.CREATE);
-                            h.set(GwHeaders.CONTENT_TYPE, sessionHeaders.get("content-type"));
+                            h.setOperation(Operation.CREATE);
+                            h.setContentType(sessionHeaders.get("content-type"));
                             break;
                         case DELETE:
-                            h.set(GwHeaders.OPERATION, Operation.DELETE);
+                            h.setOperation(Operation.DELETE);
                             break;
                     }
 
@@ -120,13 +120,13 @@ class NanoHTTPDServer implements HttpPluginServer {
             if (acceptValues != null) {
                 for (String type : acceptValues.split(",")) {
                     final int pos = type.indexOf(';');
-                    gw_headers.add(GwHeaders.EXPECTED_TYPES, pos != -1 ? type.substring(0, pos) : type);
+                    gw_headers.addExpectedType(pos != -1 ? type.substring(0, pos) : type);
                 }
             }
         }
 
         private static void fillHttpResponseHeaders(Response response, GwHeaders gwh) {
-            addHttpHeader(response, "content-type", gwh.get(GwHeaders.CONTENT_TYPE));
+            addHttpHeader(response, "content-type", gwh.getContentType());
         }
 
         private static void addHttpHeader(Response response, String key, CharSequence value) {

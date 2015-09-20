@@ -1,8 +1,6 @@
 package br.ufs.gothings.gateway;
 
 import br.ufs.gothings.core.GwHeaders;
-import br.ufs.gothings.core.GwMessage;
-import br.ufs.gothings.core.message.DataMessage;
 import br.ufs.gothings.core.message.GwReply;
 import br.ufs.gothings.core.message.GwRequest;
 import br.ufs.gothings.core.message.headers.Operation;
@@ -64,13 +62,13 @@ public class InterconnectionController implements Block {
                 pkgInfo.setTargetProtocol(targetProtocol);
 
                 final String target = uri.getRawAuthority();
-                headers.set(GwHeaders.TARGET, target);
+                headers.setTarget(target);
 
                 final String targetAndPath = uri.getRawSchemeSpecificPart();
                 final String path = StringUtils.replaceOnce(targetAndPath, target, "");
-                headers.set(GwHeaders.PATH, path);
+                headers.setPath(path);
 
-                final Operation operation = headers.get(GwHeaders.OPERATION);
+                final Operation operation = headers.getOperation();
                 final String s_uri = uri.toString();
 
                 final GwReply cached = getCache(operation, s_uri);
@@ -123,7 +121,7 @@ public class InterconnectionController implements Block {
     }
 
     private URI createURI(final GwRequest msg) throws URISyntaxException {
-        final String path = msg.headers().get(GwHeaders.PATH);
+        final String path = msg.headers().getPath();
         final String s_uri = path.replaceFirst("^/+", "").replaceFirst("/+", "://");
         final URIBuilder uri = new URIBuilder(s_uri);
 
@@ -136,8 +134,8 @@ public class InterconnectionController implements Block {
     }
 
     private URI createURI(final GwReply msg, final String sourceProtocol) throws URISyntaxException {
-        final String target = msg.headers().get(GwHeaders.TARGET);
-        final String path = msg.headers().get(GwHeaders.PATH).replaceFirst("^/+", "");
+        final String target = msg.headers().getTarget();
+        final String path = msg.headers().getPath().replaceFirst("^/+", "");
 
         return new URI(String.format("%s://%s/%s", sourceProtocol, target, path));
     }

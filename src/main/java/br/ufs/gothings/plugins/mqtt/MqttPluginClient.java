@@ -13,8 +13,8 @@ import org.eclipse.paho.client.mqttv3.*;
 import java.util.HashMap;
 import java.util.Map;
 
-import static org.apache.commons.lang3.ObjectUtils.max;
-import static org.apache.commons.lang3.ObjectUtils.min;
+import static java.lang.Math.max;
+import static java.lang.Math.min;
 
 /**
  * @author Wagner Macedo
@@ -32,7 +32,7 @@ public final class MqttPluginClient {
     private class MessageSinkListener implements MessageListener {
         @Override
         public void valueReceived(DataMessage msg) throws MqttException {
-            final String host = msg.headers().get(GwHeaders.TARGET);
+            final String host = msg.headers().getTarget();
 
             final MqttConnection conn = getMqttConnection(host);
             conn.sendMessage((GwRequest) msg);
@@ -66,8 +66,8 @@ public final class MqttPluginClient {
                     final GwReply msg = new GwReply();
                     msg.payload().set(mqttMessage.getPayload());
                     final GwHeaders h = msg.headers();
-                    h.set(GwHeaders.TARGET, host);
-                    h.set(GwHeaders.PATH, topic);
+                    h.setTarget(host);
+                    h.setPath(topic);
 
                     messageLink.broadcast(msg);
                 }
@@ -84,9 +84,9 @@ public final class MqttPluginClient {
 
         public void sendMessage(GwRequest msg) throws MqttException {
             final GwHeaders h = msg.headers();
-            final Operation operation = h.get(GwHeaders.OPERATION);
-            final String topic = h.get(GwHeaders.PATH);
-            final int qos = max(0, min(2, h.get(GwHeaders.QOS)));
+            final Operation operation = h.getOperation();
+            final String topic = h.getPath();
+            final int qos = max(0, min(2, h.getQoS()));
             switch (operation) {
                 // CREATE or UPDATE is mapped as a publish, but this plugin treats CREATE as a retained message
                 case CREATE:

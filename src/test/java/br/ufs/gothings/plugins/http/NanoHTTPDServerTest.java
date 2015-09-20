@@ -33,8 +33,8 @@ public class NanoHTTPDServerTest {
         link.setUp(msg -> {
             final GwHeaders h = msg.headers();
 
-            final Operation operation = h.get(GwHeaders.OPERATION);
-            final String path = h.get(GwHeaders.PATH);
+            final Operation operation = h.getOperation();
+            final String path = h.getPath();
             final ByteBuf buf = Unpooled.buffer().writeInt(operation.name().length() + path.length());
 
             final GwReply reply = new GwReply((GwRequest) msg);
@@ -97,7 +97,7 @@ public class NanoHTTPDServerTest {
         link.setUp(msg -> {
             final GwReply reply = new GwReply((GwRequest) msg);
             reply.payload().set("{\"array\":[1,2,3]}", Charset.defaultCharset());
-            reply.headers().set(GwHeaders.CONTENT_TYPE, "application/json");
+            reply.headers().setContentType("application/json");
             link.sendReply(reply);
         });
 

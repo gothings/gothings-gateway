@@ -1,123 +1,97 @@
 package br.ufs.gothings.core;
 
-import br.ufs.gothings.core.common.AbstractKey;
 import br.ufs.gothings.core.message.headers.Operation;
 
-import java.util.*;
-import java.util.function.Function;
-import java.util.function.Supplier;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.LinkedHashSet;
+import java.util.Set;
+
+import static java.util.Collections.emptySet;
+import static java.util.Collections.unmodifiableSet;
 
 /**
  * @author Wagner Macedo
  */
 public class GwHeaders {
-    /* Header identifiers */
+    private Operation operation;
+    private String source;
+    private String target;
+    private String path;
+    private String contentType;
+    private Set<String> expectedTypes;
+    private int qos;
 
-    public static final Key<Operation>
-            OPERATION       = newKey(Operation.class);
-    public static final Key<String>
-            SOURCE          = newKey(String.class),
-            TARGET          = newKey(String.class),
-            PATH            = newKey(String.class),
-            CONTENT_TYPE    = newKey(String.class);
-    public static final Key<Integer>
-            QOS             = newKey(Integer.class);
-    public static final ComplexKey<String>
-            EXPECTED_TYPES  = newComplexKey(String.class, LinkedHashSet::new);
+    public Operation getOperation() {
+        return operation;
+    }
 
-    // Map of header values
-    private final Map<Key, Object> map = new IdentityHashMap<>();
+    public void setOperation(final Operation operation) {
+        this.operation = operation;
+    }
 
-    /* Header methods */
+    public String getSource() {
+        return source;
+    }
 
-    @SuppressWarnings("unchecked")
-    public synchronized <T> T get(Key<T> key) {
-        if (key instanceof ComplexKey) {
-            final Collection<T> values = (Collection<T>) map.get(key);
-            if (values != null && values.size() > 0) {
-                return values.iterator().next();
+    public void setSource(final String source) {
+        this.source = source;
+    }
+
+    public String getTarget() {
+        return target;
+    }
+
+    public void setTarget(final String target) {
+        this.target = target;
+    }
+
+    public String getPath() {
+        return path;
+    }
+
+    public void setPath(final String path) {
+        this.path = path;
+    }
+
+    public String getContentType() {
+        return contentType;
+    }
+
+    public void setContentType(final String contentType) {
+        this.contentType = contentType;
+    }
+
+    public Collection<String> getExpectedTypes() {
+        return expectedTypes == null ? emptySet() : unmodifiableSet(expectedTypes);
+    }
+
+    public void setExpectedTypes(final Collection<String> expectedTypes) {
+        if (!(expectedTypes == null || expectedTypes.isEmpty())) {
+            if (this.expectedTypes != null) {
+                this.expectedTypes.clear();
+            } else {
+                this.expectedTypes = new LinkedHashSet<>();
             }
-            return null;
-        } else {
-            return (T) map.get(key);
+            expectedTypes.forEach(this.expectedTypes::add);
         }
     }
 
-    public synchronized <T> void set(Key<T> key, T value) {
-        if (value == null) {
-            final Object removed = map.remove(key);
-            if (removed instanceof Collection) {
-                ((Collection) removed).clear();
+    public void addExpectedType(final String expectedType) {
+        if (expectedType != null) {
+            if (this.expectedTypes == null) {
+                setExpectedTypes(Collections.singletonList(expectedType));
+            } else {
+                this.expectedTypes.add(expectedType);
             }
         }
-
-        else if (!key.validate(value)) {
-            throw new IllegalArgumentException("value `" + value + "` didn't pass in the validation");
-        }
-
-        else if (key instanceof ComplexKey) {
-            final Collection<T> collection = getCollection((ComplexKey<T>) key);
-            collection.clear();
-            collection.add(value);
-        }
-
-        else {
-            map.put(key, value);
-        }
     }
 
-    public synchronized <T> void add(ComplexKey<T> key, T value) {
-        if (value != null) {
-            final Collection<T> collection = getCollection(key);
-            collection.add(value);
-        }
+    public int getQoS() {
+        return qos;
     }
 
-    /* Internal use */
-
-    @SuppressWarnings("unchecked")
-    private synchronized <T> Collection<T> getCollection(final ComplexKey<T> key) {
-        Collection<T> collection = (Collection<T>) map.get(key);
-        if (collection == null) {
-            collection = key.newCollection();
-            map.put(key, collection);
-        }
-        return collection;
-    }
-
-    /* Key own classes */
-
-    public static class Key<T> extends AbstractKey<Void, T> {
-        private Key(final Class<T> cls, final Function<T, Boolean> function) {
-            this(cls, function, null);
-        }
-
-        private Key(final Class<T> cls, final Function<T, Boolean> function, final Supplier<Collection<T>> supplier) {
-            super(null, cls, function, supplier);
-        }
-    }
-
-    public static class ComplexKey<T> extends Key<T> {
-        private ComplexKey(final Class<T> cls, final Function<T, Boolean> function, final Supplier<Collection<T>> supplier) {
-            super(cls, function, supplier);
-        }
-    }
-
-    /* Internal use */
-
-    private static <T> Key<T> newKey(final Class<T> cls) {
-        return newKey(cls, null);
-    }
-
-    private static <T> Key<T> newKey(final Class<T> cls, Function<T, Boolean> validator) {
-        return new Key<>(cls, validator);
-    }
-
-    private static <T> ComplexKey<T> newComplexKey(final Class<T> cls, final Supplier<Collection<T>> supplier) {
-        return newComplexKey(cls, null, supplier);
-    }
-
-    private static <T> ComplexKey<T> newComplexKey(final Class<T> cls, Function<T, Boolean> validator, final Supplier<Collection<T>> supplier) {
-        return new ComplexKey<>(cls, validator, supplier);
+    public void setQoS(final int qos) {
+        this.qos = qos;
     }
 }

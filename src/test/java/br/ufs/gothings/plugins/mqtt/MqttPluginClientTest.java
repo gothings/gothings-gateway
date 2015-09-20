@@ -1,6 +1,5 @@
 package br.ufs.gothings.plugins.mqtt;
 
-import br.ufs.gothings.core.GwHeaders;
 import br.ufs.gothings.core.message.DataMessage;
 import br.ufs.gothings.core.message.GwReply;
 import br.ufs.gothings.core.message.GwRequest;
@@ -33,15 +32,15 @@ public class MqttPluginClientTest {
         link.setUp(pipe::put);
 
         final GwRequest req = new GwRequest();
-        req.headers().set(GwHeaders.TARGET, "localhost");
-        req.headers().set(GwHeaders.OPERATION, Operation.READ);
-        req.headers().set(GwHeaders.PATH, "temperature");
+        req.headers().setTarget("localhost");
+        req.headers().setOperation(Operation.READ);
+        req.headers().setPath("temperature");
         link.sendRequest(req);
 
         final DataMessage reply = pipe.take();
         assertTrue("reply is not instance of GwNews", reply instanceof GwReply);
-        assertEquals("localhost", reply.headers().get(GwHeaders.TARGET));
-        assertEquals("temperature", reply.headers().get(GwHeaders.PATH));
+        assertEquals("localhost", reply.headers().getTarget());
+        assertEquals("temperature", reply.headers().getPath());
         assertEquals("88 C", reply.payload().asString(Charset.defaultCharset()));
     }
 }
