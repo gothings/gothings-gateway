@@ -1,0 +1,6 @@
+GoThings - TODO
+===============
+
+- StatusMessage: create a subclass of GwMessage to be used to return errors or
+  other sort of things.
+- Model specialized request and reply headers.
