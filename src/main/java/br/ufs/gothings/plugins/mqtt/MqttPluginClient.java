@@ -31,7 +31,7 @@ public final class MqttPluginClient {
 
     private class MessageSinkListener implements MessageListener {
         @Override
-        public void valueReceived(DataMessage msg) throws MqttException {
+        public void messageReceived(DataMessage msg) throws MqttException {
             final String host = msg.headers().getTarget();
 
             final MqttConnection conn = getMqttConnection(host);

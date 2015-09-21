@@ -6,5 +6,5 @@ import br.ufs.gothings.core.message.DataMessage;
  * @author Wagner Macedo
  */
 public interface MessageListener {
-    void valueReceived(DataMessage msg) throws Exception;
+    void messageReceived(DataMessage msg) throws Exception;
 }

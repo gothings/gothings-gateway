@@ -183,7 +183,7 @@ public class MessageSink {
         public void onEvent(final MessageEvent event, long sequence, boolean endOfBatch) {
             final InternalMessageLink targetLink = (event.getSourceLink() == leftLink) ? rightLink : leftLink;
             try {
-                targetLink.listener.valueReceived(event.getMessage());
+                targetLink.listener.messageReceived(event.getMessage());
             } catch (Exception ignored) {
                 // Any errors are silently ignored
             }
