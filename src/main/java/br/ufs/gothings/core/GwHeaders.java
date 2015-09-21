@@ -14,85 +14,97 @@ import static java.util.Collections.unmodifiableSet;
  * @author Wagner Macedo
  */
 public class GwHeaders {
-    private Operation operation;
-    private String source;
-    private String target;
-    private String path;
-    private String contentType;
-    private Set<String> expectedTypes;
-    private int qos;
+    private static class Holder {
+        private Operation operation;
+        private String source;
+        private String target;
+        private String path;
+        private String contentType;
+        private Set<String> expectedTypes;
+        private int qos;
+    }
+
+    private final Holder holder;
+
+    public GwHeaders() {
+        holder = new Holder();
+    }
+
+    private GwHeaders(final Holder holder) {
+        this.holder = holder;
+    }
 
     public Operation getOperation() {
-        return operation;
+        return holder.operation;
     }
 
     public void setOperation(final Operation operation) {
-        this.operation = operation;
+        holder.operation = operation;
     }
 
     public String getSource() {
-        return source;
+        return holder.source;
     }
 
     public void setSource(final String source) {
-        this.source = source;
+        holder.source = source;
     }
 
     public String getTarget() {
-        return target;
+        return holder.target;
     }
 
     public void setTarget(final String target) {
-        this.target = target;
+        holder.target = target;
     }
 
     public String getPath() {
-        return path;
+        return holder.path;
     }
 
     public void setPath(final String path) {
-        this.path = path;
+        holder.path = path;
     }
 
     public String getContentType() {
-        return contentType;
+        return holder.contentType;
     }
 
     public void setContentType(final String contentType) {
-        this.contentType = contentType;
+        holder.contentType = contentType;
     }
 
     public Collection<String> getExpectedTypes() {
-        return expectedTypes == null ? emptySet() : unmodifiableSet(expectedTypes);
+        return holder.expectedTypes == null ? emptySet() : unmodifiableSet(holder.expectedTypes);
     }
 
     public void setExpectedTypes(final Collection<String> expectedTypes) {
         if (!(expectedTypes == null || expectedTypes.isEmpty())) {
-            if (this.expectedTypes != null) {
-                this.expectedTypes.clear();
+            if (holder.expectedTypes != null) {
+                holder.expectedTypes.clear();
             } else {
-                this.expectedTypes = new LinkedHashSet<>();
+                holder.expectedTypes = new LinkedHashSet<>();
             }
-            expectedTypes.forEach(this.expectedTypes::add);
+            expectedTypes.forEach(holder.expectedTypes::add);
         }
     }
 
     public void addExpectedType(final String expectedType) {
         if (expectedType != null) {
-            if (this.expectedTypes == null) {
+            if (holder.expectedTypes == null) {
                 setExpectedTypes(Collections.singletonList(expectedType));
             } else {
-                this.expectedTypes.add(expectedType);
+                holder.expectedTypes.add(expectedType);
             }
         }
     }
 
     public int getQoS() {
-        return qos;
+        return holder.qos;
     }
 
     public void setQoS(final int qos) {
-        this.qos = qos;
+        holder.qos = qos;
     }
 
     public final GwHeaders asReadOnly() {
@@ -100,49 +112,12 @@ public class GwHeaders {
     }
 
     private static final class UnmodifiableHeaders extends GwHeaders {
-        private final GwHeaders wrapped;
-
-        public UnmodifiableHeaders(GwHeaders wrapped) {
-            this.wrapped = wrapped;
+        public UnmodifiableHeaders(final GwHeaders wrapped) {
+            super(wrapped.holder);
         }
 
         @Override
-        public String getContentType() {
-            return wrapped.getContentType();
-        }
-
-        @Override
-        public Collection<String> getExpectedTypes() {
-            return wrapped.getExpectedTypes();
-        }
-
-        @Override
-        public Operation getOperation() {
-            return wrapped.getOperation();
-        }
-
-        @Override
-        public String getPath() {
-            return wrapped.getPath();
-        }
-
-        @Override
-        public int getQoS() {
-            return wrapped.getQoS();
-        }
-
-        @Override
-        public String getSource() {
-            return wrapped.getSource();
-        }
-
-        @Override
-        public String getTarget() {
-            return wrapped.getTarget();
-        }
-
-        @Override
-        public void setTarget(final String target) {
+        public void setOperation(final Operation operation) {
             throw new UnsupportedOperationException();
         }
 
@@ -152,7 +127,7 @@ public class GwHeaders {
         }
 
         @Override
-        public void setQoS(final int qos) {
+        public void setTarget(final String target) {
             throw new UnsupportedOperationException();
         }
 
@@ -162,7 +137,7 @@ public class GwHeaders {
         }
 
         @Override
-        public void setOperation(final Operation operation) {
+        public void setContentType(final String contentType) {
             throw new UnsupportedOperationException();
         }
 
@@ -172,12 +147,12 @@ public class GwHeaders {
         }
 
         @Override
-        public void setContentType(final String contentType) {
+        public void addExpectedType(final String expectedType) {
             throw new UnsupportedOperationException();
         }
 
         @Override
-        public void addExpectedType(final String expectedType) {
+        public void setQoS(final int qos) {
             throw new UnsupportedOperationException();
         }
     }
