@@ -1,6 +1,6 @@
 package br.ufs.gothings.plugins.mqtt;
 
-import br.ufs.gothings.core.message.DataMessage;
+import br.ufs.gothings.core.GwMessage;
 import br.ufs.gothings.core.GwHeaders;
 import br.ufs.gothings.core.message.GwReply;
 import br.ufs.gothings.core.message.GwRequest;
@@ -31,11 +31,12 @@ public final class MqttPluginClient {
 
     private class MessageSinkListener implements MessageListener {
         @Override
-        public void messageReceived(DataMessage msg) throws MqttException {
-            final String host = msg.headers().getTarget();
-
-            final MqttConnection conn = getMqttConnection(host);
-            conn.sendMessage((GwRequest) msg);
+        public void messageReceived(GwMessage msg) throws MqttException {
+            if (msg instanceof GwRequest) {
+                final String host = ((GwRequest) msg).headers().getTarget();
+                final MqttConnection conn = getMqttConnection(host);
+                conn.sendMessage((GwRequest) msg);
+            }
         }
     }
 

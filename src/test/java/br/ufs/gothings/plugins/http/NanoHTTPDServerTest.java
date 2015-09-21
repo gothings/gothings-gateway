@@ -31,7 +31,8 @@ public class NanoHTTPDServerTest {
         final MessageSink sink = new MessageSink();
         final MessageLink link = sink.getLeftLink();
         link.setUp(msg -> {
-            final GwHeaders h = msg.headers();
+            assert msg instanceof GwRequest;
+            final GwHeaders h = ((GwRequest) msg).headers();
 
             final Operation operation = h.getOperation();
             final String path = h.getPath();
