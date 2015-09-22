@@ -1,13 +1,12 @@
 package br.ufs.gothings.core.message;
 
 import br.ufs.gothings.core.GwHeaders;
+import br.ufs.gothings.core.GwMessage;
 
 /**
  * @author Wagner Macedo
  */
 public final class GwReply extends DataMessage {
-    { type = MessageType.REPLY; }
-
     /**
      * Construct a reply to a specific request.
      *
@@ -40,5 +39,10 @@ public final class GwReply extends DataMessage {
         final GwReply reply = new GwReply(this.headers().asReadOnly(), this.payload().asReadOnly(), sequence);
         reply.lockSequence();
         return reply;
+    }
+
+    @Override
+    public MessageType getType() {
+        return MessageType.REPLY;
     }
 }

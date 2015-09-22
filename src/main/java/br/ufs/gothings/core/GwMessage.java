@@ -10,17 +10,15 @@ import java.util.concurrent.atomic.AtomicReference;
  */
 public abstract class GwMessage {
     public enum MessageType {
-        REQUEST, REPLY,
+        REQUEST,
+        REPLY,
+        STATUS,
     }
-
-    protected MessageType type;
 
     private final AtomicReference<Long> sequence = new AtomicReference<>();
     private final AtomicBoolean sequenceLock = new AtomicBoolean(false);
 
-    public final MessageType getType() {
-        return type;
-    }
+    public abstract MessageType getType();
 
     public final Long getSequence() {
         return sequence.get();
