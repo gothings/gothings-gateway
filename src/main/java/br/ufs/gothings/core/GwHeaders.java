@@ -16,7 +16,6 @@ import static java.util.Collections.unmodifiableSet;
 public class GwHeaders {
     private static class Holder {
         private Operation operation;
-        private String source;
         private String target;
         private String path;
         private String contentType;
@@ -40,14 +39,6 @@ public class GwHeaders {
 
     public void setOperation(final Operation operation) {
         holder.operation = operation;
-    }
-
-    public String getSource() {
-        return holder.source;
-    }
-
-    public void setSource(final String source) {
-        holder.source = source;
     }
 
     public String getTarget() {
@@ -118,11 +109,6 @@ public class GwHeaders {
 
         @Override
         public void setOperation(final Operation operation) {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public void setSource(final String source) {
             throw new UnsupportedOperationException();
         }
 
