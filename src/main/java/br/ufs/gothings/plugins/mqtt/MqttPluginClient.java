@@ -1,12 +1,10 @@
 package br.ufs.gothings.plugins.mqtt;
 
-import br.ufs.gothings.core.message.GwMessage;
 import br.ufs.gothings.core.message.GwHeaders;
 import br.ufs.gothings.core.message.GwReply;
 import br.ufs.gothings.core.message.GwRequest;
 import br.ufs.gothings.core.message.headers.Operation;
-import br.ufs.gothings.core.message.sink.MessageLink;
-import br.ufs.gothings.core.message.sink.MessageListener;
+import br.ufs.gothings.core.plugin.ReplyLink;
 import org.apache.commons.lang3.ArrayUtils;
 import org.eclipse.paho.client.mqttv3.*;
 
@@ -21,23 +19,17 @@ import static java.lang.Math.min;
  */
 public final class MqttPluginClient {
     private final Map<String, MqttConnection> connections;
-    private final MessageLink messageLink;
+    private final ReplyLink replyLink;
 
-    public MqttPluginClient(final MessageLink messageLink) {
-        this.messageLink = messageLink;
-        this.messageLink.setUp(new MessageSinkListener());
+    MqttPluginClient(final ReplyLink replyLink) {
+        this.replyLink = replyLink;
         connections = new HashMap<>();
     }
 
-    private class MessageSinkListener implements MessageListener {
-        @Override
-        public void messageReceived(GwMessage msg) throws MqttException {
-            if (msg instanceof GwRequest) {
-                final String host = ((GwRequest) msg).headers().getTarget();
-                final MqttConnection conn = getMqttConnection(host);
-                conn.sendMessage((GwRequest) msg);
-            }
-        }
+    void sendRequest(final GwRequest request) throws MqttException {
+        final String host = request.headers().getTarget();
+        final MqttConnection conn = getMqttConnection(host);
+        conn.sendMessage(request);
     }
 
     private MqttConnection getMqttConnection(final String host) throws MqttException {
@@ -70,7 +62,7 @@ public final class MqttPluginClient {
                     h.setTarget(host);
                     h.setPath(topic);
 
-                    messageLink.broadcast(msg);
+                    replyLink.send(msg);
                 }
 
                 // TODO: what to do here?

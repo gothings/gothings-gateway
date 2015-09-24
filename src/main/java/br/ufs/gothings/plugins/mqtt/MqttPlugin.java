@@ -1,48 +1,70 @@
 package br.ufs.gothings.plugins.mqtt;
 
-import br.ufs.gothings.core.plugin.GwPlugin;
+import br.ufs.gothings.core.message.GwRequest;
 import br.ufs.gothings.core.Settings;
-import br.ufs.gothings.core.message.sink.MessageSink;
 import br.ufs.gothings.core.message.sink.MessageLink;
+import br.ufs.gothings.core.plugin.PluginClient;
+import br.ufs.gothings.core.plugin.ReplyLink;
+import org.eclipse.paho.client.mqttv3.MqttException;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * @author Wagner Macedo
  */
-public class MqttPlugin implements GwPlugin {
+public class MqttPlugin implements PluginClient {
 
     static final String GW_PROTOCOL = "mqtt";
 
     private final MqttPluginClient client;
     private final Settings settings;
     private final AtomicBoolean started = new AtomicBoolean(false);
-    private final MessageSink cliSink = new MessageSink();
+
+    private ReplyLink replyLink;
 
     public MqttPlugin() {
         settings = new Settings(started);
-        client = new MqttPluginClient(cliSink.getRightLink());
+        client = new MqttPluginClient(replyLink);
     }
 
     @Override
     public void start() {
-        started.set(true);
+        if (started.compareAndSet(false, true)) {
+            if (replyLink == null) {
+                throw new NullPointerException("no ReplyLink to start the server");
+            }
+        }
     }
 
     @Override
     public void stop() {
-        cliSink.stop();
         started.set(false);
     }
 
     @Override
     public MessageLink clientLink() {
-        return cliSink.getLeftLink();
+        return null;
     }
 
     @Override
     public MessageLink serverLink() {
         return null;
+    }
+
+    @Override
+    public void handleRequest(final GwRequest request) {
+        try {
+            client.sendRequest(request);
+        } catch (MqttException ignored) {
+        }
+    }
+
+    @Override
+    public void setUp(final ReplyLink replyLink) {
+        if (started.get()) {
+            throw new IllegalStateException("plugin already started");
+        }
+        this.replyLink = replyLink;
     }
 
     @Override
