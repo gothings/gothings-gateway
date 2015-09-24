@@ -1,6 +1,6 @@
 package br.ufs.gothings.core.message.sink;
 
-import br.ufs.gothings.core.GwMessage;
+import br.ufs.gothings.core.message.GwMessage;
 
 /**
  * @author Wagner Macedo

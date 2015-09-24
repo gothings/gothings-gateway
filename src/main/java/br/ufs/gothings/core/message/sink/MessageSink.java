@@ -1,7 +1,7 @@
 package br.ufs.gothings.core.message.sink;
 
 import br.ufs.gothings.core.message.DataMessage;
-import br.ufs.gothings.core.GwMessage;
+import br.ufs.gothings.core.message.GwMessage;
 import br.ufs.gothings.core.message.GwReply;
 import br.ufs.gothings.core.message.GwRequest;
 import com.lmax.disruptor.EventHandler;

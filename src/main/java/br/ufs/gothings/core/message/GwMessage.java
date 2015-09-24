@@ -1,4 +1,4 @@
-package br.ufs.gothings.core;
+package br.ufs.gothings.core.message;
 
 import org.apache.commons.lang3.Validate;
 

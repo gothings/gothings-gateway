@@ -1,5 +1,6 @@
-package br.ufs.gothings.core;
+package br.ufs.gothings.core.plugin;
 
+import br.ufs.gothings.core.Settings;
 import br.ufs.gothings.core.message.sink.MessageLink;
 
 /**

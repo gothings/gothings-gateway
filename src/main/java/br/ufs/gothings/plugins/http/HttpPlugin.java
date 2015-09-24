@@ -1,6 +1,6 @@
 package br.ufs.gothings.plugins.http;
 
-import br.ufs.gothings.core.GwPlugin;
+import br.ufs.gothings.core.plugin.GwPlugin;
 import br.ufs.gothings.core.Settings;
 import br.ufs.gothings.core.message.sink.MessageSink;
 import br.ufs.gothings.core.message.sink.MessageLink;

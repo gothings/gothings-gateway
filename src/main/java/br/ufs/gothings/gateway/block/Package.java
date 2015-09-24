@@ -1,6 +1,6 @@
 package br.ufs.gothings.gateway.block;
 
-import br.ufs.gothings.core.GwMessage;
+import br.ufs.gothings.core.message.GwMessage;
 
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;

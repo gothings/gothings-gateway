@@ -1,6 +1,6 @@
 package br.ufs.gothings.gateway;
 
-import br.ufs.gothings.core.GwPlugin;
+import br.ufs.gothings.core.plugin.GwPlugin;
 import br.ufs.gothings.core.Settings;
 import br.ufs.gothings.core.Settings.Key;
 import com.esotericsoftware.yamlbeans.YamlException;

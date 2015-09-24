@@ -1,6 +1,6 @@
 package br.ufs.gothings.plugins.mqtt;
 
-import br.ufs.gothings.core.GwMessage;
+import br.ufs.gothings.core.message.GwMessage;
 import br.ufs.gothings.core.message.GwReply;
 import br.ufs.gothings.core.message.GwRequest;
 import br.ufs.gothings.core.message.headers.Operation;

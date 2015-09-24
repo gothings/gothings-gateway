@@ -1,6 +1,6 @@
 package br.ufs.gothings.gateway;
 
-import br.ufs.gothings.core.GwMessage;
+import br.ufs.gothings.core.message.GwMessage;
 import br.ufs.gothings.core.message.GwRequest;
 import br.ufs.gothings.gateway.block.Block;
 import br.ufs.gothings.gateway.block.BlockId;

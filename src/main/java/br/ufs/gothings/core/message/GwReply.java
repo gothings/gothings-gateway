@@ -1,8 +1,5 @@
 package br.ufs.gothings.core.message;
 
-import br.ufs.gothings.core.GwHeaders;
-import br.ufs.gothings.core.GwMessage;
-
 /**
  * @author Wagner Macedo
  */
