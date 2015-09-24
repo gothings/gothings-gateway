@@ -5,7 +5,7 @@ import br.ufs.gothings.core.Settings;
 import br.ufs.gothings.core.message.GwReply;
 import br.ufs.gothings.core.message.GwRequest;
 import br.ufs.gothings.core.message.headers.Operation;
-import br.ufs.gothings.core.message.sink.MessageLink;
+import br.ufs.gothings.core.plugin.RequestLink;
 import fi.iki.elonen.NanoHTTPD;
 import fi.iki.elonen.NanoHTTPD.Response.Status;
 
@@ -23,8 +23,8 @@ class NanoHTTPDServer implements HttpPluginServer {
 
     private Server server;
 
-    public void start(final MessageLink messageLink, final Settings settings) throws InterruptedException{
-        server = new Server(messageLink, settings.get(Settings.SERVER_PORT));
+    public void start(final RequestLink requestLink, final Settings settings) throws InterruptedException{
+        server = new Server(requestLink, settings.get(Settings.SERVER_PORT));
         try {
             server.start();
         } catch (IOException e) {
@@ -37,12 +37,11 @@ class NanoHTTPDServer implements HttpPluginServer {
     }
 
     static final class Server extends NanoHTTPD {
-        private final MessageLink messageLink;
+        private final RequestLink requestLink;
 
-        public Server(final MessageLink messageLink, final int port) {
+        public Server(final RequestLink requestLink, final int port) {
             super(port);
-            this.messageLink = messageLink;
-            this.messageLink.setUp(null);
+            this.requestLink = requestLink;
         }
 
         @Override
@@ -55,7 +54,7 @@ class NanoHTTPDServer implements HttpPluginServer {
             }
 
             if (gw_request != null) {
-                final Future<GwReply> future = messageLink.sendRequest(gw_request);
+                final Future<GwReply> future = requestLink.send(gw_request);
                 try {
                     final GwReply gw_reply = future.get(1, TimeUnit.MINUTES);
 

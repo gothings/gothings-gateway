@@ -11,8 +11,10 @@ public interface GwPlugin {
 
     void stop();
 
+    @Deprecated
     MessageLink clientLink();
 
+    @Deprecated
     MessageLink serverLink();
 
     String getProtocol();

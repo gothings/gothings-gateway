@@ -1,23 +1,25 @@
 package br.ufs.gothings.plugins.http;
 
-import br.ufs.gothings.core.plugin.GwPlugin;
 import br.ufs.gothings.core.Settings;
-import br.ufs.gothings.core.message.sink.MessageSink;
+import br.ufs.gothings.core.message.GwReply;
 import br.ufs.gothings.core.message.sink.MessageLink;
+import br.ufs.gothings.core.plugin.PluginServer;
+import br.ufs.gothings.core.plugin.RequestLink;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * @author Wagner Macedo
  */
-public class HttpPlugin implements GwPlugin {
+public class HttpPlugin implements PluginServer {
 
     static final String GW_PROTOCOL = "http";
 
     private final HttpPluginServer server;
     private final Settings settings;
     private final AtomicBoolean started = new AtomicBoolean(false);
-    private final MessageSink srvSink = new MessageSink();
+
+    private RequestLink requestLink;
 
     public HttpPlugin() {
         server = new NanoHTTPDServer();
@@ -26,21 +28,25 @@ public class HttpPlugin implements GwPlugin {
 
     @Override
     public void start() {
-        try {
-            server.start(srvSink.getRightLink(), settings);
-            started.set(true);
-        } catch (InterruptedException ignored) {
-            started.set(false);
+        if (started.compareAndSet(false, true)) {
+            if (requestLink == null) {
+                throw new NullPointerException("no RequestLink to start the server");
+            }
+            try {
+                server.start(requestLink, settings);
+            } catch (InterruptedException e) {
+                started.set(false);
+            }
         }
     }
 
     @Override
     public void stop() {
-        try {
-            server.stop();
-            srvSink.stop();
-            started.set(false);
-        } catch (InterruptedException ignored) {
+        if (started.compareAndSet(true, false)) {
+            try {
+                server.stop();
+            } catch (InterruptedException ignored) {
+            }
         }
     }
 
@@ -51,7 +57,20 @@ public class HttpPlugin implements GwPlugin {
 
     @Override
     public MessageLink serverLink() {
-        return srvSink.getLeftLink();
+        return null;
+    }
+
+    @Override
+    public void handleReply(final GwReply reply) {
+        // do nothing => this plugin doesn't handle independent replies
+    }
+
+    @Override
+    public void setUp(final RequestLink requestLink) {
+        if (started.get()) {
+            throw new IllegalStateException("plugin already started");
+        }
+        this.requestLink = requestLink;
     }
 
     @Override

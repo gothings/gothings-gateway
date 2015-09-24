@@ -2,13 +2,12 @@ package br.ufs.gothings.plugins.http;
 
 import br.ufs.gothings.core.message.GwHeaders;
 import br.ufs.gothings.core.message.GwReply;
-import br.ufs.gothings.core.message.GwRequest;
 import br.ufs.gothings.core.message.Payload;
 import br.ufs.gothings.core.message.headers.Operation;
-import br.ufs.gothings.core.message.sink.MessageLink;
-import br.ufs.gothings.core.message.sink.MessageSink;
+import br.ufs.gothings.core.plugin.RequestLink;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import org.apache.commons.lang3.concurrent.ConcurrentUtils;
 import org.apache.http.client.methods.*;
 import org.apache.http.client.utils.URIBuilder;
 import org.apache.http.impl.client.CloseableHttpClient;
@@ -28,22 +27,20 @@ import static org.junit.Assert.*;
 public class NanoHTTPDServerTest {
     @Test
     public void testGatewayPayloadIsUsed() throws IOException, URISyntaxException {
-        final MessageSink sink = new MessageSink();
-        final MessageLink link = sink.getLeftLink();
-        link.setUp(msg -> {
-            assert msg instanceof GwRequest;
-            final GwHeaders h = ((GwRequest) msg).headers();
+        final RequestLink requestLink = msg -> {
+            final GwHeaders h = msg.headers();
 
             final Operation operation = h.getOperation();
             final String path = h.getPath();
             final ByteBuf buf = Unpooled.buffer().writeInt(operation.name().length() + path.length());
 
-            final GwReply reply = new GwReply((GwRequest) msg);
+            final GwReply reply = new GwReply(msg.headers(), msg.payload(), 1L);
             reply.payload().set(buf.nioBuffer());
-            link.sendReply(reply);
-        });
 
-        final NanoHTTPDServer.Server server = new NanoHTTPDServer.Server(sink.getRightLink(), 0);
+            return ConcurrentUtils.constantFuture(reply);
+        };
+
+        final NanoHTTPDServer.Server server = new NanoHTTPDServer.Server(requestLink, 0);
         server.start();
 
         /*
@@ -93,16 +90,15 @@ public class NanoHTTPDServerTest {
 
     @Test
     public void testGatewayHeadersAreUsed() throws IOException, URISyntaxException {
-        final MessageSink sink = new MessageSink();
-        final MessageLink link = sink.getLeftLink();
-        link.setUp(msg -> {
-            final GwReply reply = new GwReply((GwRequest) msg);
+        final RequestLink requestLink = msg -> {
+            final GwReply reply = new GwReply(msg.headers(), msg.payload(), 1L);
             reply.payload().set("{\"array\":[1,2,3]}", Charset.defaultCharset());
             reply.headers().setContentType("application/json");
-            link.sendReply(reply);
-        });
 
-        final NanoHTTPDServer.Server server = new NanoHTTPDServer.Server(sink.getRightLink(), 0);
+            return ConcurrentUtils.constantFuture(reply);
+        };
+
+        final NanoHTTPDServer.Server server = new NanoHTTPDServer.Server(requestLink, 0);
         server.start();
 
         final CloseableHttpClient httpclient = HttpClients.createDefault();
