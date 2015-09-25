@@ -1,24 +1,28 @@
 package br.ufs.gothings.gateway;
 
-import br.ufs.gothings.core.message.GwMessage;
-import br.ufs.gothings.core.plugin.GwPlugin;
 import br.ufs.gothings.core.Settings;
+import br.ufs.gothings.core.message.GwMessage;
 import br.ufs.gothings.core.message.GwReply;
 import br.ufs.gothings.core.message.GwRequest;
-import br.ufs.gothings.core.message.sink.MessageLink;
+import br.ufs.gothings.core.plugin.GwPlugin;
+import br.ufs.gothings.core.plugin.PluginClient;
+import br.ufs.gothings.core.plugin.PluginServer;
 import br.ufs.gothings.core.util.MapUtils;
 import br.ufs.gothings.gateway.block.Block;
 import br.ufs.gothings.gateway.block.BlockId;
 import br.ufs.gothings.gateway.block.Package;
-import br.ufs.gothings.gateway.block.Package.PackageInfo;
 import br.ufs.gothings.gateway.block.Package.PackageFactory;
+import br.ufs.gothings.gateway.block.Package.PackageInfo;
 import br.ufs.gothings.gateway.block.Token;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.util.IdentityHashMap;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicLong;
 
 import static br.ufs.gothings.gateway.block.BlockId.*;
 
@@ -28,9 +32,11 @@ import static br.ufs.gothings.gateway.block.BlockId.*;
 public class CommunicationManager {
     private static Logger logger = LogManager.getFormatterLogger(CommunicationManager.class);
 
-    private final Map<String, GwPlugin> pluginsMap = new ConcurrentHashMap<>();
-    private final Map<Block, BlockId> blocksMap = new IdentityHashMap<>();
+    private final AtomicLong sequence = new AtomicLong(0);
+    private final Map<String, PluginData> pluginsMap = new ConcurrentHashMap<>();
+    private final Map<Long, CompletableFuture<GwReply>> waitingReplies = new ConcurrentHashMap<>();
 
+    private final Map<Block, BlockId> blocksMap = new IdentityHashMap<>();
     private final Token mainToken = new Token();
     private final PackageFactory pkgFactory = Package.getFactory(mainToken);
 
@@ -53,57 +59,50 @@ public class CommunicationManager {
     }
 
     public void register(final GwPlugin plugin) {
-        final MessageLink serverLink = plugin.serverLink();
-        if (serverLink != null) {
-            serverLink.setUp(msg -> {
-                switch (msg.getType()) {
-                    // ignore reply messages
-                    case REQUEST:
-                        final Package pkg = pkgFactory.newPackage();
-                        final PackageInfo pkgInfo = pkg.getInfo(mainToken);
-                        pkgInfo.setMessage(msg);
-                        pkgInfo.setSourceProtocol(plugin.getProtocol());
-                        forward(COMMUNICATION_MANAGER, INPUT_CONTROLLER, pkg);
-                        break;
-                    case REPLY:
-                        logger.error("%s server plugin sent a request to the Communication Manager", plugin.getProtocol());
-                        break;
-                }
+        final PluginData pd = new PluginData(plugin);
+
+        if (plugin instanceof PluginServer) {
+            ((PluginServer) plugin).setUp(request -> {
+                request.setSequence(sequence.incrementAndGet());
+
+                final Package pkg = pkgFactory.newPackage();
+                final PackageInfo pkgInfo = pkg.getInfo(mainToken);
+                pkgInfo.setMessage(request);
+                pkgInfo.setSourceProtocol(plugin.getProtocol());
+                forward(COMMUNICATION_MANAGER, INPUT_CONTROLLER, pkg);
+
+                return pd.addFuture(request);
             });
         }
 
-        final MessageLink clientLink = plugin.clientLink();
-        if (clientLink != null) {
-            clientLink.setUp(msg -> {
-                switch (msg.getType()) {
-                    // ignore request messages
-                    case REQUEST:
-                        logger.error("%s client plugin sent an reply to the Communication Manager", plugin.getProtocol());
-                        break;
-                    case REPLY:
-                        final Package pkg = pkgFactory.newPackage();
-                        final PackageInfo pkgInfo = pkg.getInfo(mainToken);
-                        pkgInfo.setMessage(msg);
-                        pkgInfo.setSourceProtocol(plugin.getProtocol());
-                        forward(COMMUNICATION_MANAGER, INTERCONNECTION_CONTROLLER, pkg);
-                        break;
-                }
+        if (plugin instanceof PluginClient) {
+            ((PluginClient) plugin).setUp(reply -> {
+                final Package pkg = pkgFactory.newPackage();
+                final PackageInfo pkgInfo = pkg.getInfo(mainToken);
+                pkgInfo.setMessage(reply);
+                pkgInfo.setSourceProtocol(plugin.getProtocol());
+                forward(COMMUNICATION_MANAGER, INTERCONNECTION_CONTROLLER, pkg);
             });
         }
 
-        pluginsMap.put(plugin.getProtocol(), plugin);
+        pluginsMap.put(plugin.getProtocol(), pd);
         if (logger.isDebugEnabled()) {
             logger.debug("%s plugin registered with %s", plugin.getProtocol(), plugin.getClass());
         }
     }
 
     public void start() {
-        for (final GwPlugin plugin : pluginsMap.values()) {
-            plugin.start();
+        for (final PluginData pd : pluginsMap.values()) {
+            final Thread pluginThread = new Thread(pd.plugin::start);
+            pluginThread.start();
             if (logger.isInfoEnabled()) {
-                logger.info("%s plugin started: client=%-3s server=%s", plugin.getProtocol(),
-                        plugin.clientLink() == null ? "no" : "yes",
-                        plugin.serverLink() == null ? "no" : "yes(" + plugin.settings().get(Settings.SERVER_PORT) + ")");
+                logger.info("%s plugin started: client=%-3s server=%s", pd.plugin.getProtocol(),
+                        pd.plugin instanceof PluginClient
+                                ? "yes"
+                                : "no",
+                        pd.plugin instanceof PluginServer
+                                ? "yes(" + pd.plugin.settings().get(Settings.SERVER_PORT) + ")"
+                                : "no");
             }
         }
     }
@@ -190,30 +189,47 @@ public class CommunicationManager {
     }
 
     private void requestToPlugin(final GwRequest request, final String targetProtocol) {
-        final GwPlugin plugin = pluginsMap.get(targetProtocol);
-        if (plugin != null) {
-            final MessageLink clientLink = plugin.clientLink();
-            if (clientLink != null) {
-                clientLink.sendRequest(request);
-            }
+        final PluginData pd = pluginsMap.get(targetProtocol);
+        if (pd.plugin instanceof PluginClient) {
+            ((PluginClient) pd.plugin).handleRequest(request);
         }
     }
 
     private void replyToPlugin(final GwReply reply, final Map<String, Iterable<Long>> replyTo) {
         replyTo.forEach((protocol, sequences) -> {
-            final GwPlugin plugin = pluginsMap.get(protocol);
-            if (plugin != null) {
-                final MessageLink serverLink = plugin.serverLink();
-                if (serverLink != null) {
-                    for (final Long sequence : sequences) {
-                        if (sequence == null) {
-                            serverLink.broadcast(reply.asReadOnly(null));
-                        } else {
-                            serverLink.sendReply(reply.asReadOnly(sequence));
-                        }
+            final PluginData pd = pluginsMap.get(protocol);
+            if (pd.plugin instanceof PluginServer) {
+                for (final Long sequence : sequences) {
+                    if (sequence == null) {
+                        ((PluginServer) pd.plugin).handleReply(reply.asReadOnly(null));
+                    } else {
+                        pd.provideReply(reply.asReadOnly(sequence));
                     }
                 }
             }
         });
+    }
+
+    private class PluginData {
+        private final GwPlugin plugin;
+
+        public PluginData(final GwPlugin plugin) {
+            this.plugin = plugin;
+        }
+
+        public Future<GwReply> addFuture(final GwRequest request) {
+            final CompletableFuture<GwReply> future = new CompletableFuture<>();
+            waitingReplies.put(request.getSequence(), future);
+            return future;
+        }
+
+        public void provideReply(final GwReply reply) {
+            final CompletableFuture<GwReply> future = waitingReplies.remove(reply.getSequence());
+            if (future != null) {
+                future.complete(reply);
+            } else {
+                logger.error("not found a message with sequence %d to send the reply", reply.getSequence());
+            }
+        }
     }
 }

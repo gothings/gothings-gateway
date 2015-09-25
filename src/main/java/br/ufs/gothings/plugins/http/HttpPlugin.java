@@ -2,7 +2,6 @@ package br.ufs.gothings.plugins.http;
 
 import br.ufs.gothings.core.Settings;
 import br.ufs.gothings.core.message.GwReply;
-import br.ufs.gothings.core.message.sink.MessageLink;
 import br.ufs.gothings.core.plugin.PluginServer;
 import br.ufs.gothings.core.plugin.RequestLink;
 
@@ -48,16 +47,6 @@ public class HttpPlugin implements PluginServer {
             } catch (InterruptedException ignored) {
             }
         }
-    }
-
-    @Override
-    public MessageLink clientLink() {
-        return null;
-    }
-
-    @Override
-    public MessageLink serverLink() {
-        return null;
     }
 
     @Override

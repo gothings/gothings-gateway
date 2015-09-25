@@ -2,7 +2,6 @@ package br.ufs.gothings.plugins.mqtt;
 
 import br.ufs.gothings.core.message.GwRequest;
 import br.ufs.gothings.core.Settings;
-import br.ufs.gothings.core.message.sink.MessageLink;
 import br.ufs.gothings.core.plugin.PluginClient;
 import br.ufs.gothings.core.plugin.ReplyLink;
 import org.eclipse.paho.client.mqttv3.MqttException;
@@ -39,16 +38,6 @@ public class MqttPlugin implements PluginClient {
     @Override
     public void stop() {
         started.set(false);
-    }
-
-    @Override
-    public MessageLink clientLink() {
-        return null;
-    }
-
-    @Override
-    public MessageLink serverLink() {
-        return null;
     }
 
     @Override
