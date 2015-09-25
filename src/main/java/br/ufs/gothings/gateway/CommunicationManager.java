@@ -19,9 +19,8 @@ import org.apache.logging.log4j.Logger;
 
 import java.util.IdentityHashMap;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Future;
+import java.util.Timer;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static br.ufs.gothings.gateway.block.BlockId.*;
@@ -31,6 +30,10 @@ import static br.ufs.gothings.gateway.block.BlockId.*;
  */
 public class CommunicationManager {
     private static Logger logger = LogManager.getFormatterLogger(CommunicationManager.class);
+
+    private final ScheduledExecutorService timer = Executors.newSingleThreadScheduledExecutor();
+    private final ExecutorService eventExecutor = Executors.newWorkStealingPool();
+    private final ThreadGroup pluginsGroup = new ThreadGroup("plugins-ThreadGroup");
 
     private final AtomicLong sequence = new AtomicLong(0);
     private final Map<String, PluginData> pluginsMap = new ConcurrentHashMap<>();
@@ -93,7 +96,7 @@ public class CommunicationManager {
 
     public void start() {
         for (final PluginData pd : pluginsMap.values()) {
-            final Thread pluginThread = new Thread(pd.plugin::start);
+            final Thread pluginThread = new Thread(pluginsGroup, pd.plugin::start);
             pluginThread.start();
             if (logger.isInfoEnabled()) {
                 logger.info("%s plugin started: client=%-3s server=%s", pd.plugin.getProtocol(),
@@ -105,6 +108,14 @@ public class CommunicationManager {
                                 : "no");
             }
         }
+
+        Runtime.getRuntime().addShutdownHook(new Thread(this::stop));
+    }
+
+    public void stop() {
+        timer.shutdownNow();
+        eventExecutor.shutdownNow();
+        pluginsGroup.interrupt();
     }
 
     public void forward(final Block sourceBlock, final BlockId targetId, final Package pkg) {
@@ -113,7 +124,7 @@ public class CommunicationManager {
             logger.error("source block instance not found");
             return;
         }
-        forward(sourceId, targetId, pkg);
+        eventExecutor.submit(() -> forward(sourceId, targetId, pkg));
     }
 
     private void forward(final BlockId sourceId, final BlockId targetId, final Package pkg) {
