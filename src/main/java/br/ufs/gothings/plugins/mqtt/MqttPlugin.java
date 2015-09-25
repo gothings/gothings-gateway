@@ -15,7 +15,7 @@ public class MqttPlugin implements PluginClient {
 
     static final String GW_PROTOCOL = "mqtt";
 
-    private final MqttPluginClient client;
+    private MqttPluginClient client;
     private final Settings settings;
     private final AtomicBoolean started = new AtomicBoolean(false);
 
@@ -23,7 +23,6 @@ public class MqttPlugin implements PluginClient {
 
     public MqttPlugin() {
         settings = new Settings(started);
-        client = new MqttPluginClient(replyLink);
     }
 
     @Override
@@ -32,11 +31,13 @@ public class MqttPlugin implements PluginClient {
             if (replyLink == null) {
                 throw new NullPointerException("no ReplyLink to start the server");
             }
+            client = new MqttPluginClient(replyLink);
         }
     }
 
     @Override
     public void stop() {
+        client = null;
         started.set(false);
     }
 
