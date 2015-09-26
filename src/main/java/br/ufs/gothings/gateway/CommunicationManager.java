@@ -14,12 +14,16 @@ import br.ufs.gothings.gateway.block.Package;
 import br.ufs.gothings.gateway.block.Package.PackageFactory;
 import br.ufs.gothings.gateway.block.Package.PackageInfo;
 import br.ufs.gothings.gateway.block.Token;
+import org.apache.commons.lang3.mutable.Mutable;
+import org.apache.commons.lang3.mutable.MutableObject;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.IdentityHashMap;
 import java.util.Map;
-import java.util.Timer;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -37,7 +41,8 @@ public class CommunicationManager {
 
     private final AtomicLong sequence = new AtomicLong(0);
     private final Map<String, PluginData> pluginsMap = new ConcurrentHashMap<>();
-    private final Map<Long, CompletableFuture<GwReply>> waitingReplies = new ConcurrentHashMap<>();
+    private final Map<Long, Pair<Mutable<Instant>, CompletableFuture<GwReply>>> waitingReplies =
+            new ConcurrentHashMap<>();
 
     private final Map<Block, BlockId> blocksMap = new IdentityHashMap<>();
     private final Token mainToken = new Token();
@@ -109,6 +114,7 @@ public class CommunicationManager {
             }
         }
 
+        timer.scheduleAtFixedRate(this::sweepWaitingReplies, 1, 1, TimeUnit.MINUTES);
         Runtime.getRuntime().addShutdownHook(new Thread(this::stop));
     }
 
@@ -230,17 +236,37 @@ public class CommunicationManager {
 
         public Future<GwReply> addFuture(final GwRequest request) {
             final CompletableFuture<GwReply> future = new CompletableFuture<>();
-            waitingReplies.put(request.getSequence(), future);
+            waitingReplies.put(request.getSequence(), Pair.of(new MutableObject<>(Instant.now()), future));
             return future;
         }
 
         public void provideReply(final GwReply reply) {
-            final CompletableFuture<GwReply> future = waitingReplies.remove(reply.getSequence());
-            if (future != null) {
+            try {
+                final CompletableFuture<GwReply> future = waitingReplies.remove(reply.getSequence()).getValue();
                 future.complete(reply);
-            } else {
+            } catch (NullPointerException e) {
                 logger.error("not found a message with sequence %d to send the reply", reply.getSequence());
             }
         }
+    }
+
+    private void sweepWaitingReplies() {
+        waitingReplies.entrySet().removeIf(e -> {
+            final Pair<Mutable<Instant>, CompletableFuture<GwReply>> pair = e.getValue();
+
+            // If the future hasn't getters this usually means it's been discarded...
+            if (pair.getRight().getNumberOfDependents() < 1) {
+                // ...but we double check by verifying if has passed more than 40 seconds
+                // since last checking to don't remove a just created future or something.
+                final Mutable<Instant> instant = pair.getLeft();
+                final Instant now = Instant.now();
+                if (Duration.between(instant.getValue(), now).getSeconds() > 40) {
+                    return true;
+                }
+                instant.setValue(now);
+            }
+
+            return false;
+        });
     }
 }
