@@ -173,7 +173,20 @@ public class CommunicationManager {
                         }
                         return;
                     }
-                    requestToPlugin((GwRequest) message, pkgInfo.getTargetProtocol());
+                    // if request was forwarded to a plugin then...
+                    final GwRequest request = (GwRequest) message;
+                    if (requestToPlugin(request, pkgInfo.getTargetProtocol())) {
+                        // ...if operation is one which a payload is not required, a reply is immediately sent
+                        switch (request.headers().getOperation()) {
+                            case CREATE:
+                            case UPDATE:
+                            case DELETE:
+                                final GwPlugin plugin = pluginsMap.get(pkgInfo.getSourceProtocol()).plugin;
+                                final GwReply reply = GwReply.emptyReply(request);
+                                ((PluginServer) plugin).handleReply(reply);
+                                break;
+                        }
+                    }
                     break;
                 case OUTPUT_CONTROLLER:
                     // check number of passes
@@ -208,11 +221,13 @@ public class CommunicationManager {
         }
     }
 
-    private void requestToPlugin(final GwRequest request, final String targetProtocol) {
+    private boolean requestToPlugin(final GwRequest request, final String targetProtocol) {
         final PluginData pd = pluginsMap.get(targetProtocol);
         if (pd.plugin instanceof PluginClient) {
             ((PluginClient) pd.plugin).handleRequest(request);
+            return true;
         }
+        return false;
     }
 
     private void replyToPlugin(final GwReply reply, final Map<String, Iterable<Long>> replyTo) {

@@ -42,4 +42,10 @@ public final class GwReply extends DataMessage {
     public MessageType getType() {
         return MessageType.REPLY;
     }
+
+    private static final Payload emptyPayload = new Payload().asReadOnly();
+
+    public static GwReply emptyReply(GwRequest req) {
+        return new GwReply(req.headers().asReadOnly(), emptyPayload, req.getSequence());
+    }
 }
