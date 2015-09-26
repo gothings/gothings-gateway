@@ -119,8 +119,14 @@ public class CommunicationManager {
     }
 
     public void stop() {
-        timer.shutdownNow();
-        eventExecutor.shutdownNow();
+        timer.shutdown();
+        eventExecutor.shutdown();
+
+        pluginsMap.values().forEach(pd -> {
+            pd.plugin.stop();
+            logger.info("%s plugin stopped", pd.plugin.getProtocol());
+        });
+
         pluginsGroup.interrupt();
     }
 

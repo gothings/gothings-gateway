@@ -37,6 +37,7 @@ public class MqttPlugin implements PluginClient {
 
     @Override
     public void stop() {
+        client.close();
         client = null;
         started.set(false);
     }

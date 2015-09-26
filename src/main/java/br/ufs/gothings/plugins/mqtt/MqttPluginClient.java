@@ -6,10 +6,12 @@ import br.ufs.gothings.core.message.GwRequest;
 import br.ufs.gothings.core.message.headers.Operation;
 import br.ufs.gothings.core.plugin.ReplyLink;
 import org.apache.commons.lang3.ArrayUtils;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.eclipse.paho.client.mqttv3.*;
 
-import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import static java.lang.Math.max;
 import static java.lang.Math.min;
@@ -18,18 +20,37 @@ import static java.lang.Math.min;
  * @author Wagner Macedo
  */
 public final class MqttPluginClient {
+    private static Logger logger = LogManager.getFormatterLogger(MqttPluginClient.class);
+
     private final Map<String, MqttConnection> connections;
     private final ReplyLink replyLink;
+    private volatile boolean closed = false;
 
     MqttPluginClient(final ReplyLink replyLink) {
         this.replyLink = replyLink;
-        connections = new HashMap<>();
+        connections = new ConcurrentHashMap<>();
     }
 
     void sendRequest(final GwRequest request) throws MqttException {
-        final String host = request.headers().getTarget();
-        final MqttConnection conn = getMqttConnection(host);
-        conn.sendMessage(request);
+        if (!closed) {
+            final String host = request.headers().getTarget();
+            final MqttConnection conn = getMqttConnection(host);
+            conn.sendMessage(request);
+        }
+    }
+
+    /**
+     * Close all connections and stop to receive requests
+     */
+    void close() {
+        closed = true;
+        connections.forEach((host, connection) -> {
+            try {
+                connection.client.disconnect().waitForCompletion();
+            } catch (MqttException e) {
+                logger.warn("problem disconnecting %s", host);
+            }
+        });
     }
 
     private MqttConnection getMqttConnection(final String host) throws MqttException {
