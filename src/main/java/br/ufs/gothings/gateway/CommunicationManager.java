@@ -14,9 +14,6 @@ import br.ufs.gothings.gateway.block.Package;
 import br.ufs.gothings.gateway.block.Package.PackageFactory;
 import br.ufs.gothings.gateway.block.Package.PackageInfo;
 import br.ufs.gothings.gateway.block.Token;
-import org.apache.commons.lang3.mutable.Mutable;
-import org.apache.commons.lang3.mutable.MutableObject;
-import org.apache.commons.lang3.tuple.Pair;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -41,7 +38,7 @@ public class CommunicationManager {
 
     private final AtomicLong sequence = new AtomicLong(0);
     private final Map<String, PluginData> pluginsMap = new ConcurrentHashMap<>();
-    private final Map<Long, Pair<Mutable<Instant>, CompletableFuture<GwReply>>> waitingReplies =
+    private final Map<Long, FutureReply> waitingReplies =
             new ConcurrentHashMap<>();
 
     private final Map<Block, BlockId> blocksMap = new IdentityHashMap<>();
@@ -241,14 +238,14 @@ public class CommunicationManager {
         }
 
         public Future<GwReply> addFuture(final GwRequest request) {
-            final CompletableFuture<GwReply> future = new CompletableFuture<>();
-            waitingReplies.put(request.getSequence(), Pair.of(new MutableObject<>(Instant.now()), future));
+            final FutureReply future = new FutureReply();
+            waitingReplies.put(request.getSequence(), future);
             return future;
         }
 
         public void provideReply(final GwReply reply) {
             try {
-                final CompletableFuture<GwReply> future = waitingReplies.remove(reply.getSequence()).getValue();
+                final FutureReply future = waitingReplies.remove(reply.getSequence());
                 future.complete(reply);
             } catch (NullPointerException e) {
                 logger.error("not found a message with sequence %d to send the reply", reply.getSequence());
@@ -256,20 +253,42 @@ public class CommunicationManager {
         }
     }
 
+    private static class FutureReply extends CompletableFuture<GwReply> {
+        private volatile Instant threshold = Instant.now();
+
+        @Override
+        public GwReply get() throws InterruptedException, ExecutionException {
+            // far future threshold as we don't know how much time is spent waiting here
+            threshold = Instant.MAX;
+            try {
+                return super.get();
+            } catch (InterruptedException e) {
+                // usually when this exception is catch means program termination,
+                // but as we can't be sure, we adjust threshold for now.
+                threshold = Instant.now();
+                throw e;
+            }
+        }
+
+        @Override
+        public GwReply get(final long timeout, final TimeUnit unit) throws InterruptedException, ExecutionException, TimeoutException {
+            threshold = Instant.now().plusMillis(unit.toMillis(timeout));
+            return super.get(timeout, unit);
+        }
+    }
+
     private void sweepWaitingReplies() {
         waitingReplies.entrySet().removeIf(e -> {
-            final Pair<Mutable<Instant>, CompletableFuture<GwReply>> pair = e.getValue();
+            final FutureReply future = e.getValue();
 
             // If the future hasn't getters this usually means it's been discarded...
-            if (pair.getRight().getNumberOfDependents() < 1) {
-                // ...but we double check by verifying if has passed more than 40 seconds
-                // since last checking to don't remove a just created future or something.
-                final Mutable<Instant> instant = pair.getLeft();
-                final Instant now = Instant.now();
-                if (Duration.between(instant.getValue(), now).getSeconds() > 40) {
+            if (future.getNumberOfDependents() < 1) {
+                // ...but we double check by verifying if has passed more than 40 seconds since threshold adjust.
+                // This is done to don't remove a just created future or a still wanted reply.
+                if (Duration.between(future.threshold, Instant.now()).getSeconds() > 40) {
+                    future.cancel(true);
                     return true;
                 }
-                instant.setValue(now);
             }
 
             return false;
