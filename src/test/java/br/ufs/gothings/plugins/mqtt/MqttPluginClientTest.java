@@ -2,6 +2,7 @@ package br.ufs.gothings.plugins.mqtt;
 
 import br.ufs.gothings.core.message.GwReply;
 import br.ufs.gothings.core.message.GwRequest;
+import br.ufs.gothings.core.plugin.error.ReplyError;
 import br.ufs.gothings.core.message.headers.Operation;
 import br.ufs.gothings.core.plugin.ReplyLink;
 import org.eclipse.paho.client.mqttv3.MqttException;
@@ -48,6 +49,11 @@ public class MqttPluginClientTest {
                 pipe.put(reply);
             } catch (InterruptedException ignored) {
             }
+        }
+
+        @Override
+        public void error(final ReplyError e) {
+            // needless for tests
         }
 
         public GwReply receive() throws InterruptedException {

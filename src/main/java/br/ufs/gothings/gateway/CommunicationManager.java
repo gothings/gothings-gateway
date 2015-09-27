@@ -4,9 +4,11 @@ import br.ufs.gothings.core.Settings;
 import br.ufs.gothings.core.message.GwMessage;
 import br.ufs.gothings.core.message.GwReply;
 import br.ufs.gothings.core.message.GwRequest;
+import br.ufs.gothings.core.plugin.error.ReplyError;
 import br.ufs.gothings.core.plugin.GwPlugin;
 import br.ufs.gothings.core.plugin.PluginClient;
 import br.ufs.gothings.core.plugin.PluginServer;
+import br.ufs.gothings.core.plugin.ReplyLink;
 import br.ufs.gothings.core.util.MapUtils;
 import br.ufs.gothings.gateway.block.Block;
 import br.ufs.gothings.gateway.block.BlockId;
@@ -81,12 +83,23 @@ public class CommunicationManager {
         }
 
         if (plugin instanceof PluginClient) {
-            ((PluginClient) plugin).setUp(reply -> {
-                final Package pkg = pkgFactory.newPackage();
-                final PackageInfo pkgInfo = pkg.getInfo(mainToken);
-                pkgInfo.setMessage(reply);
-                pkgInfo.setSourceProtocol(plugin.getProtocol());
-                forward(COMMUNICATION_MANAGER, INTERCONNECTION_CONTROLLER, pkg);
+            ((PluginClient) plugin).setUp(new ReplyLink() {
+                @Override
+                public void send(final GwReply reply) {
+                    final Package pkg = pkgFactory.newPackage();
+                    final PackageInfo pkgInfo = pkg.getInfo(mainToken);
+                    pkgInfo.setMessage(reply);
+                    pkgInfo.setSourceProtocol(plugin.getProtocol());
+                    forward(COMMUNICATION_MANAGER, INTERCONNECTION_CONTROLLER, pkg);
+                }
+
+                @Override
+                public void error(final ReplyError e) {
+                    final FutureReply future = waitingReplies.remove(e.getRequest().getSequence());
+                    if (future != null) {
+                        future.completeExceptionally(e);
+                    }
+                }
             });
         }
 
