@@ -8,4 +8,5 @@ public enum Reason {
     UNAVAILABLE_PLUGIN,
     TARGET_NOT_FOUND,
     PATH_NOT_FOUND,
+    OTHER,
 }

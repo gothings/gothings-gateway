@@ -4,7 +4,6 @@ import br.ufs.gothings.core.message.GwRequest;
 import br.ufs.gothings.core.Settings;
 import br.ufs.gothings.core.plugin.PluginClient;
 import br.ufs.gothings.core.plugin.ReplyLink;
-import org.eclipse.paho.client.mqttv3.MqttException;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -44,10 +43,7 @@ public class MqttPlugin implements PluginClient {
 
     @Override
     public void handleRequest(final GwRequest request) {
-        try {
-            client.sendRequest(request);
-        } catch (MqttException ignored) {
-        }
+        client.sendRequest(request);
     }
 
     @Override

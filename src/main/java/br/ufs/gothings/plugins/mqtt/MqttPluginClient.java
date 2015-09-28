@@ -5,16 +5,20 @@ import br.ufs.gothings.core.message.GwReply;
 import br.ufs.gothings.core.message.GwRequest;
 import br.ufs.gothings.core.message.headers.Operation;
 import br.ufs.gothings.core.plugin.ReplyLink;
+import br.ufs.gothings.core.plugin.error.Reason;
+import br.ufs.gothings.core.plugin.error.ReplyError;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.eclipse.paho.client.mqttv3.*;
 
+import java.net.UnknownHostException;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 import static java.lang.Math.max;
 import static java.lang.Math.min;
+import static org.eclipse.paho.client.mqttv3.MqttException.*;
 
 /**
  * @author Wagner Macedo
@@ -31,11 +35,29 @@ public final class MqttPluginClient {
         connections = new ConcurrentHashMap<>();
     }
 
-    void sendRequest(final GwRequest request) throws MqttException {
+    void sendRequest(final GwRequest request) {
         if (!closed) {
             final String host = request.headers().getTarget();
-            final MqttConnection conn = getMqttConnection(host);
-            conn.sendMessage(request);
+            try {
+                final MqttConnection conn = getMqttConnection(host);
+                conn.sendMessage(request);
+            } catch (MqttException e) {
+                switch (e.getReasonCode()) {
+                    case REASON_CODE_CLIENT_EXCEPTION:
+                        if (!(e.getCause() instanceof UnknownHostException)) {
+                            break;
+                        }
+                    case REASON_CODE_SERVER_CONNECT_ERROR:
+                    case REASON_CODE_BROKER_UNAVAILABLE:
+                    case REASON_CODE_CLIENT_TIMEOUT:
+                    case REASON_CODE_CONNECTION_LOST:
+                        replyLink.error(new ReplyError(request, Reason.TARGET_NOT_FOUND));
+                        break;
+                }
+                replyLink.error(new ReplyError(request, Reason.OTHER));
+            }
+        } else {
+            replyLink.error(new ReplyError(request, Reason.OTHER));
         }
     }
 
