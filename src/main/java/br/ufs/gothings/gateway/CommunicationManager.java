@@ -4,6 +4,7 @@ import br.ufs.gothings.core.Settings;
 import br.ufs.gothings.core.message.GwMessage;
 import br.ufs.gothings.core.message.GwReply;
 import br.ufs.gothings.core.message.GwRequest;
+import br.ufs.gothings.core.plugin.error.Reason;
 import br.ufs.gothings.core.plugin.error.ReplyError;
 import br.ufs.gothings.core.plugin.GwPlugin;
 import br.ufs.gothings.core.plugin.PluginClient;
@@ -94,11 +95,8 @@ public class CommunicationManager {
                 }
 
                 @Override
-                public void error(final ReplyError e) {
-                    final FutureReply future = waitingReplies.remove(e.getRequest().getSequence());
-                    if (future != null) {
-                        future.completeExceptionally(e);
-                    }
+                public void error(final ReplyError replyError) {
+                    sendFutureError(replyError);
                 }
             });
         }
@@ -200,6 +198,10 @@ public class CommunicationManager {
                                 break;
                         }
                     }
+                    // otherwise, return an error.
+                    else {
+                        sendFutureError(new ReplyError(request, Reason.UNAVAILABLE_PLUGIN));
+                    }
                     break;
                 case OUTPUT_CONTROLLER:
                     // check number of passes
@@ -236,7 +238,7 @@ public class CommunicationManager {
 
     private boolean requestToPlugin(final GwRequest request, final String targetProtocol) {
         final PluginData pd = pluginsMap.get(targetProtocol);
-        if (pd.plugin instanceof PluginClient) {
+        if (pd != null && pd.plugin instanceof PluginClient) {
             ((PluginClient) pd.plugin).handleRequest(request);
             return true;
         }
@@ -302,6 +304,21 @@ public class CommunicationManager {
         public GwReply get(final long timeout, final TimeUnit unit) throws InterruptedException, ExecutionException, TimeoutException {
             threshold = Instant.now().plusMillis(unit.toMillis(timeout));
             return super.get(timeout, unit);
+        }
+    }
+
+    void handleError(final Block sourceBlock, final ReplyError replyError) {
+        if (blocksMap.containsKey(sourceBlock)) {
+            sendFutureError(replyError);
+        } else {
+            logger.error("source block instance not found");
+        }
+    }
+
+    private void sendFutureError(final ReplyError replyError) {
+        final FutureReply future = waitingReplies.remove(replyError.getRequest().getSequence());
+        if (future != null) {
+            future.completeExceptionally(replyError);
         }
     }
 
