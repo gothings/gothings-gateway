@@ -1,12 +1,9 @@
 package br.ufs.gothings.gateway;
 
 import br.ufs.gothings.core.Settings;
-import br.ufs.gothings.core.message.GwMessage;
-import br.ufs.gothings.core.message.GwReply;
-import br.ufs.gothings.core.message.GwRequest;
-import br.ufs.gothings.core.message.Payload;
-import br.ufs.gothings.core.plugin.error.Reason;
-import br.ufs.gothings.core.plugin.error.ReplyError;
+import br.ufs.gothings.core.common.Reason;
+import br.ufs.gothings.core.message.*;
+import br.ufs.gothings.core.common.GatewayException;
 import br.ufs.gothings.core.plugin.GwPlugin;
 import br.ufs.gothings.core.plugin.PluginClient;
 import br.ufs.gothings.core.plugin.PluginServer;
@@ -96,8 +93,12 @@ public class CommunicationManager {
                 }
 
                 @Override
-                public void error(final ReplyError replyError) {
-                    sendFutureError(replyError);
+                public void sendError(final GwError error) {
+                    if (error.getSourceType() == GwMessage.MessageType.REQUEST) {
+                        sendFutureException(new GatewayException(error));
+                    } else {
+                        logger.error("client plugin send an error with source other than GwRequest");
+                    }
                 }
             });
         }
@@ -201,7 +202,7 @@ public class CommunicationManager {
                     }
                     // otherwise, return an error.
                     else {
-                        sendFutureError(new ReplyError(request, Reason.UNAVAILABLE_PLUGIN));
+                        sendFutureException(new GatewayException(request, Reason.UNAVAILABLE_PLUGIN));
                     }
                     break;
                 case OUTPUT_CONTROLLER:
@@ -308,18 +309,18 @@ public class CommunicationManager {
         }
     }
 
-    void handleError(final Block sourceBlock, final ReplyError replyError) {
+    void handleError(final Block sourceBlock, final GatewayException gatewayException) {
         if (blocksMap.containsKey(sourceBlock)) {
-            sendFutureError(replyError);
+            sendFutureException(gatewayException);
         } else {
             logger.error("source block instance not found");
         }
     }
 
-    private void sendFutureError(final ReplyError replyError) {
-        final FutureReply future = waitingReplies.remove(replyError.getRequest().getSequence());
+    private void sendFutureException(final GatewayException gatewayException) {
+        final FutureReply future = waitingReplies.remove(gatewayException.getErrorMessage().getSequence());
         if (future != null) {
-            future.completeExceptionally(replyError);
+            future.completeExceptionally(gatewayException);
         }
     }
 

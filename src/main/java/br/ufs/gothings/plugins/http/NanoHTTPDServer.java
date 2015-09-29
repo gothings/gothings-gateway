@@ -6,7 +6,7 @@ import br.ufs.gothings.core.message.GwReply;
 import br.ufs.gothings.core.message.GwRequest;
 import br.ufs.gothings.core.message.headers.Operation;
 import br.ufs.gothings.core.plugin.RequestLink;
-import br.ufs.gothings.core.plugin.error.ReplyError;
+import br.ufs.gothings.core.common.GatewayException;
 import fi.iki.elonen.NanoHTTPD;
 import fi.iki.elonen.NanoHTTPD.Response.Status;
 
@@ -69,9 +69,9 @@ class NanoHTTPDServer implements HttpPluginServer {
                 catch (InterruptedException | ExecutionException | TimeoutException e) {
                     Status status = Status.INTERNAL_ERROR;
 
-                    if (e.getCause() instanceof ReplyError) {
-                        final ReplyError error = (ReplyError) e.getCause();
-                        switch (error.getReason()) {
+                    if (e.getCause() instanceof GatewayException) {
+                        final GatewayException gwx = (GatewayException) e.getCause();
+                        switch (gwx.getErrorMessage().getReason()) {
                             case INVALID_URI:
                                 status = Status.BAD_REQUEST;
                                 break;

@@ -1,8 +1,8 @@
 package br.ufs.gothings.plugins.mqtt;
 
+import br.ufs.gothings.core.message.GwError;
 import br.ufs.gothings.core.message.GwReply;
 import br.ufs.gothings.core.message.GwRequest;
-import br.ufs.gothings.core.plugin.error.ReplyError;
 import br.ufs.gothings.core.message.headers.Operation;
 import br.ufs.gothings.core.plugin.ReplyLink;
 import org.eclipse.paho.client.mqttv3.MqttException;
@@ -52,7 +52,7 @@ public class MqttPluginClientTest {
         }
 
         @Override
-        public void error(final ReplyError e) {
+        public void sendError(final GwError error) {
             // needless for tests
         }
 

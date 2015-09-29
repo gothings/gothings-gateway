@@ -1,4 +1,4 @@
-package br.ufs.gothings.core.plugin.error;
+package br.ufs.gothings.core.common;
 
 /**
  * @author Wagner Macedo

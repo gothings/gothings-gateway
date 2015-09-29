@@ -1,11 +1,11 @@
 package br.ufs.gothings.gateway;
 
+import br.ufs.gothings.core.common.Reason;
 import br.ufs.gothings.core.message.GwHeaders;
 import br.ufs.gothings.core.message.GwReply;
 import br.ufs.gothings.core.message.GwRequest;
 import br.ufs.gothings.core.message.headers.Operation;
-import br.ufs.gothings.core.plugin.error.Reason;
-import br.ufs.gothings.core.plugin.error.ReplyError;
+import br.ufs.gothings.core.common.GatewayException;
 import br.ufs.gothings.gateway.block.Block;
 import br.ufs.gothings.gateway.block.BlockId;
 import br.ufs.gothings.gateway.block.Package;
@@ -57,7 +57,7 @@ public class InterconnectionController implements Block {
                         logger.error("could not parse URI from path sent by %s plugin: %s",
                                 pkgInfo.getSourceProtocol(), e.getInput());
                     }
-                    manager.handleError(this, new ReplyError(request, Reason.INVALID_URI));
+                    manager.handleError(this, new GatewayException(request, Reason.INVALID_URI));
                     return;
                 }
 

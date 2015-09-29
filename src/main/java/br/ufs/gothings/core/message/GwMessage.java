@@ -9,7 +9,7 @@ public abstract class GwMessage {
     public enum MessageType {
         REQUEST,
         REPLY,
-        STATUS,
+        ERROR,
     }
 
     private volatile Long sequence;
