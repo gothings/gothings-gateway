@@ -1,6 +1,6 @@
 package br.ufs.gothings.core;
 
-import br.ufs.gothings.core.common.AbstractKey;
+import br.ufs.gothings.core.util.AbstractKey;
 import org.apache.commons.lang3.Validate;
 
 import java.util.HashMap;

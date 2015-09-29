@@ -1,4 +1,4 @@
-package br.ufs.gothings.core.common;
+package br.ufs.gothings.core.util;
 
 import java.util.Collection;
 import java.util.function.Function;
