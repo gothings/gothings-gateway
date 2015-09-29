@@ -76,46 +76,53 @@ public final class MqttPluginClient {
     }
 
     private MqttConnection getMqttConnection(final String host) throws MqttException {
-        final MqttConnection conn = connections.get(host);
-        if (conn != null) {
-            return conn;
+        try {
+            return connections.computeIfAbsent(host, k -> new MqttConnection(host));
+        } catch (RuntimeException e) {
+            if (e.getCause() instanceof MqttException) {
+                throw ((MqttException) e.getCause());
+            } else {
+                throw e;
+            }
         }
-
-        return new MqttConnection(host);
     }
 
     private class MqttConnection {
         private final MqttAsyncClient client;
         private final IMqttToken connectionToken;
 
-        public MqttConnection(String host) throws MqttException {
-            client = new MqttAsyncClient("tcp://" + host, "gothings-client_" + host.hashCode());
-            client.setCallback(new MqttCallback() {
-                // TODO: try to reconnect on fail
-                @Override
-                public void connectionLost(Throwable cause) {
+        public MqttConnection(String host) throws RuntimeException {
+            try {
+                client = new MqttAsyncClient("tcp://" + host, "gothings-client_" + host.hashCode());
+                client.setCallback(new MqttCallback() {
+                    // TODO: try to reconnect on fail
+                    @Override
+                    public void connectionLost(Throwable cause) {
 
-                }
+                    }
 
-                @Override
-                public void messageArrived(String topic, MqttMessage mqttMessage) throws Exception {
-                    final GwReply msg = new GwReply();
-                    msg.payload().set(mqttMessage.getPayload());
-                    final GwHeaders h = msg.headers();
-                    h.setTarget(host);
-                    h.setPath(topic);
+                    @Override
+                    public void messageArrived(String topic, MqttMessage mqttMessage) throws Exception {
+                        final GwReply msg = new GwReply();
+                        msg.payload().set(mqttMessage.getPayload());
+                        final GwHeaders h = msg.headers();
+                        h.setTarget(host);
+                        h.setPath(topic);
 
-                    replyLink.send(msg);
-                }
+                        replyLink.send(msg);
+                    }
 
-                // TODO: what to do here?
-                @Override
-                public void deliveryComplete(IMqttDeliveryToken token) {
+                    // TODO: what to do here?
+                    @Override
+                    public void deliveryComplete(IMqttDeliveryToken token) {
 
-                }
-            });
-            connectionToken = client.connect(new MqttConnectOptions());
-            connectionToken.waitForCompletion();
+                    }
+                });
+                connectionToken = client.connect(new MqttConnectOptions());
+                connectionToken.waitForCompletion();
+            } catch (MqttException e) {
+                throw new RuntimeException(e);
+            }
         }
 
         public void sendMessage(GwRequest msg) throws MqttException {
