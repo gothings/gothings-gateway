@@ -1,9 +1,6 @@
 package br.ufs.gothings.core.message;
 
-import org.apache.commons.lang3.Validate;
-
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * @author Wagner Macedo
@@ -15,28 +12,27 @@ public abstract class GwMessage {
         STATUS,
     }
 
-    private final AtomicReference<Long> sequence = new AtomicReference<>();
-    private final AtomicBoolean sequenceLock = new AtomicBoolean(false);
+    private volatile Long sequence;
+    private final AtomicBoolean sequenceAssigned = new AtomicBoolean(false);
 
     public abstract MessageType getType();
 
     public final Long getSequence() {
-        return sequence.get();
+        if (!sequenceAssigned.get()) {
+            throw new IllegalStateException("message sequence still not set");
+        }
+        return sequence;
     }
 
-    public final void setSequence(final long sequence) {
-        Validate.validState(sequenceLock.get() || (this.sequence.get() == null),
-                "message sequence locked for set or already set");
-        this.lockSequence();
-        this.sequence.set(sequence);
-    }
-
-    public final void lockSequence() {
-        sequenceLock.set(true);
+    public final void setSequence(final Long sequence) {
+        if (!sequenceAssigned.compareAndSet(false, true)) {
+            throw new IllegalStateException("message sequence already set");
+        }
+        this.sequence = sequence;
     }
 
     public final boolean isSequenced() {
-        lockSequence();
-        return getSequence() != null;
+        sequenceAssigned.set(true);
+        return sequence != null;
     }
 }

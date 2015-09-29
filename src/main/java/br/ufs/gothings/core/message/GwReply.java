@@ -19,7 +19,7 @@ public final class GwReply extends DataMessage {
      */
     public GwReply() {
         super();
-        lockSequence();
+        setSequence(null);
     }
 
     public GwReply(final GwHeaders headers, final Payload payload, final Long sequence) {
@@ -33,9 +33,7 @@ public final class GwReply extends DataMessage {
      * @return a read-only reply
      */
     public GwReply readOnly(final Long sequence) {
-        final GwReply reply = new GwReply(this.headers().readOnly(), this.payload().readOnly(), sequence);
-        reply.lockSequence();
-        return reply;
+        return new GwReply(this.headers().readOnly(), this.payload().readOnly(), sequence);
     }
 
     @Override
