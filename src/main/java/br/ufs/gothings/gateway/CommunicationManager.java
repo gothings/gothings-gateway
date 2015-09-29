@@ -31,7 +31,7 @@ import static br.ufs.gothings.gateway.block.BlockId.*;
  * @author Wagner Macedo
  */
 public class CommunicationManager {
-    private static Logger logger = LogManager.getFormatterLogger(CommunicationManager.class);
+    private static final Logger logger = LogManager.getFormatterLogger(CommunicationManager.class);
 
     private final ScheduledExecutorService timer = Executors.newSingleThreadScheduledExecutor();
     private final ExecutorService eventExecutor = Executors.newWorkStealingPool();
@@ -195,8 +195,8 @@ public class CommunicationManager {
                             case UPDATE:
                             case DELETE:
                                 final GwPlugin plugin = pluginsMap.get(pkgInfo.getSourceProtocol()).plugin;
-                                final GwReply reply = GwReply.readOnly(request.headers(), Payload.EMPTY, request.getSequence());
-                                ((PluginServer) plugin).handleReply(reply);
+                                final GwReply reply = new GwReply(request.headers(), Payload.EMPTY, request.getSequence());
+                                ((PluginServer) plugin).handleReply(reply.readOnly());
                                 break;
                         }
                     }

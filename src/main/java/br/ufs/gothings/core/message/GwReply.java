@@ -27,9 +27,9 @@ public final class GwReply extends DataMessage {
     }
 
     /**
-     * Construct a read-only view of this reply
+     * Set this reply as read-only
      *
-     * @return a read-only reply
+     * @return this reply
      */
     public GwReply readOnly() {
         return readOnly(getSequence());
@@ -43,10 +43,6 @@ public final class GwReply extends DataMessage {
      */
     public GwReply readOnly(final Long sequence) {
         return new GwReply(this.headers().readOnly(), this.payload().readOnly(), sequence);
-    }
-
-    public static GwReply readOnly(GwHeaders headers, final Payload payload, final Long sequence) {
-        return new GwReply(headers.readOnly(), payload, sequence);
     }
 
     @Override

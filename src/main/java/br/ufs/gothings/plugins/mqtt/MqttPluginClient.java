@@ -24,7 +24,7 @@ import static org.eclipse.paho.client.mqttv3.MqttException.*;
  * @author Wagner Macedo
  */
 public final class MqttPluginClient {
-    private static Logger logger = LogManager.getFormatterLogger(MqttPluginClient.class);
+    private static final Logger logger = LogManager.getFormatterLogger(MqttPluginClient.class);
 
     private final Map<String, MqttConnection> connections;
     private final ReplyLink replyLink;

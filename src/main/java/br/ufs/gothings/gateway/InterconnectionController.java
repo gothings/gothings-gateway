@@ -28,7 +28,7 @@ import java.util.concurrent.locks.ReentrantLock;
  * @author Wagner Macedo
  */
 public class InterconnectionController implements Block {
-    private static Logger logger = LogManager.getFormatterLogger(InterconnectionController.class);
+    private static final Logger logger = LogManager.getFormatterLogger(InterconnectionController.class);
 
     private final CommunicationManager manager;
     private final Token accessToken;
