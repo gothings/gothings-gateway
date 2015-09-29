@@ -1,5 +1,6 @@
 package br.ufs.gothings.core.message;
 
+import br.ufs.gothings.core.common.ReadOnlyException;
 import br.ufs.gothings.core.message.headers.Operation;
 
 import java.util.Collection;
@@ -24,13 +25,10 @@ public class GwHeaders {
     }
 
     private final Holder holder;
+    private volatile boolean readonly = false;
 
     public GwHeaders() {
         holder = new Holder();
-    }
-
-    private GwHeaders(final Holder holder) {
-        this.holder = holder;
     }
 
     public Operation getOperation() {
@@ -38,6 +36,9 @@ public class GwHeaders {
     }
 
     public void setOperation(final Operation operation) {
+        if (readonly) {
+            throw new ReadOnlyException();
+        }
         holder.operation = operation;
     }
 
@@ -46,6 +47,9 @@ public class GwHeaders {
     }
 
     public void setTarget(final String target) {
+        if (readonly) {
+            throw new ReadOnlyException();
+        }
         holder.target = target;
     }
 
@@ -54,6 +58,9 @@ public class GwHeaders {
     }
 
     public void setPath(final String path) {
+        if (readonly) {
+            throw new ReadOnlyException();
+        }
         holder.path = path;
     }
 
@@ -62,6 +69,9 @@ public class GwHeaders {
     }
 
     public void setContentType(final String contentType) {
+        if (readonly) {
+            throw new ReadOnlyException();
+        }
         holder.contentType = contentType;
     }
 
@@ -70,6 +80,10 @@ public class GwHeaders {
     }
 
     public void setExpectedTypes(final Collection<String> expectedTypes) {
+        if (readonly) {
+            throw new ReadOnlyException();
+        }
+
         if (!(expectedTypes == null || expectedTypes.isEmpty())) {
             if (holder.expectedTypes != null) {
                 holder.expectedTypes.clear();
@@ -81,6 +95,10 @@ public class GwHeaders {
     }
 
     public void addExpectedType(final String expectedType) {
+        if (readonly) {
+            throw new ReadOnlyException();
+        }
+
         if (expectedType != null) {
             if (holder.expectedTypes == null) {
                 setExpectedTypes(Collections.singletonList(expectedType));
@@ -95,51 +113,14 @@ public class GwHeaders {
     }
 
     public void setQoS(final int qos) {
+        if (readonly) {
+            throw new ReadOnlyException();
+        }
         holder.qos = qos;
     }
 
-    public final GwHeaders asReadOnly() {
-        return new UnmodifiableHeaders(this);
-    }
-
-    private static final class UnmodifiableHeaders extends GwHeaders {
-        public UnmodifiableHeaders(final GwHeaders wrapped) {
-            super(wrapped.holder);
-        }
-
-        @Override
-        public void setOperation(final Operation operation) {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public void setTarget(final String target) {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public void setPath(final String path) {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public void setContentType(final String contentType) {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public void setExpectedTypes(final Collection<String> expectedTypes) {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public void addExpectedType(final String expectedType) {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public void setQoS(final int qos) {
-            throw new UnsupportedOperationException();
-        }
+    public final GwHeaders readOnly() {
+        readonly = true;
+        return this;
     }
 }

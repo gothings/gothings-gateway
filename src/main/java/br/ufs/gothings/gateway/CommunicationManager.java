@@ -251,9 +251,9 @@ public class CommunicationManager {
             if (pd.plugin instanceof PluginServer) {
                 for (final Long sequence : sequences) {
                     if (sequence == null) {
-                        ((PluginServer) pd.plugin).handleReply(reply.asReadOnly(null));
+                        ((PluginServer) pd.plugin).handleReply(reply.readOnly(null));
                     } else {
-                        pd.provideReply(reply.asReadOnly(sequence));
+                        pd.provideReply(reply.readOnly(sequence));
                     }
                 }
             }

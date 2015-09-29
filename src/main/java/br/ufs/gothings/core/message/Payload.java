@@ -2,6 +2,7 @@ package br.ufs.gothings.core.message;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufInputStream;
+import io.netty.buffer.ReadOnlyByteBuf;
 import io.netty.buffer.Unpooled;
 
 import java.io.IOException;
@@ -15,14 +16,10 @@ import static java.lang.Math.min;
  * @author Wagner Macedo
  */
 public class Payload {
-    private final ByteBuf data;
+    private ByteBuf data;
 
     public Payload() {
-        this(Unpooled.buffer());
-    }
-
-    private Payload(final ByteBuf data) {
-        this.data = data;
+        this.data = Unpooled.buffer();
     }
 
     public void set(byte[] bytes) {
@@ -72,7 +69,10 @@ public class Payload {
         return data.toString(charset);
     }
 
-    public Payload asReadOnly() {
-        return new Payload(Unpooled.unmodifiableBuffer(this.data));
+    public Payload readOnly() {
+        if (!(data instanceof ReadOnlyByteBuf)) {
+            data = Unpooled.unmodifiableBuffer(data);
+        }
+        return this;
     }
 }
