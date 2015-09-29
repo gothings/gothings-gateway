@@ -14,8 +14,20 @@ public abstract class GwMessage {
 
     private volatile Long sequence;
     private final AtomicBoolean sequenceAssigned = new AtomicBoolean(false);
+    private final GwHeaders headers;
 
-    public abstract MessageType getType();
+    protected GwMessage(GwHeaders headers) {
+        this.headers = (headers != null) ? headers : new GwHeaders();
+    }
+
+    protected GwMessage(GwHeaders headers, Long sequence) {
+        this(headers);
+        setSequence(sequence);
+    }
+
+    public final GwHeaders headers() {
+        return headers;
+    }
 
     public final Long getSequence() {
         if (!sequenceAssigned.get()) {
@@ -35,4 +47,6 @@ public abstract class GwMessage {
         sequenceAssigned.set(true);
         return sequence != null;
     }
+
+    public abstract MessageType getType();
 }

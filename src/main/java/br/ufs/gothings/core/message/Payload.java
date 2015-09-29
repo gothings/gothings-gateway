@@ -16,6 +16,8 @@ import static java.lang.Math.min;
  * @author Wagner Macedo
  */
 public class Payload {
+    public static final Payload EMPTY = new Payload().readOnly();
+
     private ByteBuf data;
 
     public Payload() {

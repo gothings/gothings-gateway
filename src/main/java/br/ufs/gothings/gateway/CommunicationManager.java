@@ -4,6 +4,7 @@ import br.ufs.gothings.core.Settings;
 import br.ufs.gothings.core.message.GwMessage;
 import br.ufs.gothings.core.message.GwReply;
 import br.ufs.gothings.core.message.GwRequest;
+import br.ufs.gothings.core.message.Payload;
 import br.ufs.gothings.core.plugin.error.Reason;
 import br.ufs.gothings.core.plugin.error.ReplyError;
 import br.ufs.gothings.core.plugin.GwPlugin;
@@ -193,7 +194,7 @@ public class CommunicationManager {
                             case UPDATE:
                             case DELETE:
                                 final GwPlugin plugin = pluginsMap.get(pkgInfo.getSourceProtocol()).plugin;
-                                final GwReply reply = GwReply.emptyReply(request);
+                                final GwReply reply = GwReply.readOnly(request.headers(), Payload.EMPTY, request.getSequence());
                                 ((PluginServer) plugin).handleReply(reply);
                                 break;
                         }
