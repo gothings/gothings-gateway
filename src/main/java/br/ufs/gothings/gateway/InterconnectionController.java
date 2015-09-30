@@ -20,6 +20,7 @@ import org.apache.logging.log4j.Logger;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.*;
+import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -155,6 +156,10 @@ public class InterconnectionController implements Block {
         return new URI(String.format("%s://%s/%s", sourceProtocol, target, path));
     }
 
+    public Subscriptions getSubscriptions() {
+        return subscriptions;
+    }
+
     /**
      * Mapping of subscriptions to reply
      * <p>
@@ -167,7 +172,7 @@ public class InterconnectionController implements Block {
      *      plugin every time the gateway receives a reply with this filter.
      * </ul>
      */
-    private static class Subscriptions {
+    static class Subscriptions {
         private final Map<String, Map<String, Set<Long>>> map = new ConcurrentHashMap<>();
         private final Lock lock = new ReentrantLock();
 
@@ -240,6 +245,26 @@ public class InterconnectionController implements Block {
                 }
             }
             return true;
+        }
+
+        /**
+         * Remove the sequence from the subscription.
+         *
+         * @param sequence    sequence to be removed
+         */
+        public void remove(final Long sequence) {
+            lock.lock();
+            try {
+                for (final Entry<String, Map<String, Set<Long>>> uriEntry : map.entrySet()) {
+                    for (final Entry<String, Set<Long>> subsEntry : uriEntry.getValue().entrySet()) {
+                        if (subsEntry.getValue().remove(sequence)) {
+                            return;
+                        }
+                    }
+                }
+            } finally {
+                lock.unlock();
+            }
         }
     }
 }
