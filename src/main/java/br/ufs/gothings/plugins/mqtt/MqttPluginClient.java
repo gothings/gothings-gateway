@@ -13,6 +13,7 @@ import org.apache.logging.log4j.Logger;
 import org.eclipse.paho.client.mqttv3.*;
 
 import java.net.UnknownHostException;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -90,6 +91,7 @@ public final class MqttPluginClient {
     private class MqttConnection {
         private final MqttAsyncClient client;
         private final IMqttToken connectionToken;
+        private final SubscriptionControl control = new SubscriptionControl();
 
         public MqttConnection(String host) throws RuntimeException {
             try {
@@ -103,13 +105,21 @@ public final class MqttPluginClient {
 
                     @Override
                     public void messageArrived(String topic, MqttMessage mqttMessage) throws Exception {
-                        final GwReply msg = new GwReply();
-                        msg.payload().set(mqttMessage.getPayload());
-                        final GwHeaders h = msg.headers();
-                        h.setTarget(host);
-                        h.setPath(topic);
+                        synchronized (control) {
+                            final boolean marked = control.unmarkWaitRead(topic);
+                            if (!marked) {
+                                client.unsubscribe(topic);
+                                logger.trace("unsubscribed from topic %s due to no more waiters", topic);
+                            }
 
-                        replyLink.send(msg);
+                            final GwReply msg = new GwReply();
+                            msg.payload().set(mqttMessage.getPayload());
+                            final GwHeaders h = msg.headers();
+                            h.setTarget(host);
+                            h.setPath(topic);
+
+                            replyLink.send(msg);
+                        }
                     }
 
                     // TODO: what to do here?
@@ -149,14 +159,60 @@ public final class MqttPluginClient {
                 // READ and OBSERVE are unsurprisingly directly mapped to subscribe
                 case READ:
                 case OBSERVE:
-                    client.subscribe(topic, qos);
+                    synchronized (control) {
+                        final boolean marked = control.mark(topic, operation);
+                        if (!marked) {
+                            client.subscribe(topic, qos);
+                            logger.trace("subscribed on topic %s", topic);
+                        }
+                    }
                     break;
 
                 // UNOBSERVE is the equivalent of unsubscribe
                 case UNOBSERVE:
+                    synchronized (control) {
+                        control.remove(topic);
+                    }
                     client.unsubscribe(topic);
+                    logger.trace("unsubscribed from topic %s", topic);
                     break;
             }
+        }
+    }
+
+    private static final class SubscriptionControl {
+        private final Map<String, Integer> table = new HashMap<>();
+
+        private static final byte WAIT_READ = 0b01;
+        private static final byte SUBSCRIBE = 0b10;
+
+        public boolean mark(final String topic, final Operation operation) {
+            return mark(normalize(topic), operation == Operation.READ ? WAIT_READ : SUBSCRIBE);
+        }
+
+        private boolean mark(final String topic, final byte newMark) {
+            final Integer oldMark = table.getOrDefault(topic, 0);
+            try {
+                return oldMark > 0;
+            } finally {
+                table.put(topic, newMark | oldMark);
+            }
+        }
+
+        public boolean unmarkWaitRead(final String topic) {
+            final Integer computeMark = table.compute(normalize(topic), (k, mark) -> {
+                final int newMark = mark ^ WAIT_READ;
+                return newMark == 0 ? null : newMark;
+            });
+            return computeMark != null;
+        }
+
+        public void remove(final String topic) {
+            table.remove(normalize(topic));
+        }
+
+        private static String normalize(final String topic) {
+            return topic.replaceFirst("^/+", "");
         }
     }
 }
