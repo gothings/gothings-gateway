@@ -69,7 +69,13 @@ public class CommunicationManager {
 
         if (plugin instanceof PluginServer) {
             ((PluginServer) plugin).setUp(request -> {
-                request.setSequence(sequence.incrementAndGet());
+                switch (request.headers().getOperation()) {
+                    case CREATE:
+                    case READ:
+                    case UPDATE:
+                    case DELETE:
+                        request.setSequence(sequence.incrementAndGet());
+                }
 
                 final Package pkg = pkgFactory.newPackage();
                 final PackageInfo pkgInfo = pkg.getInfo(mainToken);

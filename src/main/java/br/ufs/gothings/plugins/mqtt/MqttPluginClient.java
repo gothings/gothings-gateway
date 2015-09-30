@@ -146,9 +146,15 @@ public final class MqttPluginClient {
                     client.publish(topic, ArrayUtils.EMPTY_BYTE_ARRAY, 0, true);
                     break;
 
-                // READ is unsurprisingly directly mapped to subscribe
+                // READ and OBSERVE are unsurprisingly directly mapped to subscribe
                 case READ:
+                case OBSERVE:
                     client.subscribe(topic, qos);
+                    break;
+
+                // UNOBSERVE is the equivalent of unsubscribe
+                case UNOBSERVE:
+                    client.unsubscribe(topic);
                     break;
             }
         }

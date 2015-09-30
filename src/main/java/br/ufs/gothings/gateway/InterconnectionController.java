@@ -80,8 +80,18 @@ public class InterconnectionController implements Block {
                     pkgInfo.setMessage(cached);
                     manager.forward(this, BlockId.OUTPUT_CONTROLLER, pkg);
                 } else {
-                    if (operation == Operation.READ) {
-                        subscriptions.add(s_uri, pkgInfo.getSourceProtocol(), request.getSequence());
+                    switch (operation) {
+                        case READ:
+                        case OBSERVE:
+                            subscriptions.add(s_uri, pkgInfo.getSourceProtocol(), request.getSequence());
+                            break;
+                        case UNOBSERVE:
+                            // After remove subscription, if still there is any subscriber, prevent the UNOBSERVE to
+                            // go to the target plugin.
+                            if (!subscriptions.remove(s_uri, pkgInfo.getSourceProtocol(), null)) {
+                                return;
+                            }
+                            break;
                     }
                     manager.forward(this, BlockId.COMMUNICATION_MANAGER, pkg);
                 }
@@ -202,6 +212,34 @@ public class InterconnectionController implements Block {
                 }
             }
             throw new NoSuchElementException("no subscription for " + uri);
+        }
+
+        /**
+         * Remove the following subscription
+         *
+         * @param uri         the uri to find
+         * @param protocol    the protocol associated to uri
+         * @param sequence    the sequence associated to both uri and protocol
+         * @return true if list of sequences was left empty, false otherwise.
+         */
+        public boolean remove(final String uri, final String protocol, final Long sequence) {
+            final Map<String, Set<Long>> uriSubs = map.get(uri);
+            if (uriSubs != null) {
+                lock.lock();
+                try {
+                    final Set<Long> sequences = uriSubs.get(protocol);
+                    if (sequences != null) {
+                        sequences.remove(sequence);
+                        if (sequences.isEmpty()) {
+                            uriSubs.remove(protocol);
+                            return true;
+                        }
+                    }
+                } finally {
+                    lock.unlock();
+                }
+            }
+            return true;
         }
     }
 }
