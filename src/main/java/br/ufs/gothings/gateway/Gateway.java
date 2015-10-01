@@ -20,22 +20,9 @@ import java.util.Map.Entry;
  */
 public final class Gateway {
     public static void main(String[] args) throws ParseException, FileNotFoundException, GatewayConfigException, ClassNotFoundException, IllegalAccessException, InstantiationException {
-        final Options opts = new Options();
-        opts.addOption(Option.builder("config")
-                .argName("FILE")
-                .hasArg()
-                .desc("Config file with the settings")
-                .build());
+        final GatewayParser parser = new GatewayParser(args);
+        final GatewayConfig config = parser.getConfig();
 
-        CommandLineParser parser = new DefaultParser();
-        final CommandLine cmd = parser.parse(opts, args);
-
-        String configFileName = cmd.getOptionValue("config");
-        if (configFileName == null) {
-            configFileName = ClassLoader.getSystemResource("default-config.yml").getFile();
-        }
-
-        final GatewayConfig config = new GatewayConfig(configFileName);
         final CommunicationManager manager = new CommunicationManager();
 
         for (final PluginConfig p : config.getConfiguredPlugins()) {
@@ -80,6 +67,36 @@ public final class Gateway {
             return (T) Byte.valueOf(value);
 
         return null;
+    }
+
+    private static class GatewayParser {
+        private GatewayConfig config;
+
+        public GatewayParser(final String[] args) throws ParseException, FileNotFoundException, GatewayConfigException {
+            final Options opts = getOptions();
+            final CommandLineParser parser = new DefaultParser();
+            final CommandLine cmd = parser.parse(opts, args);
+
+            String configFileName = cmd.getOptionValue("config");
+            if (configFileName == null) {
+                configFileName = ClassLoader.getSystemResource("default-config.yml").getFile();
+            }
+            config = new GatewayConfig(configFileName);
+        }
+
+        private Options getOptions() {
+            final Options opts = new Options();
+            opts.addOption(Option.builder("config")
+                    .argName("FILE")
+                    .hasArg()
+                    .desc("Config file with the settings")
+                    .build());
+            return opts;
+        }
+
+        public GatewayConfig getConfig() {
+            return config;
+        }
     }
 
     private static class GatewayConfig {
