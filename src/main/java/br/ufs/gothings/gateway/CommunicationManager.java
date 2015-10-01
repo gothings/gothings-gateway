@@ -141,6 +141,11 @@ public class CommunicationManager {
     }
 
     public void stop() {
+        // don't continue if stop was already called
+        synchronized (timer) {
+            if (timer.isShutdown()) return;
+        }
+
         timer.shutdown();
         eventExecutor.shutdown();
 
