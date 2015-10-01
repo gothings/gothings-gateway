@@ -4,7 +4,6 @@ import br.ufs.gothings.core.Settings;
 import br.ufs.gothings.core.common.Reason;
 import br.ufs.gothings.core.message.*;
 import br.ufs.gothings.core.common.GatewayException;
-import br.ufs.gothings.core.plugin.GwPlugin;
 import br.ufs.gothings.core.plugin.PluginClient;
 import br.ufs.gothings.core.plugin.PluginServer;
 import br.ufs.gothings.core.plugin.ReplyLink;
@@ -70,68 +69,93 @@ public class CommunicationManager {
         iccSubscriptions = ((InterconnectionController) icc).getSubscriptions();
     }
 
-    public void register(final GwPlugin plugin) {
-        final PluginData pd = new PluginData(plugin);
+    public void register(final PluginClient client) {
+        final String protocol = client.getProtocol();
+        final PluginData pd = pluginsMap.computeIfAbsent(protocol, k -> new PluginData(protocol));
+        if (pd.client == null) {
+            pd.client = client;
+        } else {
+            throw new IllegalStateException(protocol + " client plugin is already set");
+        }
 
-        if (plugin instanceof PluginServer) {
-            ((PluginServer) plugin).setUp(request -> {
-                switch (request.headers().getOperation()) {
-                    case CREATE:
-                    case READ:
-                    case UPDATE:
-                    case DELETE:
-                        request.setSequence(sequence.incrementAndGet());
-                }
-
+        client.setUp(new ReplyLink() {
+            @Override
+            public void send(final GwReply reply) {
                 final Package pkg = pkgFactory.newPackage();
                 final PackageInfo pkgInfo = pkg.getInfo(mainToken);
-                pkgInfo.setMessage(request);
-                pkgInfo.setSourceProtocol(plugin.getProtocol());
-                forward(COMMUNICATION_MANAGER, INPUT_CONTROLLER, pkg);
+                pkgInfo.setMessage(reply);
+                pkgInfo.setSourceProtocol(protocol);
+                forward(COMMUNICATION_MANAGER, INTERCONNECTION_CONTROLLER, pkg);
+            }
 
-                return pd.addFuture(request);
-            });
-        }
-
-        if (plugin instanceof PluginClient) {
-            ((PluginClient) plugin).setUp(new ReplyLink() {
-                @Override
-                public void send(final GwReply reply) {
-                    final Package pkg = pkgFactory.newPackage();
-                    final PackageInfo pkgInfo = pkg.getInfo(mainToken);
-                    pkgInfo.setMessage(reply);
-                    pkgInfo.setSourceProtocol(plugin.getProtocol());
-                    forward(COMMUNICATION_MANAGER, INTERCONNECTION_CONTROLLER, pkg);
+            @Override
+            public void sendError(final GwError error) {
+                if (error.getSourceType() == GwMessage.MessageType.REQUEST) {
+                    sendFutureException(new GatewayException(error));
+                } else {
+                    logger.error("client plugin send an error with source other than GwRequest");
                 }
+            }
+        });
 
-                @Override
-                public void sendError(final GwError error) {
-                    if (error.getSourceType() == GwMessage.MessageType.REQUEST) {
-                        sendFutureException(new GatewayException(error));
-                    } else {
-                        logger.error("client plugin send an error with source other than GwRequest");
-                    }
-                }
-            });
-        }
-
-        pluginsMap.put(plugin.getProtocol(), pd);
         if (logger.isDebugEnabled()) {
-            logger.debug("%s plugin registered with %s", plugin.getProtocol(), plugin.getClass());
+            logger.debug("%s client plugin registered with %s", protocol, client.getClass());
+        }
+
+    }
+
+    public void register(final PluginServer server) {
+        final String protocol = server.getProtocol();
+        final PluginData pd = pluginsMap.computeIfAbsent(protocol, k -> new PluginData(protocol));
+        if (pd.server == null) {
+            pd.server = server;
+        } else {
+            throw new IllegalStateException(protocol + " server plugin is already set");
+        }
+
+        server.setUp(request -> {
+            switch (request.headers().getOperation()) {
+                case CREATE:
+                case READ:
+                case UPDATE:
+                case DELETE:
+                    request.setSequence(sequence.incrementAndGet());
+            }
+
+            final Package pkg = pkgFactory.newPackage();
+            final PackageInfo pkgInfo = pkg.getInfo(mainToken);
+            pkgInfo.setMessage(request);
+            pkgInfo.setSourceProtocol(protocol);
+            forward(COMMUNICATION_MANAGER, INPUT_CONTROLLER, pkg);
+
+            return pd.addFuture(request);
+        });
+
+        if (logger.isDebugEnabled()) {
+            logger.debug("%s server plugin registered with %s", protocol, server.getClass());
         }
     }
 
     public void start() {
         for (final PluginData pd : pluginsMap.values()) {
-            final Thread pluginThread = new Thread(pluginsGroup, pd.plugin::start);
+            final Thread pluginThread;
+            if (pd.client == pd.server) {
+                pluginThread = new Thread(pluginsGroup, pd.client::start);
+            } else {
+                pluginThread = new Thread(pluginsGroup, () -> {
+                    if (pd.client != null) pd.client.start();
+                    if (pd.server != null) pd.server.start();
+                });
+            }
             pluginThread.start();
+
             if (logger.isInfoEnabled()) {
-                logger.info("%s plugin started: client=%-3s server=%s", pd.plugin.getProtocol(),
-                        pd.plugin instanceof PluginClient
+                logger.info("%s plugin started: client=%-3s server=%s", pd.getProtocol(),
+                        pd.client != null
                                 ? "yes"
                                 : "no",
-                        pd.plugin instanceof PluginServer
-                                ? "yes(" + pd.plugin.settings().get(Settings.SERVER_PORT) + ")"
+                        pd.server != null
+                                ? "yes(" + pd.server.settings().get(Settings.SERVER_PORT) + ")"
                                 : "no");
             }
         }
@@ -150,8 +174,9 @@ public class CommunicationManager {
         eventExecutor.shutdown();
 
         pluginsMap.values().forEach(pd -> {
-            pd.plugin.stop();
-            logger.info("%s plugin stopped", pd.plugin.getProtocol());
+            if (pd.client != null) pd.client.stop();
+            if (pd.server != null) pd.server.stop();
+            logger.info("%s plugin stopped", pd.getProtocol());
         });
 
         pluginsGroup.interrupt();
@@ -203,7 +228,7 @@ public class CommunicationManager {
                         }
                         return;
                     }
-                    // if request was forwarded to a plugin then...
+                    // if request was successfully forwarded to a plugin then...
                     final GwRequest request = (GwRequest) message;
                     if (requestToPlugin(request, pkgInfo.getTargetProtocol())) {
                         // ...if operation is one which a payload is not required, a reply is immediately sent
@@ -211,9 +236,9 @@ public class CommunicationManager {
                             case CREATE:
                             case UPDATE:
                             case DELETE:
-                                final GwPlugin plugin = pluginsMap.get(pkgInfo.getSourceProtocol()).plugin;
+                                final PluginServer plugin = pluginsMap.get(pkgInfo.getSourceProtocol()).server;
                                 final GwReply reply = new GwReply(request.headers(), Payload.EMPTY, request.getSequence());
-                                ((PluginServer) plugin).handleReply(reply.readOnly());
+                                plugin.handleReply(reply.readOnly());
                                 break;
                         }
                     }
@@ -257,8 +282,8 @@ public class CommunicationManager {
 
     private boolean requestToPlugin(final GwRequest request, final String targetProtocol) {
         final PluginData pd = pluginsMap.get(targetProtocol);
-        if (pd != null && pd.plugin instanceof PluginClient) {
-            ((PluginClient) pd.plugin).handleRequest(request);
+        if (pd != null && pd.client != null) {
+            pd.client.handleRequest(request);
             return true;
         }
         return false;
@@ -267,10 +292,10 @@ public class CommunicationManager {
     private void replyToPlugin(final GwReply reply, final Map<String, Iterable<Long>> replyTo) {
         replyTo.forEach((protocol, sequences) -> {
             final PluginData pd = pluginsMap.get(protocol);
-            if (pd.plugin instanceof PluginServer) {
+            if (pd.server != null) {
                 for (final Long sequence : sequences) {
                     if (sequence == null) {
-                        ((PluginServer) pd.plugin).handleReply(reply.readOnly(null));
+                        pd.server.handleReply(reply.readOnly(null));
                     } else {
                         pd.provideReply(reply.readOnly(sequence));
                     }
@@ -280,10 +305,13 @@ public class CommunicationManager {
     }
 
     private class PluginData {
-        private final GwPlugin plugin;
+        private final String protocol;
 
-        public PluginData(final GwPlugin plugin) {
-            this.plugin = plugin;
+        private PluginClient client;
+        private PluginServer server;
+
+        private PluginData(final String protocol) {
+            this.protocol = protocol;
         }
 
         public Future<GwReply> addFuture(final GwRequest request) {
@@ -299,6 +327,10 @@ public class CommunicationManager {
             } catch (NullPointerException e) {
                 logger.error("not found a message with sequence %d to send the reply", reply.getSequence());
             }
+        }
+
+        public String getProtocol() {
+            return protocol;
         }
     }
 

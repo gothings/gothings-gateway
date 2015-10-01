@@ -66,7 +66,12 @@ public final class Gateway {
             settings.put(name, convert(entry.getValue(), key));
         }
 
-        manager.register(plugin);
+        if (plugin instanceof PluginClient) {
+            manager.register((PluginClient) plugin);
+        }
+        if (plugin instanceof PluginServer) {
+            manager.register((PluginServer) plugin);
+        }
     }
 
     @SuppressWarnings("unchecked")
