@@ -1,6 +1,7 @@
 plugins:
-    - protocol: http
-      class: br.ufs.gothings.plugins.http.HttpPlugin
+  - protocol: http
+    className: br.ufs.gothings.plugins.http.HttpPlugin
+    properties:
       server.port: 8080
-    - protocol: mqtt
-      class: br.ufs.gothings.plugins.mqtt.MqttPlugin
+  - protocol: mqtt
+    className: br.ufs.gothings.plugins.mqtt.MqttPlugin

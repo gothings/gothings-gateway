@@ -9,8 +9,7 @@ import org.apache.commons.cli.*;
 
 import java.io.FileNotFoundException;
 import java.io.FileReader;
-import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -21,31 +20,36 @@ import java.util.Map.Entry;
 public final class Gateway {
     public static void main(String[] args) throws ParseException, FileNotFoundException, GatewayConfigException, ClassNotFoundException, IllegalAccessException, InstantiationException {
         final GatewayParser parser = new GatewayParser(args);
-        final GatewayConfig config = parser.getConfig();
+        final GatewayConfig cfg = parser.getConfig();
 
         final CommunicationManager manager = new CommunicationManager();
 
-        for (final PluginConfig p : config.getConfiguredPlugins()) {
-            final String protocol = p.getProtocol();
-            final GwPlugin plugin = Class.forName(p.getClassName()).asSubclass(GwPlugin.class).newInstance();
-            if (!protocol.equals(plugin.getProtocol())) {
-                throw new GatewayConfigException("the class %s does not implement %s protocol", p.getClassName(), protocol);
-            }
-
-            final Settings settings = plugin.settings();
-            for (final Entry<String, String> entry : p.getProperties().entrySet()) {
-                final String name = entry.getKey();
-                final Key<?> key = settings.getKey(name);
-                if (key == null) {
-                    throw new GatewayConfigException("property '%s' not registered for %s protocol", name, protocol);
-                }
-                settings.put(name, convert(entry.getValue(), key));
-            }
-
-            manager.register(plugin);
+        for (final PluginConfig p : cfg.plugins) {
+            registerPlugin(manager, p);
         }
 
         manager.start();
+    }
+
+    private static void registerPlugin(final CommunicationManager manager, final PluginConfig p) throws InstantiationException, IllegalAccessException, ClassNotFoundException, GatewayConfigException {
+        final GwPlugin plugin = Class.forName(p.className).asSubclass(GwPlugin.class).newInstance();
+
+        final String protocol = p.protocol;
+        if (!protocol.equals(plugin.getProtocol())) {
+            throw new GatewayConfigException("the class %s does not implement %s protocol", p.className, protocol);
+        }
+
+        final Settings settings = plugin.settings();
+        for (final Entry<String, String> entry : p.properties.entrySet()) {
+            final String name = entry.getKey();
+            final Key<?> key = settings.getKey(name);
+            if (key == null) {
+                throw new GatewayConfigException("property '%s' not registered for %s plugin", name, protocol);
+            }
+            settings.put(name, convert(entry.getValue(), key));
+        }
+
+        manager.register(plugin);
     }
 
     @SuppressWarnings("unchecked")
@@ -81,7 +85,15 @@ public final class Gateway {
             if (configFileName == null) {
                 configFileName = ClassLoader.getSystemResource("default-config.yml").getFile();
             }
-            config = new GatewayConfig(configFileName);
+
+            final YamlReader yaml = new YamlReader(new FileReader(configFileName));
+            yaml.getConfig().setPropertyElementType(GatewayConfig.class, "plugins", PluginConfig.class);
+
+            try {
+                config = yaml.read(GatewayConfig.class);
+            } catch (YamlException e) {
+                throw new GatewayConfigException();
+            }
         }
 
         private Options getOptions() {
@@ -99,86 +111,23 @@ public final class Gateway {
         }
     }
 
-    private static class GatewayConfig {
-        private final List<PluginConfig> configuredPlugins = new ArrayList<>();
+    protected static class GatewayConfig {
+        public List<PluginConfig> plugins;
 
-        @SuppressWarnings("unchecked")
-        public GatewayConfig(final String fileName) throws FileNotFoundException, GatewayConfigException {
-            final YamlReader yaml = new YamlReader(new FileReader(fileName));
-            try {
-                parseConfig((Map<String, Object>) yaml.read());
-            } catch (YamlException e) {
-                throw new GatewayConfigException();
-            }
-        }
-
-        @SuppressWarnings("unchecked")
-        private void parseConfig(final Map<String, Object> cfg) throws GatewayConfigException {
-            for (final Entry<String, Object> cfgEntry : cfg.entrySet()) {
-                switch (cfgEntry.getKey()) {
-                    case "plugins":
-                        final List<Map<String, Object>> plugins = (List<Map<String, Object>>) cfgEntry.getValue();
-                        parsePluginConfig(plugins);
-                        break;
-                    default:
-                        throw new GatewayConfigException();
-                }
-            }
-        }
-
-        private void parsePluginConfig(final List<Map<String, Object>> plugins) throws GatewayConfigException {
-            for (final Map<String, Object> plugin : plugins) {
-                if (!(plugin.containsKey("protocol") && plugin.containsKey("class"))) {
-                    throw new GatewayConfigException();
-                }
-
-                final PluginConfig pluginConfig = new PluginConfig();
-                for (final Entry<String, Object> entry : plugin.entrySet()) {
-                    final String key = entry.getKey();
-                    final Object value = entry.getValue();
-                    switch (key) {
-                        case "protocol":
-                            pluginConfig.setProtocol((String) value);
-                            break;
-                        case "class":
-                            pluginConfig.setClassName((String) value);
-                            break;
-                        default:
-                            pluginConfig.getProperties().put(key, (String) value);
-                    }
-                }
-                configuredPlugins.add(pluginConfig);
-            }
-        }
-
-        public List<PluginConfig> getConfiguredPlugins() {
-            return configuredPlugins;
+        @Override
+        public String toString() {
+            return String.format("{plugins=%s}", plugins);
         }
     }
 
-    private static class PluginConfig {
-        private String protocol;
-        private String className;
-        private final Map<String, String> properties = new HashMap<>();
+    protected static class PluginConfig {
+        public String protocol;
+        public String className;
+        public Map<String, String> properties = Collections.emptyMap();
 
-        public String getProtocol() {
-            return protocol;
-        }
-
-        public void setProtocol(final String protocol) {
-            this.protocol = protocol;
-        }
-
-        public String getClassName() {
-            return className;
-        }
-
-        public void setClassName(final String className) {
-            this.className = className;
-        }
-
-        public Map<String, String> getProperties() {
-            return properties;
+        @Override
+        public String toString() {
+            return String.format("(%s, %s, %s)", protocol, className, properties);
         }
     }
 
