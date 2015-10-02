@@ -1,7 +1,7 @@
 package br.ufs.gothings.core.util;
 
 import java.util.Collection;
-import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 /**
@@ -10,14 +10,14 @@ import java.util.function.Supplier;
 public abstract class AbstractKey<K, T> {
     private final K keyId;
     private final Class<T> classType;
-    private final Function<T, Boolean> validator;
+    private final Predicate<T> validator;
     private final Supplier<Collection<T>> collectionSupplier;
 
-    protected AbstractKey(final K keyId, final Class<T> classType, final Function<T, Boolean> validator) {
+    protected AbstractKey(final K keyId, final Class<T> classType, final Predicate<T> validator) {
         this(keyId, classType, validator, null);
     }
 
-    protected AbstractKey(final K keyId, final Class<T> classType, final Function<T, Boolean> validator,
+    protected AbstractKey(final K keyId, final Class<T> classType, final Predicate<T> validator,
                           final Supplier<Collection<T>> collectionSupplier)
     {
         this.keyId = keyId;
@@ -42,7 +42,7 @@ public abstract class AbstractKey<K, T> {
             return true;
         }
         try {
-            return validator.apply(value);
+            return validator.test(value);
         } catch (Exception e) {
             return false;
         }

@@ -6,7 +6,7 @@ import org.apache.commons.lang3.Validate;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.Function;
+import java.util.function.Predicate;
 
 /**
  * @author Wagner Macedo
@@ -65,7 +65,7 @@ public class Settings {
         Validate.validState(!locked.get(), "settings locked for writing");
     }
 
-    private synchronized static <T> Key<T> registerGlobalKey(String name, final Class<T> cls, Function<T, Boolean> validator) {
+    private synchronized static <T> Key<T> registerGlobalKey(String name, final Class<T> cls, Predicate<T> validator) {
         Validate.isTrue(!globalKeys.containsKey(name), "the global key '%s' is already registered", name);
 
         final Key<T> key = new Key<>(name, cls, validator);
@@ -75,7 +75,7 @@ public class Settings {
 
     private final Map<String, Key<?>> localKeys = new HashMap<>();
 
-    public synchronized <T> Key<T> registerKey(final String name, final Class<T> cls, final Function<T, Boolean> validator) {
+    public synchronized <T> Key<T> registerKey(final String name, final Class<T> cls, final Predicate<T> validator) {
         Validate.notNull(name, "name");
         Validate.notNull(cls, "cls");
         Validate.isTrue(!globalKeys.containsKey(name), "the key '%s' cannot be used because is a global key", name);
@@ -87,7 +87,7 @@ public class Settings {
     }
 
     public static final class Key<T> extends AbstractKey<String, T> {
-        protected Key(final String keyId, final Class<T> classType, final Function<T, Boolean> validator) {
+        protected Key(final String keyId, final Class<T> classType, final Predicate<T> validator) {
             super(keyId, classType, validator);
         }
     }
