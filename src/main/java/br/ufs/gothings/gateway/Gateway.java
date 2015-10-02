@@ -12,66 +12,113 @@ import org.apache.commons.cli.*;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.function.Predicate;
 import java.util.regex.Pattern;
 
 /**
  * @author Wagner Macedo
  */
 public final class Gateway {
+    private static final Predicate<String> validType = Pattern.compile("(?i)client|server|client\\+server|server\\+client").asPredicate();
+
     public static void main(String[] args) throws ParseException, FileNotFoundException, GatewayConfigException, ClassNotFoundException, IllegalAccessException, InstantiationException {
         final GatewayParser parser = new GatewayParser(args);
         final GatewayConfig cfg = parser.getConfig();
 
         final CommunicationManager manager = new CommunicationManager();
 
+        final Map<String, PluginBundle> map = new HashMap<>();
         for (final PluginConfig p : cfg.plugins) {
-            registerPlugin(manager, p);
+            final PluginBundle bundle = map.computeIfAbsent(p.protocol, PluginBundle::new);
+            if (validType.test(p.type)) {
+                final Class<?> cls = Class.forName(p.className);
+                if (p.type.contains("client")) {
+                    bundle.setClient(cls, p);
+                }
+                if (p.type.contains("server")) {
+                    bundle.setServer(cls, p);
+                }
+            } else {
+                throw new GatewayConfigException("%s plugin type misinformed", p.protocol);
+            }
         }
 
+        for (final PluginBundle bundle : map.values()) {
+            registerPlugin(manager, bundle);
+        }
         manager.start();
     }
 
-    private static final Pattern RE_TYPE = Pattern.compile("(?i)client|server|client\\+server|server\\+client");
+    private static final class PluginBundle {
+        private final String protocol;
 
-    private static void registerPlugin(final CommunicationManager manager, final PluginConfig p) throws InstantiationException, IllegalAccessException, ClassNotFoundException, GatewayConfigException {
-        final GwPlugin plugin = Class.forName(p.className).asSubclass(GwPlugin.class).newInstance();
+        private PluginConfig client;
+        private PluginConfig server;
 
-        final String protocol = p.protocol;
-        if (!protocol.equals(plugin.getProtocol())) {
-            throw new GatewayConfigException("the class %s does not implement %s protocol", p.className, protocol);
+        private Class<? extends PluginClient> clientClass;
+        private Class<? extends PluginServer> serverClass;
+
+
+        public PluginBundle(final String protocol) {
+            this.protocol = protocol;
         }
 
-        final String type = p.type;
-        if (RE_TYPE.matcher(type).matches()) {
-            if (type.contains("client") && !(plugin instanceof PluginClient)) {
-                throw new GatewayConfigException("the class %s is declared as client but don't implement PluginClient", p.className);
+        public void setClient(final Class<?> cls, final PluginConfig client) throws GatewayConfigException {
+            if (clientClass != null) {
+                throw new GatewayConfigException("%s client plugin already set", protocol);
             }
-            if (type.contains("server") && !(plugin instanceof PluginServer)) {
-                throw new GatewayConfigException("the class %s is declared as server but don't implement PluginServer", p.className);
+            clientClass = cls.asSubclass(PluginClient.class);
+            this.client = client;
+        }
+
+        public void setServer(final Class<?> cls, final PluginConfig server) throws GatewayConfigException {
+            if (serverClass != null) {
+                throw new GatewayConfigException("%s server plugin already set", protocol);
             }
-        } else {
-            throw new GatewayConfigException("%s plugin type misinformed", protocol);
+            serverClass = cls.asSubclass(PluginServer.class);
+            this.server = server;
+        }
+    }
+
+    private static void registerPlugin(final CommunicationManager manager, final PluginBundle p) throws IllegalAccessException, InstantiationException, GatewayConfigException {
+        if (p.clientClass == p.serverClass) {
+            final GwPlugin plugin = buildPlugin(p.client, p.clientClass);
+            manager.register((PluginClient) plugin, (PluginServer) plugin);
+        }
+
+        else if (p.clientClass != null) {
+            final PluginClient pluginClient = buildPlugin(p.client, p.clientClass);
+            manager.register(pluginClient);
+        }
+
+        else {
+            final PluginServer pluginServer = buildPlugin(p.server, p.serverClass);
+            manager.register(pluginServer);
+        }
+    }
+
+    private static <T extends GwPlugin> T buildPlugin(final PluginConfig cfg, final Class<T> pluginClass) throws GatewayConfigException, IllegalAccessException, InstantiationException {
+        final T plugin = pluginClass.newInstance();
+
+        if (!cfg.protocol.equals(plugin.getProtocol())) {
+            throw new GatewayConfigException("the class %s does not implement %s protocol", plugin.getClass().getName(), cfg.protocol);
         }
 
         final Settings settings = plugin.settings();
-        for (final Entry<String, String> entry : p.properties.entrySet()) {
+        for (final Entry<String, String> entry : cfg.properties.entrySet()) {
             final String name = entry.getKey();
             final Key<?> key = settings.getKey(name);
             if (key == null) {
-                throw new GatewayConfigException("property '%s' not registered for %s plugin", name, protocol);
+                throw new GatewayConfigException("property '%s' not registered for %s plugin", name, cfg.protocol);
             }
             settings.put(name, convert(entry.getValue(), key));
         }
 
-        if (plugin instanceof PluginClient) {
-            manager.register((PluginClient) plugin);
-        }
-        if (plugin instanceof PluginServer) {
-            manager.register((PluginServer) plugin);
-        }
+        return plugin;
     }
 
     @SuppressWarnings("unchecked")

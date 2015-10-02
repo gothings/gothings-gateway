@@ -136,6 +136,11 @@ public class CommunicationManager {
         }
     }
 
+    public void register(final PluginClient client, final PluginServer server) {
+        register(client);
+        register(server);
+    }
+
     public void start() {
         for (final PluginData pd : pluginsMap.values()) {
             final Thread pluginThread;
