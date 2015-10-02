@@ -35,16 +35,16 @@ public abstract class AbstractKey<K, T> {
     }
 
     public final boolean validate(T value) {
+        if (!classType.isInstance(value)) {
+            throw new ClassCastException("value is not a type of " + classType);
+        }
         if (validator == null) {
             return true;
-        } else if (!classType.isInstance(value)) {
-            throw new ClassCastException("value is not a type of " + classType);
-        } else {
-            try {
-                return validator.apply(value);
-            } catch (Exception e) {
-                return false;
-            }
+        }
+        try {
+            return validator.apply(value);
+        } catch (Exception e) {
+            return false;
         }
     }
 
