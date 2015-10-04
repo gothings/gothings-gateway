@@ -15,6 +15,8 @@ import static java.util.Collections.unmodifiableSet;
  * @author Wagner Macedo
  */
 public class GwHeaders {
+    public static final GwHeaders EMPTY = new GwHeaders().readOnly();
+
     private static class Holder {
         private Operation operation;
         private String target;

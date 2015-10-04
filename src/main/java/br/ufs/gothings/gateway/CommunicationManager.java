@@ -80,6 +80,14 @@ public class CommunicationManager {
 
         client.setUp(new ReplyLink() {
             @Override
+            public void ack(final Long sequence) {
+                final FutureReply future = waitingReplies.remove(sequence);
+                if (future != null) {
+                    future.complete(GwReply.EMPTY.readOnly(sequence));
+                }
+            }
+
+            @Override
             public void send(final GwReply reply) {
                 final Package pkg = pkgFactory.newPackage();
                 final PackageInfo pkgInfo = pkg.getInfo(mainToken);
@@ -233,22 +241,9 @@ public class CommunicationManager {
                         }
                         return;
                     }
-                    // if request was successfully forwarded to a plugin then...
+                    // if request could not be forwarded to a plugin return an error immediately
                     final GwRequest request = (GwRequest) message;
-                    if (requestToPlugin(request, pkgInfo.getTargetProtocol())) {
-                        // ...if operation is one which a payload is not required, a reply is immediately sent
-                        switch (request.headers().getOperation()) {
-                            case CREATE:
-                            case UPDATE:
-                            case DELETE:
-                                final PluginServer plugin = pluginsMap.get(pkgInfo.getSourceProtocol()).server;
-                                final GwReply reply = new GwReply(request.headers(), Payload.EMPTY, request.getSequence());
-                                plugin.handleReply(reply.readOnly());
-                                break;
-                        }
-                    }
-                    // otherwise, return an error.
-                    else {
+                    if (!requestToPlugin(request, pkgInfo.getTargetProtocol())) {
                         sendFutureException(new GatewayException(request, Reason.UNAVAILABLE_PLUGIN));
                     }
                     break;

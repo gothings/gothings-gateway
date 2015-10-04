@@ -148,12 +148,14 @@ public final class MqttPluginClient {
                     mqttMessage.setRetained(operation == Operation.CREATE);
                     mqttMessage.setQos(qos);
                     client.publish(topic, mqttMessage);
+                    replyLink.ack(msg.getSequence());
                     break;
 
                 // MQTT doesn't really specify a delete operation, but when a retained message with a zero byte payload
                 // is sent, the broker removes the retained message
                 case DELETE:
                     client.publish(topic, ArrayUtils.EMPTY_BYTE_ARRAY, 0, true);
+                    replyLink.ack(msg.getSequence());
                     break;
 
                 // READ and OBSERVE are unsurprisingly directly mapped to subscribe

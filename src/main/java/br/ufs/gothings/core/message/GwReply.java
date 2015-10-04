@@ -4,6 +4,8 @@ package br.ufs.gothings.core.message;
  * @author Wagner Macedo
  */
 public final class GwReply extends DataMessage {
+    public static final GwReply EMPTY = new GwReply(GwHeaders.EMPTY, Payload.EMPTY, null).readOnly();
+
     /**
      * Construct a reply to a specific request.
      *

@@ -44,6 +44,11 @@ public class MqttPluginClientTest {
         private final SynchronousQueue<GwReply> pipe = new SynchronousQueue<>();
 
         @Override
+        public void ack(final Long sequence) {
+            // needless for tests
+        }
+
+        @Override
         public void send(final GwReply reply) {
             try {
                 pipe.put(reply);
