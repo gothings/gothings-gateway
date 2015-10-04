@@ -83,7 +83,7 @@ public class CommunicationManager {
             public void ack(final Long sequence) {
                 final FutureReply future = waitingReplies.remove(sequence);
                 if (future != null) {
-                    future.complete(GwReply.EMPTY.readOnly(sequence));
+                    future.complete(GwReply.EMPTY.withSequence(sequence));
                 }
             }
 
@@ -295,9 +295,9 @@ public class CommunicationManager {
             if (pd.server != null) {
                 for (final Long sequence : sequences) {
                     if (sequence == null) {
-                        pd.server.handleReply(reply.readOnly(null));
+                        pd.server.handleReply(reply.withSequence(null));
                     } else {
-                        pd.provideReply(reply.readOnly(sequence));
+                        pd.provideReply(reply.withSequence(sequence));
                     }
                 }
             }
