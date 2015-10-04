@@ -243,7 +243,7 @@ public class CommunicationManager {
                     }
                     // if request could not be forwarded to a plugin return an error immediately
                     final GwRequest request = (GwRequest) message;
-                    if (!requestToPlugin(request, pkgInfo.getTargetProtocol())) {
+                    if (!requestToPlugin(request.readOnly(), pkgInfo.getTargetProtocol())) {
                         sendFutureException(new GatewayException(request, Reason.UNAVAILABLE_PLUGIN));
                     }
                     break;
@@ -262,7 +262,7 @@ public class CommunicationManager {
                         }
                         return;
                     }
-                    replyToPlugin((GwReply) message, pkgInfo.getReplyTo());
+                    replyToPlugin(((GwReply) message).readOnly(), pkgInfo.getReplyTo());
                     break;
             }
             return;
