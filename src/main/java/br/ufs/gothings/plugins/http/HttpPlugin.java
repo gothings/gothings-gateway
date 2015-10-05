@@ -1,6 +1,7 @@
 package br.ufs.gothings.plugins.http;
 
 import br.ufs.gothings.core.Settings;
+import br.ufs.gothings.core.message.GwError;
 import br.ufs.gothings.core.message.GwReply;
 import br.ufs.gothings.core.plugin.PluginServer;
 import br.ufs.gothings.core.plugin.RequestLink;
@@ -52,6 +53,11 @@ public class HttpPlugin implements PluginServer {
     @Override
     public void handleReply(final GwReply reply) {
         // do nothing => this plugin doesn't handle independent replies
+    }
+
+    @Override
+    public void handleError(final GwError error) {
+        // do nothing => this plugin doesn't handle independent errors
     }
 
     @Override
