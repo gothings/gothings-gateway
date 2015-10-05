@@ -27,7 +27,7 @@ import static org.eclipse.paho.client.mqttv3.MqttException.*;
 public final class MqttPluginClient {
     private static final Logger logger = LogManager.getFormatterLogger(MqttPluginClient.class);
 
-    private final Map<String, MqttConnection> connections;
+    private final Map<String, MqttClientConnection> connections;
     private final ReplyLink replyLink;
     private volatile boolean closed = false;
 
@@ -40,7 +40,7 @@ public final class MqttPluginClient {
         if (!closed) {
             final String host = request.headers().getTarget();
             try {
-                final MqttConnection conn = getMqttConnection(host);
+                final MqttClientConnection conn = getMqttConnection(host);
                 conn.sendMessage(request);
             } catch (MqttException e) {
                 switch (e.getReasonCode()) {
@@ -76,9 +76,9 @@ public final class MqttPluginClient {
         });
     }
 
-    private MqttConnection getMqttConnection(final String host) throws MqttException {
+    private MqttClientConnection getMqttConnection(final String host) throws MqttException {
         try {
-            return connections.computeIfAbsent(host, k -> new MqttConnection(host));
+            return connections.computeIfAbsent(host, k -> new MqttClientConnection(host, replyLink));
         } catch (RuntimeException e) {
             if (e.getCause() instanceof MqttException) {
                 throw ((MqttException) e.getCause());
@@ -88,48 +88,21 @@ public final class MqttPluginClient {
         }
     }
 
-    private class MqttConnection {
+    private static final class MqttClientConnection {
+        private final String host;
+        private final ReplyLink replyLink;
+
         private final MqttAsyncClient client;
-        private final IMqttToken connectionToken;
         private final SubscriptionControl control = new SubscriptionControl();
 
-        public MqttConnection(String host) throws RuntimeException {
+        public MqttClientConnection(final String host, final ReplyLink replyLink) throws RuntimeException {
+            this.host = host;
+            this.replyLink = replyLink;
             try {
                 client = new MqttAsyncClient("tcp://" + host, "gothings-client_" + host.hashCode());
-                client.setCallback(new MqttCallback() {
-                    // TODO: try to reconnect on fail
-                    @Override
-                    public void connectionLost(Throwable cause) {
-
-                    }
-
-                    @Override
-                    public void messageArrived(String topic, MqttMessage mqttMessage) throws Exception {
-                        synchronized (control) {
-                            final boolean marked = control.unmarkWaitRead(topic);
-                            if (!marked) {
-                                client.unsubscribe(topic);
-                                logger.trace("unsubscribed from topic %s due to no more waiters", topic);
-                            }
-
-                            final GwReply msg = new GwReply();
-                            msg.payload().set(mqttMessage.getPayload());
-                            final GwHeaders h = msg.headers();
-                            h.setTarget(host);
-                            h.setPath(topic);
-
-                            replyLink.send(msg);
-                        }
-                    }
-
-                    // TODO: what to do here?
-                    @Override
-                    public void deliveryComplete(IMqttDeliveryToken token) {
-
-                    }
-                });
-                connectionToken = client.connect(new MqttConnectOptions());
-                connectionToken.waitForCompletion();
+                client.setCallback(new MqttClientCallback(this));
+                final IMqttToken connectToken = client.connect(new MqttConnectOptions());
+                connectToken.waitForCompletion();
             } catch (MqttException e) {
                 throw new RuntimeException(e);
             }
@@ -179,6 +152,46 @@ public final class MqttPluginClient {
                     logger.trace("unsubscribed from topic %s", topic);
                     break;
             }
+        }
+
+    }
+
+    private static final class MqttClientCallback implements MqttCallback {
+        private final MqttClientConnection mc;
+
+        public MqttClientCallback(final MqttClientConnection mc) {
+            this.mc = mc;
+        }
+
+        // TODO: try to reconnect on fail
+        @Override
+        public void connectionLost(Throwable cause) {
+
+        }
+
+        @Override
+        public void messageArrived(String topic, MqttMessage mqttMessage) throws Exception {
+            synchronized (mc.control) {
+                final boolean marked = mc.control.unmarkWaitRead(topic);
+                if (!marked) {
+                    mc.client.unsubscribe(topic);
+                    logger.trace("unsubscribed from topic %s due to no more waiters", topic);
+                }
+
+                final GwReply msg = new GwReply();
+                msg.payload().set(mqttMessage.getPayload());
+                final GwHeaders h = msg.headers();
+                h.setTarget(mc.host);
+                h.setPath(topic);
+
+                mc.replyLink.send(msg);
+            }
+        }
+
+        // TODO: what to do here?
+        @Override
+        public void deliveryComplete(IMqttDeliveryToken token) {
+
         }
     }
 
