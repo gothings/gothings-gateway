@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static java.lang.Math.min;
 
@@ -18,14 +19,14 @@ import static java.lang.Math.min;
 public class Payload {
     public static final Payload EMPTY = new Payload().readOnly();
 
-    private ByteBuf data;
+    private final AtomicReference<ByteBuf> data = new AtomicReference<>();
 
     public Payload() {
-        this.data = Unpooled.buffer();
+        this.data.set(Unpooled.buffer());
     }
 
     public void set(byte[] bytes) {
-        data.clear().writeBytes(bytes);
+        data.get().clear().writeBytes(bytes);
     }
 
     public void set(final InputStream in) throws IOException {
@@ -33,14 +34,14 @@ public class Payload {
     }
 
     public void set(final InputStream in, boolean check) throws IOException {
-        data.clear();
+        data.get().clear();
         final byte[] bytes = new byte[1024];
 
         while (true) {
             final int len = check ? min(in.available(), 1024) : 1024;
             final int read = in.read(bytes, 0, len);
             if (read > 0) {
-                data.writeBytes(bytes, 0, read);
+                data.get().writeBytes(bytes, 0, read);
             } else {
                 break;
             }
@@ -48,33 +49,35 @@ public class Payload {
     }
 
     public void set(ByteBuffer buffer) {
-        data.clear().writeBytes(buffer);
+        data.get().clear().writeBytes(buffer);
     }
 
     public void set(String str, Charset charset) {
-        data.clear().writeBytes(str.getBytes(charset));
+        data.get().clear().writeBytes(str.getBytes(charset));
     }
 
     public byte[] asBytes() {
+        final ByteBuf data = this.data.get();
+        if (data instanceof ReadOnlyByteBuf) {
+            return data.copy().array();
+        }
         return data.array();
     }
 
     public InputStream asInputStream() {
-        return new ByteBufInputStream(data);
+        return new ByteBufInputStream(data.get());
     }
 
     public ByteBuffer asBuffer() {
-        return data.nioBuffer();
+        return data.get().nioBuffer();
     }
 
     public String asString(Charset charset) {
-        return data.toString(charset);
+        return data.get().toString(charset);
     }
 
     public Payload readOnly() {
-        if (!(data instanceof ReadOnlyByteBuf)) {
-            data = Unpooled.unmodifiableBuffer(data);
-        }
+        data.updateAndGet(bb -> !(bb instanceof ReadOnlyByteBuf) ? Unpooled.unmodifiableBuffer(bb) : bb);
         return this;
     }
 }
