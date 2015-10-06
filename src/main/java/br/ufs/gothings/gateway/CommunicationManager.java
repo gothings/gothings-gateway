@@ -293,7 +293,7 @@ public class CommunicationManager {
         return false;
     }
 
-    private void replyToPlugin(final GwReply reply, final Map<String, Iterable<Long>> replyTo) {
+    private void replyToPlugin(final GwReply reply, final Map<String, Long[]> replyTo) {
         replyTo.forEach((protocol, sequences) -> {
             final PluginData pd = pluginsMap.get(protocol);
             if (pd.server != null) {

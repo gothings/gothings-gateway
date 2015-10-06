@@ -104,7 +104,7 @@ public class InterconnectionController implements Block {
 
                 try {
                     final URI uri = createURI(reply, sourceProtocol);
-                    final Map<String, Iterable<Long>> observers = observeList.get(uri.toString());
+                    final Map<String, Long[]> observers = observeList.get(uri.toString());
                     pkgInfo.setReplyTo(observers);
                 } catch (URISyntaxException e) {
                     if (logger.isErrorEnabled()) {
@@ -184,21 +184,22 @@ public class InterconnectionController implements Block {
             lock.unlock();
         }
 
-        private Map<String, Iterable<Long>> get(final String uri) {
+        private Map<String, Long[]> get(final String uri) {
             final Map<String, Set<Long>> uriObserving = map.get(uri);
             if (uriObserving != null) {
-                Map<String, Iterable<Long>> result = new HashMap<>();
+                Map<String, Long[]> result = new HashMap<>();
                 lock.lock();
                 try {
                     for (final String key : uriObserving.keySet()) {
                         uriObserving.compute(key, (k, sequences) -> {
-                            final ArrayList<Long> list = new ArrayList<>();
-                            result.put(key, list);
+                            final Long[] array = new Long[sequences.size()];
+                            result.put(key, array);
 
                             final Iterator<Long> it = sequences.iterator();
+                            int i = 0;
                             while (it.hasNext()) {
                                 final Long next = it.next();
-                                list.add(next);
+                                array[i++] = next;
                                 if (next != null) {
                                     it.remove();
                                 }
