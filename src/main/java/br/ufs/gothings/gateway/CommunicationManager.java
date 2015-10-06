@@ -8,7 +8,7 @@ import br.ufs.gothings.core.plugin.PluginClient;
 import br.ufs.gothings.core.plugin.PluginServer;
 import br.ufs.gothings.core.plugin.ReplyLink;
 import br.ufs.gothings.core.util.MapUtils;
-import br.ufs.gothings.gateway.InterconnectionController.Subscriptions;
+import br.ufs.gothings.gateway.InterconnectionController.ObserveList;
 import br.ufs.gothings.gateway.block.Block;
 import br.ufs.gothings.gateway.block.BlockId;
 import br.ufs.gothings.gateway.block.Package;
@@ -46,7 +46,7 @@ public class CommunicationManager {
     private final Token mainToken = new Token();
     private final PackageFactory pkgFactory = Package.getFactory(mainToken);
 
-    private final Subscriptions iccSubscriptions;
+    private final ObserveList iccObserving;
 
     CommunicationManager() {
         // PackageFactory configuration
@@ -65,8 +65,8 @@ public class CommunicationManager {
         blocksMap.put(icc, INTERCONNECTION_CONTROLLER);
         blocksMap.put(oc, OUTPUT_CONTROLLER);
 
-        // Obtain the Interconnection Controller subscriptions
-        iccSubscriptions = ((InterconnectionController) icc).getSubscriptions();
+        // Obtain the Interconnection Controller observing list
+        iccObserving = ((InterconnectionController) icc).getObserveList();
     }
 
     public void register(final PluginClient client) {
@@ -386,7 +386,7 @@ public class CommunicationManager {
                 // ...but we double check by verifying if has passed more than 40 seconds since threshold adjust.
                 // This is done to don't remove a just created future or a still wanted reply.
                 if (Duration.between(future.threshold, Instant.now()).getSeconds() > 40) {
-                    iccSubscriptions.remove(e.getKey());
+                    iccObserving.remove(e.getKey());
                     future.cancel(true);
                     return true;
                 }

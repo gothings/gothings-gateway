@@ -34,7 +34,7 @@ public class InterconnectionController implements Block {
     private final CommunicationManager manager;
     private final Token accessToken;
 
-    private final Subscriptions subscriptions = new Subscriptions();
+    private final ObserveList observeList = new ObserveList();
 
     public InterconnectionController(final CommunicationManager manager, final Token accessToken) {
         this.manager = manager;
@@ -84,12 +84,12 @@ public class InterconnectionController implements Block {
                     switch (operation) {
                         case READ:
                         case OBSERVE:
-                            subscriptions.add(s_uri, pkgInfo.getSourceProtocol(), request.getSequence());
+                            observeList.add(s_uri, pkgInfo.getSourceProtocol(), request.getSequence());
                             break;
                         case UNOBSERVE:
-                            // After remove subscription, if still there is any subscriber, prevent the UNOBSERVE to
-                            // go to the target plugin.
-                            if (!subscriptions.remove(s_uri, pkgInfo.getSourceProtocol(), null)) {
+                            // After remove permanent observer, if still there is any temporaries, prevent
+                            // the UNOBSERVE message to go to the target plugin.
+                            if (!observeList.remove(s_uri, pkgInfo.getSourceProtocol(), null)) {
                                 return;
                             }
                             break;
@@ -104,8 +104,8 @@ public class InterconnectionController implements Block {
 
                 try {
                     final URI uri = createURI(reply, sourceProtocol);
-                    final Map<String, Iterable<Long>> subscribers = subscriptions.get(uri.toString());
-                    pkgInfo.setReplyTo(subscribers);
+                    final Map<String, Iterable<Long>> observers = observeList.get(uri.toString());
+                    pkgInfo.setReplyTo(observers);
                 } catch (URISyntaxException e) {
                     if (logger.isErrorEnabled()) {
                         logger.error("error on assembling URI from reply of %s plugin: %s",
@@ -156,42 +156,42 @@ public class InterconnectionController implements Block {
         return new URI(String.format("%s://%s/%s", sourceProtocol, target, path));
     }
 
-    public Subscriptions getSubscriptions() {
-        return subscriptions;
+    public ObserveList getObserveList() {
+        return observeList;
     }
 
     /**
-     * Mapping of subscriptions to reply
+     * Mapping of observing sequences to reply
      * <p>
-     * Each subscription is in the form: {@code [(uri, protocol, sequences)] where:
+     * Each observing is in the form: {@code [(uri, protocol, sequences)] where:
      * <ul>
-     * <li>{@code uri} is a string used as the subscribing filter.
+     * <li>{@code uri} is a string used as the observing filter.
      * <li>{@code protocol} is the name of the interested protocol as registered by the plugin.
      * <li>{@code sequences} is a collection of message sequences to reply, this is useful for
      *      request/response protocols. If sequences is {@code null} the reply is sent to the
      *      plugin every time the gateway receives a reply with this filter.
      * </ul>
      */
-    static class Subscriptions {
+    static class ObserveList {
         private final Map<String, Map<String, Set<Long>>> map = new ConcurrentHashMap<>();
         private final Lock lock = new ReentrantLock();
 
-        public void add(final String uri, final String protocol, final Long sequence) {
-            final Map<String, Set<Long>> uriSubs = map.computeIfAbsent(uri, k -> new HashMap<>());
+        private void add(final String uri, final String protocol, final Long sequence) {
+            final Map<String, Set<Long>> uriObserving = map.computeIfAbsent(uri, k -> new HashMap<>());
             lock.lock();
-            final Set<Long> sequences = uriSubs.computeIfAbsent(protocol, k -> new HashSet<>());
+            final Set<Long> sequences = uriObserving.computeIfAbsent(protocol, k -> new HashSet<>());
             sequences.add(sequence);
             lock.unlock();
         }
 
-        public Map<String, Iterable<Long>> get(final String uri) {
-            final Map<String, Set<Long>> uriSubs = map.get(uri);
-            if (uriSubs != null) {
+        private Map<String, Iterable<Long>> get(final String uri) {
+            final Map<String, Set<Long>> uriObserving = map.get(uri);
+            if (uriObserving != null) {
                 Map<String, Iterable<Long>> result = new HashMap<>();
                 lock.lock();
                 try {
-                    for (final String key : uriSubs.keySet()) {
-                        uriSubs.compute(key, (k, sequences) -> {
+                    for (final String key : uriObserving.keySet()) {
+                        uriObserving.compute(key, (k, sequences) -> {
                             final ArrayList<Long> list = new ArrayList<>();
                             result.put(key, list);
 
@@ -216,27 +216,27 @@ public class InterconnectionController implements Block {
                     lock.unlock();
                 }
             }
-            throw new NoSuchElementException("no subscription for " + uri);
+            throw new NoSuchElementException("no sequence observing " + uri);
         }
 
         /**
-         * Remove the following subscription
+         * Remove the following observed sequence
          *
          * @param uri         the uri to find
          * @param protocol    the protocol associated to uri
          * @param sequence    the sequence associated to both uri and protocol
          * @return true if list of sequences was left empty, false otherwise.
          */
-        public boolean remove(final String uri, final String protocol, final Long sequence) {
-            final Map<String, Set<Long>> uriSubs = map.get(uri);
-            if (uriSubs != null) {
+        private boolean remove(final String uri, final String protocol, final Long sequence) {
+            final Map<String, Set<Long>> uriObserving = map.get(uri);
+            if (uriObserving != null) {
                 lock.lock();
                 try {
-                    final Set<Long> sequences = uriSubs.get(protocol);
+                    final Set<Long> sequences = uriObserving.get(protocol);
                     if (sequences != null) {
                         sequences.remove(sequence);
                         if (sequences.isEmpty()) {
-                            uriSubs.remove(protocol);
+                            uriObserving.remove(protocol);
                             return true;
                         }
                     }
@@ -248,7 +248,7 @@ public class InterconnectionController implements Block {
         }
 
         /**
-         * Remove the sequence from the subscription.
+         * Remove the sequence from the observing list.
          *
          * @param sequence    sequence to be removed
          */
@@ -256,8 +256,8 @@ public class InterconnectionController implements Block {
             lock.lock();
             try {
                 for (final Entry<String, Map<String, Set<Long>>> uriEntry : map.entrySet()) {
-                    for (final Entry<String, Set<Long>> subsEntry : uriEntry.getValue().entrySet()) {
-                        if (subsEntry.getValue().remove(sequence)) {
+                    for (final Entry<String, Set<Long>> obsEntry : uriEntry.getValue().entrySet()) {
+                        if (obsEntry.getValue().remove(sequence)) {
                             return;
                         }
                     }
