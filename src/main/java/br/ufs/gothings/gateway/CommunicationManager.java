@@ -136,7 +136,11 @@ public class CommunicationManager {
             pkgInfo.setSourceProtocol(protocol);
             forward(COMMUNICATION_MANAGER, INPUT_CONTROLLER, pkg);
 
-            return pd.addFuture(request);
+            // Requests without a sequence don't wait for a reply
+            if (request.isSequenced()) {
+                return pd.addFuture(request);
+            }
+            return null;
         });
 
         if (logger.isDebugEnabled()) {
