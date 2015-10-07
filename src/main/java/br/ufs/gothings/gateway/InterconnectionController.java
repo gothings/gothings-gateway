@@ -2,15 +2,14 @@ package br.ufs.gothings.gateway;
 
 import br.ufs.gothings.core.common.Reason;
 import br.ufs.gothings.core.message.GwHeaders;
+import br.ufs.gothings.core.message.GwMessage;
 import br.ufs.gothings.core.message.GwReply;
 import br.ufs.gothings.core.message.GwRequest;
 import br.ufs.gothings.core.message.headers.Operation;
 import br.ufs.gothings.core.common.GatewayException;
-import br.ufs.gothings.gateway.block.Block;
-import br.ufs.gothings.gateway.block.BlockId;
+import br.ufs.gothings.gateway.block.*;
 import br.ufs.gothings.gateway.block.Package;
 import br.ufs.gothings.gateway.block.Package.PackageInfo;
-import br.ufs.gothings.gateway.block.Token;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.NameValuePair;
 import org.apache.http.client.utils.URIBuilder;
@@ -31,93 +30,83 @@ import java.util.concurrent.locks.ReentrantLock;
 public class InterconnectionController implements Block {
     private static final Logger logger = LogManager.getFormatterLogger(InterconnectionController.class);
 
-    private final CommunicationManager manager;
     private final Token accessToken;
 
     private final ObserveList observeList = new ObserveList();
 
-    public InterconnectionController(final CommunicationManager manager, final Token accessToken) {
-        this.manager = manager;
+    public InterconnectionController(final Token accessToken) {
         this.accessToken = accessToken;
     }
 
     @Override
-    public void receiveForwarding(final BlockId sourceId, final Package pkg) {
+    public void process(final Package pkg) throws Exception {
         final PackageInfo pkgInfo = pkg.getInfo(accessToken);
+        final GwMessage message = pkgInfo.getMessage();
 
-        switch (sourceId) {
-            case INPUT_CONTROLLER: {
-                final GwRequest request = (GwRequest) pkgInfo.getMessage();
-                final GwHeaders headers = request.headers();
+        if (message instanceof GwRequest) {
+            final GwRequest request = (GwRequest) message;
+            final GwHeaders headers = request.headers();
 
-                final URI uri;
-                try {
-                    uri = createURI(request);
-                } catch (URISyntaxException e) {
-                    if (logger.isErrorEnabled()) {
-                        logger.error("could not parse URI from path sent by %s plugin: %s",
-                                pkgInfo.getSourceProtocol(), e.getInput());
-                    }
-                    manager.handleError(this, new GatewayException(request, Reason.INVALID_URI));
-                    return;
+            final URI uri;
+            try {
+                uri = createURI(request);
+            } catch (URISyntaxException e) {
+                if (logger.isErrorEnabled()) {
+                    logger.error("could not parse URI from path sent by %s plugin: %s",
+                            pkgInfo.getSourceProtocol(), e.getInput());
                 }
-
-                final String targetProtocol = uri.getScheme();
-                pkgInfo.setTargetProtocol(targetProtocol);
-
-                final String target = uri.getRawAuthority();
-                headers.setTarget(target);
-
-                final String targetAndPath = uri.getRawSchemeSpecificPart();
-                final String path = StringUtils.replaceOnce(targetAndPath, "//" + target, "");
-                headers.setPath(path);
-
-                final Operation operation = headers.getOperation();
-                final String s_uri = uri.toString();
-
-                final GwReply cached = getCache(operation, s_uri);
-                if (cached != null) {
-                    cached.setSequence(request.getSequence());
-                    pkgInfo.setMessage(cached);
-                    manager.forward(this, BlockId.OUTPUT_CONTROLLER, pkg);
-                } else {
-                    switch (operation) {
-                        case READ:
-                        case OBSERVE:
-                            observeList.add(s_uri, pkgInfo.getSourceProtocol(), request.getSequence());
-                            break;
-                        case UNOBSERVE:
-                            // After remove permanent observer, if still there is any temporaries, prevent
-                            // the UNOBSERVE message to go to the target plugin.
-                            if (!observeList.remove(s_uri, pkgInfo.getSourceProtocol(), 0)) {
-                                return;
-                            }
-                            break;
-                    }
-                    manager.forward(this, BlockId.COMMUNICATION_MANAGER, pkg);
-                }
-                break;
+                throw new GatewayException(request, Reason.INVALID_URI);
             }
-            case COMMUNICATION_MANAGER: {
-                final GwReply reply = (GwReply) pkgInfo.getMessage();
-                final String sourceProtocol = pkgInfo.getSourceProtocol();
 
-                try {
-                    final URI uri = createURI(reply, sourceProtocol);
-                    final Map<String, long[]> observers = observeList.get(uri.toString());
-                    pkgInfo.setReplyTo(observers);
-                } catch (URISyntaxException e) {
-                    if (logger.isErrorEnabled()) {
-                        logger.error("error on assembling URI from reply of %s plugin: %s",
-                                sourceProtocol, e.getInput());
-                    }
-                    return;
+            final String targetProtocol = uri.getScheme();
+            pkgInfo.setTargetProtocol(targetProtocol);
+
+            final String target = uri.getRawAuthority();
+            headers.setTarget(target);
+
+            final String targetAndPath = uri.getRawSchemeSpecificPart();
+            final String path = StringUtils.replaceOnce(targetAndPath, "//" + target, "");
+            headers.setPath(path);
+
+            final Operation operation = headers.getOperation();
+            final String s_uri = uri.toString();
+
+            final GwReply cached = getCache(operation, s_uri);
+            if (cached != null) {
+                cached.setSequence(request.getSequence());
+                pkgInfo.setMessage(cached);
+            } else {
+                switch (operation) {
+                    case READ:
+                    case OBSERVE:
+                        observeList.add(s_uri, pkgInfo.getSourceProtocol(), request.getSequence());
+                        break;
+                    case UNOBSERVE:
+                        if (!observeList.remove(s_uri, pkgInfo.getSourceProtocol(), 0)) {
+                            throw new StopProcessException();
+                        }
+                        break;
                 }
-
-                setCache(reply, sourceProtocol);
-                manager.forward(this, BlockId.OUTPUT_CONTROLLER, pkg);
-                break;
             }
+        }
+
+        else if (message instanceof GwReply) {
+            final GwReply reply = (GwReply) message;
+            final String sourceProtocol = pkgInfo.getSourceProtocol();
+
+            try {
+                final URI uri = createURI(reply, sourceProtocol);
+                final Map<String, long[]> observers = observeList.get(uri.toString());
+                pkgInfo.setReplyTo(observers);
+            } catch (URISyntaxException e) {
+                if (logger.isErrorEnabled()) {
+                    logger.error("error on assembling URI from reply of %s plugin: %s",
+                            sourceProtocol, e.getInput());
+                }
+                throw new StopProcessException();
+            }
+
+            setCache(reply, sourceProtocol);
         }
     }
 

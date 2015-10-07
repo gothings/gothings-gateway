@@ -9,4 +9,5 @@ public enum Reason {
     TARGET_NOT_FOUND,
     PATH_NOT_FOUND,
     OTHER,
+    INTERNAL_ERROR,
 }

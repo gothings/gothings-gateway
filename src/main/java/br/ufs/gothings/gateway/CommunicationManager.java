@@ -7,25 +7,19 @@ import br.ufs.gothings.core.common.GatewayException;
 import br.ufs.gothings.core.plugin.PluginClient;
 import br.ufs.gothings.core.plugin.PluginServer;
 import br.ufs.gothings.core.plugin.ReplyLink;
-import br.ufs.gothings.core.util.MapUtils;
 import br.ufs.gothings.gateway.InterconnectionController.ObserveList;
-import br.ufs.gothings.gateway.block.Block;
-import br.ufs.gothings.gateway.block.BlockId;
+import br.ufs.gothings.gateway.block.*;
 import br.ufs.gothings.gateway.block.Package;
 import br.ufs.gothings.gateway.block.Package.PackageFactory;
 import br.ufs.gothings.gateway.block.Package.PackageInfo;
-import br.ufs.gothings.gateway.block.Token;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.time.Duration;
 import java.time.Instant;
-import java.util.IdentityHashMap;
 import java.util.Map;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicLong;
-
-import static br.ufs.gothings.gateway.block.BlockId.*;
 
 /**
  * @author Wagner Macedo
@@ -42,10 +36,12 @@ public class CommunicationManager {
     private final Map<Long, FutureReply> waitingReplies =
             new ConcurrentHashMap<>();
 
-    private final Map<Block, BlockId> blocksMap = new IdentityHashMap<>();
     private final Token mainToken = new Token();
     private final PackageFactory pkgFactory = Package.getFactory(mainToken);
 
+    private final Block inputC;
+    private final Block interConnC;
+    private final Block outputC;
     private final ObserveList iccObserving;
 
     CommunicationManager() {
@@ -56,17 +52,12 @@ public class CommunicationManager {
                 Package.TARGET_PROTOCOL,
                 Package.REPLY_TO);
 
-        final Block ic = new InputController(this);
-        final Block icc = new InterconnectionController(this, iccToken);
-        final Block oc = new OutputController(this);
-
-        // Indexing blocks
-        blocksMap.put(ic, INPUT_CONTROLLER);
-        blocksMap.put(icc, INTERCONNECTION_CONTROLLER);
-        blocksMap.put(oc, OUTPUT_CONTROLLER);
+        inputC = new InputController();
+        interConnC = new InterconnectionController(iccToken);
+        outputC = new OutputController();
 
         // Obtain the Interconnection Controller observing list
-        iccObserving = ((InterconnectionController) icc).getObserveList();
+        iccObserving = ((InterconnectionController) interConnC).getObserveList();
     }
 
     public void register(final PluginClient client) {
@@ -93,7 +84,7 @@ public class CommunicationManager {
                 final PackageInfo pkgInfo = pkg.getInfo(mainToken);
                 pkgInfo.setMessage(reply);
                 pkgInfo.setSourceProtocol(protocol);
-                forward(COMMUNICATION_MANAGER, INTERCONNECTION_CONTROLLER, pkg);
+                processReply(pkg);
             }
 
             @Override
@@ -139,7 +130,8 @@ public class CommunicationManager {
             final PackageInfo pkgInfo = pkg.getInfo(mainToken);
             pkgInfo.setMessage(request);
             pkgInfo.setSourceProtocol(protocol);
-            forward(COMMUNICATION_MANAGER, INPUT_CONTROLLER, pkg);
+//            forward(COMMUNICATION_MANAGER, INPUT_CONTROLLER, pkg);
+            processRequest(pkg);
 
             // Requests with OBSERVE sequence don't wait for a reply
             if (request.getSequence() != 0) {
@@ -204,89 +196,65 @@ public class CommunicationManager {
         pluginsGroup.interrupt();
     }
 
-    public void forward(final Block sourceBlock, final BlockId targetId, final Package pkg) {
-        final BlockId sourceId = blocksMap.get(sourceBlock);
-        if (sourceId == null) {
-            logger.error("source block instance not found");
-            return;
-        }
-        eventExecutor.submit(() -> forward(sourceId, targetId, pkg));
+    private void processRequest(final Package pkg) {
+        eventExecutor.submit(() -> {
+            // Input controller processing
+            try {
+                inputC.process(pkg);
+            } catch (Exception e) {
+                errorToPlugin(pkg.getInfo(), e);
+            }
+            // Interconnection controller processing
+            final GwMessage message = pkg.getInfo().getMessage();
+            try {
+                interConnC.process(pkg);
+            } catch (Exception e) {
+                errorToPlugin(pkg.getInfo(), e);
+            }
+            // If ICC left a request, then it's a work for a plugin
+            if (message instanceof GwRequest) {
+                final GwRequest request = (GwRequest) message;
+                if (!requestToPlugin(request.readOnly(), pkg.getInfo().getTargetProtocol())) {
+                    sendFutureException(new GatewayException(request, Reason.UNAVAILABLE_PLUGIN));
+                }
+            }
+            // On the other hand, if ICC left a reply, then pass to OC to continue processing
+            else if (message instanceof GwReply) {
+                final GwReply reply = (GwReply) message;
+                try {
+                    outputC.process(pkg);
+                    replyToPlugin(reply.readOnly(), pkg.getInfo().getReplyTo());
+                } catch (Exception e) {
+                    errorToPlugin(pkg.getInfo(), e);
+                }
+            }
+        });
     }
 
-    private void forward(final BlockId sourceId, final BlockId targetId, final Package pkg) {
-        // Consider this package invalid if was not created by communication manager
-        if (!pkg.isMainToken(mainToken)) {
-            logger.error("package main token is not of the communication manager");
-            return;
-        }
+    private void processReply(final Package pkg) {
+        eventExecutor.submit(() -> {
+            final GwReply reply = (GwReply) pkg.getInfo().getMessage();
 
-        // Check if source block can forward to target block
-        if (!sourceId.canForward(targetId)) {
-            logger.error("%s => %s", sourceId, targetId);
-            return;
-        }
-
-        // Increment this package pass
-        final int passes = pkg.incrementPass(mainToken);
-
-        // If target block is the communication manager...
-        if (targetId == COMMUNICATION_MANAGER) {
-            // ...depending on source the message is handled as a request or a reply
-            final PackageInfo pkgInfo = pkg.getInfo(mainToken);
-            final GwMessage message = pkgInfo.getMessage();
-            switch (sourceId) {
-                case INTERCONNECTION_CONTROLLER:
-                    // check number of passes
-                    if (passes < 3) {
-                        logger.error("%d passes at %s => %s", passes, sourceId, targetId);
-                        return;
-                    }
-                    // log message instance errors
-                    if (!(message instanceof GwRequest)) {
-                        if (logger.isErrorEnabled()) {
-                            logger.error("%s plugin sent a %s as request",
-                                    pkgInfo.getSourceProtocol(),
-                                    message.getClass().getSimpleName());
-                        }
-                        return;
-                    }
-                    // if request could not be forwarded to a plugin return an error immediately
-                    final GwRequest request = (GwRequest) message;
-                    if (!requestToPlugin(request.readOnly(), pkgInfo.getTargetProtocol())) {
-                        sendFutureException(new GatewayException(request, Reason.UNAVAILABLE_PLUGIN));
-                    }
-                    break;
-                case OUTPUT_CONTROLLER:
-                    // check number of passes
-                    if (passes < 3 || passes > 4) {
-                        logger.error("%d passes at %s => %s", passes, sourceId, targetId);
-                        return;
-                    }
-                    // log message instance errors
-                    if (!(message instanceof GwReply)) {
-                        if (logger.isErrorEnabled()) {
-                            logger.error("%s plugin sent a %s as reply",
-                                    pkgInfo.getSourceProtocol(),
-                                    message.getClass().getSimpleName());
-                        }
-                        return;
-                    }
-                    replyToPlugin(((GwReply) message).readOnly(), pkgInfo.getReplyTo());
-                    break;
+            // Interconnection controller processing
+            try {
+                interConnC.process(pkg);
+            } catch (Exception e) {
+                if (e instanceof StopProcessException) {
+                    throw (StopProcessException) e;
+                }
+                throw new StopProcessException();
             }
-            return;
-        }
-
-        // If nothing happens then forwards to the target block
-        final Block targetBlock = MapUtils.getKey(blocksMap, targetId);
-        assert targetBlock != null;
-        try {
-            targetBlock.receiveForwarding(sourceId, pkg);
-        } catch (Exception e) {
-            if (logger.isErrorEnabled()) {
-                logger.error(targetId + " failed to handle forwarding from " + sourceId, e);
+            // Output controller processing
+            try {
+                outputC.process(pkg);
+            } catch (Exception e) {
+                if (e instanceof StopProcessException) {
+                    throw (StopProcessException) e;
+                }
+                throw new StopProcessException();
             }
-        }
+            replyToPlugin(reply.readOnly(), pkg.getInfo().getReplyTo());
+        });
     }
 
     private boolean requestToPlugin(final GwRequest request, final String targetProtocol) {
@@ -311,6 +279,18 @@ public class CommunicationManager {
                 }
             }
         });
+    }
+
+    private void errorToPlugin(final PackageInfo info, final Exception e) throws StopProcessException {
+        if (e instanceof StopProcessException) {
+            throw (StopProcessException) e;
+        } else if (e instanceof GatewayException) {
+            sendFutureException((GatewayException) e);
+        } else {
+            sendFutureException(new GatewayException((DataMessage) info.getMessage(), Reason.INTERNAL_ERROR));
+        }
+        // Always throws an exception so processing is stopped
+        throw new StopProcessException();
     }
 
     private class PluginData {
@@ -364,14 +344,6 @@ public class CommunicationManager {
         public GwReply get(final long timeout, final TimeUnit unit) throws InterruptedException, ExecutionException, TimeoutException {
             threshold = Instant.now().plusMillis(unit.toMillis(timeout));
             return super.get(timeout, unit);
-        }
-    }
-
-    void handleError(final Block sourceBlock, final GatewayException gatewayException) {
-        if (blocksMap.containsKey(sourceBlock)) {
-            sendFutureException(gatewayException);
-        } else {
-            logger.error("source block instance not found");
         }
     }
 
