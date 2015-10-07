@@ -37,7 +37,7 @@ public class CommunicationManager {
     private final ExecutorService eventExecutor = Executors.newWorkStealingPool();
     private final ThreadGroup pluginsGroup = new ThreadGroup("plugins-ThreadGroup");
 
-    private final AtomicLong sequence = new AtomicLong(0);
+    private final AtomicLong sequenceGen = new AtomicLong(0);
     private final Map<String, PluginData> pluginsMap = new ConcurrentHashMap<>();
     private final Map<Long, FutureReply> waitingReplies =
             new ConcurrentHashMap<>();
@@ -80,7 +80,7 @@ public class CommunicationManager {
 
         client.setUp(new ReplyLink() {
             @Override
-            public void ack(final Long sequence) {
+            public void ack(final long sequence) {
                 final FutureReply future = waitingReplies.remove(sequence);
                 if (future != null) {
                     future.complete(GwReply.EMPTY.withSequence(sequence));
@@ -127,7 +127,12 @@ public class CommunicationManager {
                 case READ:
                 case UPDATE:
                 case DELETE:
-                    request.setSequence(sequence.incrementAndGet());
+                    request.setSequence(sequenceGen.updateAndGet(i -> ++i == 0 ? 1 : i));
+                    break;
+                case OBSERVE:
+                case UNOBSERVE:
+                    request.setSequence(0);
+                    break;
             }
 
             final Package pkg = pkgFactory.newPackage();
@@ -136,8 +141,8 @@ public class CommunicationManager {
             pkgInfo.setSourceProtocol(protocol);
             forward(COMMUNICATION_MANAGER, INPUT_CONTROLLER, pkg);
 
-            // Requests without a sequence don't wait for a reply
-            if (request.isSequenced()) {
+            // Requests with OBSERVE sequence don't wait for a reply
+            if (request.getSequence() != 0) {
                 return pd.addFuture(request);
             }
             return null;
@@ -293,13 +298,13 @@ public class CommunicationManager {
         return false;
     }
 
-    private void replyToPlugin(final GwReply reply, final Map<String, Long[]> replyTo) {
+    private void replyToPlugin(final GwReply reply, final Map<String, long[]> replyTo) {
         replyTo.forEach((protocol, sequences) -> {
             final PluginData pd = pluginsMap.get(protocol);
             if (pd.server != null) {
-                for (final Long sequence : sequences) {
-                    if (sequence == null) {
-                        pd.server.handleReply(reply.withSequence(null));
+                for (final long sequence : sequences) {
+                    if (sequence == 0) {
+                        pd.server.handleReply(reply.withSequence(0));
                     } else {
                         pd.provideReply(reply.withSequence(sequence));
                     }

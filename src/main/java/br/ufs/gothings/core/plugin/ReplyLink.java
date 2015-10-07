@@ -7,7 +7,7 @@ import br.ufs.gothings.core.message.GwReply;
  * @author Wagner Macedo
  */
 public interface ReplyLink {
-    void ack(Long sequence);
+    void ack(long sequence);
 
     void send(GwReply reply);
 

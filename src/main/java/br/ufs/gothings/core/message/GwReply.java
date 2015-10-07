@@ -4,7 +4,7 @@ package br.ufs.gothings.core.message;
  * @author Wagner Macedo
  */
 public final class GwReply extends DataMessage {
-    public static final GwReply EMPTY = new GwReply(GwHeaders.EMPTY, Payload.EMPTY, null).readOnly();
+    public static final GwReply EMPTY = new GwReply(GwHeaders.EMPTY, Payload.EMPTY, 0).readOnly();
 
     /**
      * Construct a reply to a specific request.
@@ -21,10 +21,10 @@ public final class GwReply extends DataMessage {
      */
     public GwReply() {
         super();
-        setSequence(null);
+        setSequence(0);
     }
 
-    public GwReply(final GwHeaders headers, final Payload payload, final Long sequence) {
+    public GwReply(final GwHeaders headers, final Payload payload, final long sequence) {
         super(headers, payload, sequence);
     }
 
@@ -45,7 +45,7 @@ public final class GwReply extends DataMessage {
      * @param sequence  new sequence
      * @return a reply
      */
-    public GwReply withSequence(final Long sequence) {
+    public GwReply withSequence(final long sequence) {
         return new GwReply(this.headers(), this.payload(), sequence);
     }
 

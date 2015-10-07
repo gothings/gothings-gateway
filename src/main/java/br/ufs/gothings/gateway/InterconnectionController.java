@@ -89,7 +89,7 @@ public class InterconnectionController implements Block {
                         case UNOBSERVE:
                             // After remove permanent observer, if still there is any temporaries, prevent
                             // the UNOBSERVE message to go to the target plugin.
-                            if (!observeList.remove(s_uri, pkgInfo.getSourceProtocol(), null)) {
+                            if (!observeList.remove(s_uri, pkgInfo.getSourceProtocol(), 0)) {
                                 return;
                             }
                             break;
@@ -104,7 +104,7 @@ public class InterconnectionController implements Block {
 
                 try {
                     final URI uri = createURI(reply, sourceProtocol);
-                    final Map<String, Long[]> observers = observeList.get(uri.toString());
+                    final Map<String, long[]> observers = observeList.get(uri.toString());
                     pkgInfo.setReplyTo(observers);
                 } catch (URISyntaxException e) {
                     if (logger.isErrorEnabled()) {
@@ -176,7 +176,7 @@ public class InterconnectionController implements Block {
         private final Map<String, Map<String, Set<Long>>> map = new ConcurrentHashMap<>();
         private final Lock lock = new ReentrantLock();
 
-        private void add(final String uri, final String protocol, final Long sequence) {
+        private void add(final String uri, final String protocol, final long sequence) {
             final Map<String, Set<Long>> uriObserving = map.computeIfAbsent(uri, k -> new HashMap<>());
             lock.lock();
             final Set<Long> sequences = uriObserving.computeIfAbsent(protocol, k -> new HashSet<>());
@@ -184,23 +184,23 @@ public class InterconnectionController implements Block {
             lock.unlock();
         }
 
-        private Map<String, Long[]> get(final String uri) {
+        private Map<String, long[]> get(final String uri) {
             final Map<String, Set<Long>> uriObserving = map.get(uri);
             if (uriObserving != null) {
-                Map<String, Long[]> result = new HashMap<>();
+                Map<String, long[]> result = new HashMap<>();
                 lock.lock();
                 try {
                     for (final String key : uriObserving.keySet()) {
                         uriObserving.compute(key, (k, sequences) -> {
-                            final Long[] array = new Long[sequences.size()];
+                            final long[] array = new long[sequences.size()];
                             result.put(key, array);
 
                             final Iterator<Long> it = sequences.iterator();
                             int i = 0;
                             while (it.hasNext()) {
-                                final Long next = it.next();
+                                final long next = it.next();
                                 array[i++] = next;
-                                if (next != null) {
+                                if (next != 0) {
                                     it.remove();
                                 }
                             }
@@ -228,7 +228,7 @@ public class InterconnectionController implements Block {
          * @param sequence    the sequence associated to both uri and protocol
          * @return true if list of sequences was left empty, false otherwise.
          */
-        private boolean remove(final String uri, final String protocol, final Long sequence) {
+        private boolean remove(final String uri, final String protocol, final long sequence) {
             final Map<String, Set<Long>> uriObserving = map.get(uri);
             if (uriObserving != null) {
                 lock.lock();
@@ -253,7 +253,7 @@ public class InterconnectionController implements Block {
          *
          * @param sequence    sequence to be removed
          */
-        public void remove(final Long sequence) {
+        public void remove(final long sequence) {
             lock.lock();
             try {
                 for (final Entry<String, Map<String, Set<Long>>> uriEntry : map.entrySet()) {

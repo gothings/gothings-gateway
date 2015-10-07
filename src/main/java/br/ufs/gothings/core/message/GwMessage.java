@@ -12,7 +12,7 @@ public abstract class GwMessage {
         ERROR,
     }
 
-    private volatile Long sequence;
+    private volatile long sequence;
     private final AtomicBoolean sequenceAssigned = new AtomicBoolean(false);
     private final GwHeaders headers;
 
@@ -20,7 +20,7 @@ public abstract class GwMessage {
         this.headers = (headers != null) ? headers : new GwHeaders();
     }
 
-    protected GwMessage(GwHeaders headers, Long sequence) {
+    protected GwMessage(GwHeaders headers, long sequence) {
         this(headers);
         setSequence(sequence);
     }
@@ -29,23 +29,18 @@ public abstract class GwMessage {
         return headers;
     }
 
-    public final Long getSequence() {
+    public final long getSequence() {
         if (!sequenceAssigned.get()) {
             throw new IllegalStateException("message sequence still not set");
         }
         return sequence;
     }
 
-    public final void setSequence(final Long sequence) {
+    public final void setSequence(final long sequence) {
         if (!sequenceAssigned.compareAndSet(false, true)) {
             throw new IllegalStateException("message sequence already set");
         }
         this.sequence = sequence;
-    }
-
-    public final boolean isSequenced() {
-        sequenceAssigned.set(true);
-        return sequence != null;
     }
 
     public abstract MessageType getType();

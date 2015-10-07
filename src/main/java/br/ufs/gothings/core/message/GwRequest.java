@@ -7,7 +7,7 @@ public final class GwRequest extends DataMessage {
     public GwRequest() {
     }
 
-    private GwRequest(final GwHeaders headers, final Payload payload, final Long sequence) {
+    private GwRequest(final GwHeaders headers, final Payload payload, final long sequence) {
         super(headers, payload, sequence);
     }
 

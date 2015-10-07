@@ -21,7 +21,7 @@ public class Package {
     private GwMessage message;
     private String sourceProtocol;
     private String targetProtocol;
-    private Map<String, Long[]> replyTo;
+    private Map<String, long[]> replyTo;
 
     private final PackageContext ctx;
     private final PackageInfo fullAccessInfo;
@@ -100,11 +100,11 @@ public class Package {
             pkg.targetProtocol = targetProtocol;
         }
 
-        public Map<String, Long[]> getReplyTo() {
+        public Map<String, long[]> getReplyTo() {
             return pkg.replyTo;
         }
 
-        public void setReplyTo(final Map<String, Long[]> replyTo) {
+        public void setReplyTo(final Map<String, long[]> replyTo) {
             checkAuth(REPLY_TO);
             pkg.replyTo = replyTo;
         }
