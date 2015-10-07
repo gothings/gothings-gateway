@@ -33,9 +33,9 @@ public final class GwReply extends DataMessage {
      *
      * @return this reply
      */
+    @Override
     public GwReply readOnly() {
-        headers().readOnly();
-        payload().readOnly();
+        super.readOnly();
         return this;
     }
 

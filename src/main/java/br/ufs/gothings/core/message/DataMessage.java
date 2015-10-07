@@ -24,4 +24,11 @@ public abstract class DataMessage extends GwMessage {
     public final Payload payload() {
         return payload;
     }
+
+    @Override
+    protected DataMessage readOnly() {
+        super.readOnly();
+        payload.readOnly();
+        return this;
+    }
 }

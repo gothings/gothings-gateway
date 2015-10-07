@@ -16,8 +16,10 @@ public final class GwRequest extends DataMessage {
      *
      * @return a read-only request
      */
+    @Override
     public GwRequest readOnly() {
-        return new GwRequest(headers().readOnly(), payload().readOnly(), getSequence());
+        super.readOnly();
+        return this;
     }
 
     @Override

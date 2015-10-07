@@ -43,5 +43,11 @@ public abstract class GwMessage {
         this.sequence = sequence;
     }
 
+    protected GwMessage readOnly() {
+        sequenceAssigned.set(true);
+        headers.readOnly();
+        return this;
+    }
+
     public abstract MessageType getType();
 }
