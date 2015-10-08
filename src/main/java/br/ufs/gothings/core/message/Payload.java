@@ -65,7 +65,7 @@ public class Payload {
     }
 
     public InputStream asInputStream() {
-        return new ByteBufInputStream(data.get());
+        return new ByteBufInputStream(data.get().duplicate());
     }
 
     public ByteBuffer asBuffer() {
