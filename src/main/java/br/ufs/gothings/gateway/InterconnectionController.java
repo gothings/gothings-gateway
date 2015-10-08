@@ -7,9 +7,9 @@ import br.ufs.gothings.core.message.GwMessage;
 import br.ufs.gothings.core.message.GwReply;
 import br.ufs.gothings.core.message.GwRequest;
 import br.ufs.gothings.core.message.headers.Operation;
-import br.ufs.gothings.gateway.block.Block;
-import br.ufs.gothings.gateway.block.Package;
-import br.ufs.gothings.gateway.block.StopProcessException;
+import br.ufs.gothings.gateway.common.Controller;
+import br.ufs.gothings.gateway.common.Package;
+import br.ufs.gothings.gateway.common.StopProcessException;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.NameValuePair;
 import org.apache.http.client.utils.URIBuilder;
@@ -27,7 +27,7 @@ import java.util.concurrent.locks.ReentrantLock;
 /**
  * @author Wagner Macedo
  */
-public class InterconnectionController implements Block {
+public class InterconnectionController implements Controller {
     private static final Logger logger = LogManager.getFormatterLogger(InterconnectionController.class);
 
     private final ObserveList observeList = new ObserveList();

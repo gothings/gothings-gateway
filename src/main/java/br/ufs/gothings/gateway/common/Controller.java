@@ -1,8 +1,8 @@
-package br.ufs.gothings.gateway.block;
+package br.ufs.gothings.gateway.common;
 
 /**
  * @author Wagner Macedo
  */
-public interface Block {
+public interface Controller {
     void process(Package pkg) throws Exception;
 }

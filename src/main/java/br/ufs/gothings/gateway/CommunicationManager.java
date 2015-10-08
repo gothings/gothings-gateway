@@ -8,9 +8,9 @@ import br.ufs.gothings.core.plugin.PluginClient;
 import br.ufs.gothings.core.plugin.PluginServer;
 import br.ufs.gothings.core.plugin.ReplyLink;
 import br.ufs.gothings.gateway.InterconnectionController.ObserveList;
-import br.ufs.gothings.gateway.block.Block;
-import br.ufs.gothings.gateway.block.Package;
-import br.ufs.gothings.gateway.block.StopProcessException;
+import br.ufs.gothings.gateway.common.Controller;
+import br.ufs.gothings.gateway.common.Package;
+import br.ufs.gothings.gateway.common.StopProcessException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -34,9 +34,9 @@ public class CommunicationManager {
     private final Map<String, PluginData> pluginsMap = new ConcurrentHashMap<>();
     private final Map<Long, FutureReply> waitingReplies = new ConcurrentHashMap<>();
 
-    private final Block inputC;
-    private final Block interConnC;
-    private final Block outputC;
+    private final Controller inputC;
+    private final Controller interConnC;
+    private final Controller outputC;
     private final ObserveList iccObserving;
 
     CommunicationManager() {

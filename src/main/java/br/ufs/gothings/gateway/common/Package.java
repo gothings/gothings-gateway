@@ -1,4 +1,4 @@
-package br.ufs.gothings.gateway.block;
+package br.ufs.gothings.gateway.common;
 
 import br.ufs.gothings.core.message.GwMessage;
 
