@@ -22,7 +22,7 @@ public class HttpPlugin implements PluginServer {
     private RequestLink requestLink;
 
     public HttpPlugin() {
-        server = new NanoHTTPDServer();
+        server = new ApacheHCServer();
         settings = new Settings(started);
     }
 

@@ -20,6 +20,7 @@ import java.util.concurrent.TimeoutException;
 /**
  * @author Wagner Macedo
  */
+@Deprecated
 class NanoHTTPDServer implements HttpPluginServer {
 
     private Server server;
