@@ -11,7 +11,7 @@ public class InputController implements Block {
 
     @Override
     public void process(final Package pkg) throws Exception {
-        performListeners((GwRequest) pkg.getInfo().getMessage());
+        performListeners((GwRequest) pkg.getMessage());
     }
 
     private void performListeners(final GwRequest msg) {

@@ -1,15 +1,15 @@
 package br.ufs.gothings.gateway;
 
+import br.ufs.gothings.core.common.GatewayException;
 import br.ufs.gothings.core.common.Reason;
 import br.ufs.gothings.core.message.GwHeaders;
 import br.ufs.gothings.core.message.GwMessage;
 import br.ufs.gothings.core.message.GwReply;
 import br.ufs.gothings.core.message.GwRequest;
 import br.ufs.gothings.core.message.headers.Operation;
-import br.ufs.gothings.core.common.GatewayException;
-import br.ufs.gothings.gateway.block.*;
+import br.ufs.gothings.gateway.block.Block;
 import br.ufs.gothings.gateway.block.Package;
-import br.ufs.gothings.gateway.block.Package.PackageInfo;
+import br.ufs.gothings.gateway.block.StopProcessException;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.NameValuePair;
 import org.apache.http.client.utils.URIBuilder;
@@ -30,18 +30,11 @@ import java.util.concurrent.locks.ReentrantLock;
 public class InterconnectionController implements Block {
     private static final Logger logger = LogManager.getFormatterLogger(InterconnectionController.class);
 
-    private final Token accessToken;
-
     private final ObserveList observeList = new ObserveList();
-
-    public InterconnectionController(final Token accessToken) {
-        this.accessToken = accessToken;
-    }
 
     @Override
     public void process(final Package pkg) throws Exception {
-        final PackageInfo pkgInfo = pkg.getInfo(accessToken);
-        final GwMessage message = pkgInfo.getMessage();
+        final GwMessage message = pkg.getMessage();
 
         if (message instanceof GwRequest) {
             final GwRequest request = (GwRequest) message;
@@ -53,13 +46,13 @@ public class InterconnectionController implements Block {
             } catch (URISyntaxException e) {
                 if (logger.isErrorEnabled()) {
                     logger.error("could not parse URI from path sent by %s plugin: %s",
-                            pkgInfo.getSourceProtocol(), e.getInput());
+                            pkg.getSourceProtocol(), e.getInput());
                 }
                 throw new GatewayException(request, Reason.INVALID_URI);
             }
 
             final String targetProtocol = uri.getScheme();
-            pkgInfo.setTargetProtocol(targetProtocol);
+            pkg.setTargetProtocol(targetProtocol);
 
             final String target = uri.getRawAuthority();
             headers.setTarget(target);
@@ -74,15 +67,15 @@ public class InterconnectionController implements Block {
             final GwReply cached = getCache(operation, s_uri);
             if (cached != null) {
                 cached.setSequence(request.getSequence());
-                pkgInfo.setMessage(cached);
+                pkg.setMessage(cached);
             } else {
                 switch (operation) {
                     case READ:
                     case OBSERVE:
-                        observeList.add(s_uri, pkgInfo.getSourceProtocol(), request.getSequence());
+                        observeList.add(s_uri, pkg.getSourceProtocol(), request.getSequence());
                         break;
                     case UNOBSERVE:
-                        if (!observeList.remove(s_uri, pkgInfo.getSourceProtocol(), 0)) {
+                        if (!observeList.remove(s_uri, pkg.getSourceProtocol(), 0)) {
                             throw new StopProcessException();
                         }
                         break;
@@ -92,12 +85,12 @@ public class InterconnectionController implements Block {
 
         else if (message instanceof GwReply) {
             final GwReply reply = (GwReply) message;
-            final String sourceProtocol = pkgInfo.getSourceProtocol();
+            final String sourceProtocol = pkg.getSourceProtocol();
 
             try {
                 final URI uri = createURI(reply, sourceProtocol);
                 final Map<String, long[]> observers = observeList.get(uri.toString());
-                pkgInfo.setReplyTo(observers);
+                pkg.setReplyTo(observers);
             } catch (URISyntaxException e) {
                 if (logger.isErrorEnabled()) {
                     logger.error("error on assembling URI from reply of %s plugin: %s",

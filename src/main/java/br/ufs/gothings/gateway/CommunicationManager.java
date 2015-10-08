@@ -1,17 +1,16 @@
 package br.ufs.gothings.gateway;
 
 import br.ufs.gothings.core.Settings;
+import br.ufs.gothings.core.common.GatewayException;
 import br.ufs.gothings.core.common.Reason;
 import br.ufs.gothings.core.message.*;
-import br.ufs.gothings.core.common.GatewayException;
 import br.ufs.gothings.core.plugin.PluginClient;
 import br.ufs.gothings.core.plugin.PluginServer;
 import br.ufs.gothings.core.plugin.ReplyLink;
 import br.ufs.gothings.gateway.InterconnectionController.ObserveList;
-import br.ufs.gothings.gateway.block.*;
+import br.ufs.gothings.gateway.block.Block;
 import br.ufs.gothings.gateway.block.Package;
-import br.ufs.gothings.gateway.block.Package.PackageFactory;
-import br.ufs.gothings.gateway.block.Package.PackageInfo;
+import br.ufs.gothings.gateway.block.StopProcessException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -33,11 +32,7 @@ public class CommunicationManager {
 
     private final AtomicLong sequenceGen = new AtomicLong(0);
     private final Map<String, PluginData> pluginsMap = new ConcurrentHashMap<>();
-    private final Map<Long, FutureReply> waitingReplies =
-            new ConcurrentHashMap<>();
-
-    private final Token mainToken = new Token();
-    private final PackageFactory pkgFactory = Package.getFactory(mainToken);
+    private final Map<Long, FutureReply> waitingReplies = new ConcurrentHashMap<>();
 
     private final Block inputC;
     private final Block interConnC;
@@ -46,14 +41,8 @@ public class CommunicationManager {
 
     CommunicationManager() {
         // PackageFactory configuration
-        final Token iccToken = new Token();
-        pkgFactory.addToken(iccToken,
-                Package.MESSAGE,
-                Package.TARGET_PROTOCOL,
-                Package.REPLY_TO);
-
         inputC = new InputController();
-        interConnC = new InterconnectionController(iccToken);
+        interConnC = new InterconnectionController();
         outputC = new OutputController();
 
         // Obtain the Interconnection Controller observing list
@@ -80,10 +69,9 @@ public class CommunicationManager {
 
             @Override
             public void send(final GwReply reply) {
-                final Package pkg = pkgFactory.newPackage();
-                final PackageInfo pkgInfo = pkg.getInfo(mainToken);
-                pkgInfo.setMessage(reply);
-                pkgInfo.setSourceProtocol(protocol);
+                final Package pkg = new Package();
+                pkg.setMessage(reply);
+                pkg.setSourceProtocol(protocol);
                 processReply(pkg);
             }
 
@@ -126,11 +114,9 @@ public class CommunicationManager {
                     break;
             }
 
-            final Package pkg = pkgFactory.newPackage();
-            final PackageInfo pkgInfo = pkg.getInfo(mainToken);
-            pkgInfo.setMessage(request);
-            pkgInfo.setSourceProtocol(protocol);
-//            forward(COMMUNICATION_MANAGER, INPUT_CONTROLLER, pkg);
+            final Package pkg = new Package();
+            pkg.setMessage(request);
+            pkg.setSourceProtocol(protocol);
             processRequest(pkg);
 
             // Requests with OBSERVE sequence don't wait for a reply
@@ -202,19 +188,19 @@ public class CommunicationManager {
             try {
                 inputC.process(pkg);
             } catch (Exception e) {
-                errorToPlugin(pkg.getInfo(), e);
+                errorToPlugin(pkg, e);
             }
             // Interconnection controller processing
-            final GwMessage message = pkg.getInfo().getMessage();
+            final GwMessage message = pkg.getMessage();
             try {
                 interConnC.process(pkg);
             } catch (Exception e) {
-                errorToPlugin(pkg.getInfo(), e);
+                errorToPlugin(pkg, e);
             }
             // If ICC left a request, then it's a work for a plugin
             if (message instanceof GwRequest) {
                 final GwRequest request = (GwRequest) message;
-                if (!requestToPlugin(request.readOnly(), pkg.getInfo().getTargetProtocol())) {
+                if (!requestToPlugin(request.readOnly(), pkg.getTargetProtocol())) {
                     sendFutureException(new GatewayException(request, Reason.UNAVAILABLE_PLUGIN));
                 }
             }
@@ -223,9 +209,9 @@ public class CommunicationManager {
                 final GwReply reply = (GwReply) message;
                 try {
                     outputC.process(pkg);
-                    replyToPlugin(reply.readOnly(), pkg.getInfo().getReplyTo());
+                    replyToPlugin(reply.readOnly(), pkg.getReplyTo());
                 } catch (Exception e) {
-                    errorToPlugin(pkg.getInfo(), e);
+                    errorToPlugin(pkg, e);
                 }
             }
         });
@@ -233,7 +219,7 @@ public class CommunicationManager {
 
     private void processReply(final Package pkg) {
         eventExecutor.submit(() -> {
-            final GwReply reply = (GwReply) pkg.getInfo().getMessage();
+            final GwReply reply = (GwReply) pkg.getMessage();
 
             // Interconnection controller processing
             try {
@@ -253,7 +239,7 @@ public class CommunicationManager {
                 }
                 throw new StopProcessException();
             }
-            replyToPlugin(reply.readOnly(), pkg.getInfo().getReplyTo());
+            replyToPlugin(reply.readOnly(), pkg.getReplyTo());
         });
     }
 
@@ -281,13 +267,13 @@ public class CommunicationManager {
         });
     }
 
-    private void errorToPlugin(final PackageInfo info, final Exception e) throws StopProcessException {
+    private void errorToPlugin(final Package pkg, final Exception e) throws StopProcessException {
         if (e instanceof StopProcessException) {
             throw (StopProcessException) e;
         } else if (e instanceof GatewayException) {
             sendFutureException((GatewayException) e);
         } else {
-            sendFutureException(new GatewayException((DataMessage) info.getMessage(), Reason.INTERNAL_ERROR));
+            sendFutureException(new GatewayException((DataMessage) pkg.getMessage(), Reason.INTERNAL_ERROR));
         }
         // Always throws an exception so processing is stopped
         throw new StopProcessException();
