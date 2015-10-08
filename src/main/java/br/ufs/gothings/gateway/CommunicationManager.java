@@ -11,11 +11,13 @@ import br.ufs.gothings.gateway.InterconnectionController.ObserveList;
 import br.ufs.gothings.gateway.common.Controller;
 import br.ufs.gothings.gateway.common.Package;
 import br.ufs.gothings.gateway.common.StopProcessException;
+import org.apache.commons.lang3.concurrent.BasicThreadFactory;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicLong;
@@ -27,8 +29,7 @@ public class CommunicationManager {
     private static final Logger logger = LogManager.getFormatterLogger(CommunicationManager.class);
 
     private final ScheduledExecutorService timer = Executors.newSingleThreadScheduledExecutor();
-    private final ExecutorService eventExecutor = Executors.newWorkStealingPool();
-    private final ThreadGroup pluginsGroup = new ThreadGroup("plugins-ThreadGroup");
+    private final ThreadGroup pluginsGroup = new ThreadGroup("GW-plugins");
 
     private final AtomicLong sequenceGen = new AtomicLong(0);
     private final Map<String, PluginData> pluginsMap = new ConcurrentHashMap<>();
@@ -143,8 +144,18 @@ public class CommunicationManager {
                 pluginThread = new Thread(pluginsGroup, pd.client::start);
             } else {
                 pluginThread = new Thread(pluginsGroup, () -> {
-                    if (pd.client != null) pd.client.start();
-                    if (pd.server != null) pd.server.start();
+                    if (pd.client != null) {
+                        pd.clientExecutor = Executors.newSingleThreadExecutor(new BasicThreadFactory.Builder()
+                                .namingPattern("GW-PluginClient-" + pd.getProtocol())
+                                .build());
+                        pd.client.start();
+                    }
+                    if (pd.server != null) {
+                        pd.serverExecutor = Executors.newSingleThreadExecutor(new BasicThreadFactory.Builder()
+                                .namingPattern("GW-PluginServer-" + pd.getProtocol())
+                                .build());
+                        pd.server.start();
+                    }
                 });
             }
             pluginThread.start();
@@ -171,82 +182,96 @@ public class CommunicationManager {
         }
 
         timer.shutdown();
-        eventExecutor.shutdown();
 
-        pluginsMap.values().forEach(pd -> {
-            if (pd.client != null) pd.client.stop();
-            if (pd.server != null) pd.server.stop();
-            logger.info("%s plugin stopped", pd.getProtocol());
-        });
+        final Iterator<PluginData> it = pluginsMap.values().iterator();
+        while (it.hasNext()) {
+            final PluginData pd = it.next();
+            it.remove();
+            logger.info("stopping %s plugin", pd.getProtocol());
+
+            if (pd.client != null) {
+                pd.clientExecutor.execute(() -> {
+                    pd.client.stop();
+                    pd.client = null;
+                });
+                pd.clientExecutor.shutdown();
+                pd.clientExecutor = null;
+            }
+
+            if (pd.server != null) {
+                pd.serverExecutor.execute(() -> {
+                    pd.server.stop();
+                    pd.server = null;
+                });
+                pd.serverExecutor.shutdown();
+                pd.serverExecutor = null;
+            }
+        }
 
         pluginsGroup.interrupt();
     }
 
     private void processRequest(final Package pkg) {
-        eventExecutor.submit(() -> {
-            // Input controller processing
+        // Input controller processing
+        try {
+            inputC.process(pkg);
+        } catch (Exception e) {
+            errorToPlugin(pkg, e);
+        }
+        // Interconnection controller processing
+        final GwMessage message = pkg.getMessage();
+        try {
+            interConnC.process(pkg);
+        } catch (Exception e) {
+            errorToPlugin(pkg, e);
+        }
+        // If ICC left a request, then it's a work for a plugin
+        if (message instanceof GwRequest) {
+            final GwRequest request = (GwRequest) message;
+            if (!requestToPlugin(request.readOnly(), pkg.getTargetProtocol())) {
+                sendFutureException(new GatewayException(request, Reason.UNAVAILABLE_PLUGIN));
+            }
+        }
+        // On the other hand, if ICC left a reply, then pass to OC to continue processing
+        else if (message instanceof GwReply) {
+            final GwReply reply = (GwReply) message;
             try {
-                inputC.process(pkg);
+                outputC.process(pkg);
+                replyToPlugin(reply.readOnly(), pkg.getReplyTo());
             } catch (Exception e) {
                 errorToPlugin(pkg, e);
             }
-            // Interconnection controller processing
-            final GwMessage message = pkg.getMessage();
-            try {
-                interConnC.process(pkg);
-            } catch (Exception e) {
-                errorToPlugin(pkg, e);
-            }
-            // If ICC left a request, then it's a work for a plugin
-            if (message instanceof GwRequest) {
-                final GwRequest request = (GwRequest) message;
-                if (!requestToPlugin(request.readOnly(), pkg.getTargetProtocol())) {
-                    sendFutureException(new GatewayException(request, Reason.UNAVAILABLE_PLUGIN));
-                }
-            }
-            // On the other hand, if ICC left a reply, then pass to OC to continue processing
-            else if (message instanceof GwReply) {
-                final GwReply reply = (GwReply) message;
-                try {
-                    outputC.process(pkg);
-                    replyToPlugin(reply.readOnly(), pkg.getReplyTo());
-                } catch (Exception e) {
-                    errorToPlugin(pkg, e);
-                }
-            }
-        });
+        }
     }
 
     private void processReply(final Package pkg) {
-        eventExecutor.submit(() -> {
-            final GwReply reply = (GwReply) pkg.getMessage();
+        final GwReply reply = (GwReply) pkg.getMessage();
 
-            // Interconnection controller processing
-            try {
-                interConnC.process(pkg);
-            } catch (Exception e) {
-                if (e instanceof StopProcessException) {
-                    throw (StopProcessException) e;
-                }
-                throw new StopProcessException();
+        // Interconnection controller processing
+        try {
+            interConnC.process(pkg);
+        } catch (Exception e) {
+            if (e instanceof StopProcessException) {
+                throw (StopProcessException) e;
             }
-            // Output controller processing
-            try {
-                outputC.process(pkg);
-            } catch (Exception e) {
-                if (e instanceof StopProcessException) {
-                    throw (StopProcessException) e;
-                }
-                throw new StopProcessException();
+            throw new StopProcessException();
+        }
+        // Output controller processing
+        try {
+            outputC.process(pkg);
+        } catch (Exception e) {
+            if (e instanceof StopProcessException) {
+                throw (StopProcessException) e;
             }
-            replyToPlugin(reply.readOnly(), pkg.getReplyTo());
-        });
+            throw new StopProcessException();
+        }
+        replyToPlugin(reply.readOnly(), pkg.getReplyTo());
     }
 
     private boolean requestToPlugin(final GwRequest request, final String targetProtocol) {
         final PluginData pd = pluginsMap.get(targetProtocol);
         if (pd != null && pd.client != null) {
-            pd.client.handleRequest(request);
+            pd.clientExecutor.execute(() -> pd.client.handleRequest(request));
             return true;
         }
         return false;
@@ -256,13 +281,15 @@ public class CommunicationManager {
         replyTo.forEach((protocol, sequences) -> {
             final PluginData pd = pluginsMap.get(protocol);
             if (pd.server != null) {
-                for (final long sequence : sequences) {
-                    if (sequence == 0) {
-                        pd.server.handleReply(reply.withSequence(0));
-                    } else {
-                        pd.provideReply(reply.withSequence(sequence));
+                pd.serverExecutor.execute(() -> {
+                    for (final long sequence : sequences) {
+                        if (sequence == 0) {
+                            pd.server.handleReply(reply.withSequence(0));
+                        } else {
+                            pd.provideReply(reply.withSequence(sequence));
+                        }
                     }
-                }
+                });
             }
         });
     }
@@ -283,7 +310,10 @@ public class CommunicationManager {
         private final String protocol;
 
         private PluginClient client;
+        private ExecutorService clientExecutor;
+
         private PluginServer server;
+        private ExecutorService serverExecutor;
 
         private PluginData(final String protocol) {
             this.protocol = protocol;
