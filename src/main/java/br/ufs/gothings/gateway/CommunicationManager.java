@@ -10,6 +10,7 @@ import br.ufs.gothings.core.plugin.ReplyLink;
 import br.ufs.gothings.gateway.InterconnectionController.ObserveList;
 import br.ufs.gothings.gateway.common.Controller;
 import br.ufs.gothings.gateway.common.Package;
+import br.ufs.gothings.gateway.common.Sequencer;
 import br.ufs.gothings.gateway.common.StopProcessException;
 import org.apache.commons.lang3.concurrent.BasicThreadFactory;
 import org.apache.logging.log4j.LogManager;
@@ -20,7 +21,6 @@ import java.time.Instant;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * @author Wagner Macedo
@@ -31,7 +31,7 @@ public class CommunicationManager {
     private final ScheduledExecutorService timer = Executors.newSingleThreadScheduledExecutor();
     private final ThreadGroup pluginsGroup = new ThreadGroup("GW-plugins");
 
-    private final AtomicLong sequenceGen = new AtomicLong(0);
+    private final Sequencer sequencer = new Sequencer();
     private final Map<String, PluginData> pluginsMap = new ConcurrentHashMap<>();
     private final Map<Long, FutureReply> waitingReplies = new ConcurrentHashMap<>();
 
@@ -107,7 +107,7 @@ public class CommunicationManager {
                 case READ:
                 case UPDATE:
                 case DELETE:
-                    request.setSequence(sequenceGen.updateAndGet(i -> ++i == 0 ? 1 : i));
+                    request.setSequence(sequencer.nextNormal());
                     break;
                 case OBSERVE:
                 case UNOBSERVE:
