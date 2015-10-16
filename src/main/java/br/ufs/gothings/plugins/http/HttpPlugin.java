@@ -51,6 +51,18 @@ public class HttpPlugin implements PluginServer {
     }
 
     @Override
+    public String getProtocol() {
+        return GW_PROTOCOL;
+    }
+
+    @Override
+    public Settings settings() {
+        return settings;
+    }
+
+    /* Server implementation */
+
+    @Override
     public void handleReply(final GwReply reply) {
         // do nothing => this plugin doesn't handle independent replies
     }
@@ -66,15 +78,5 @@ public class HttpPlugin implements PluginServer {
             throw new IllegalStateException("plugin already started");
         }
         this.requestLink = requestLink;
-    }
-
-    @Override
-    public String getProtocol() {
-        return GW_PROTOCOL;
-    }
-
-    @Override
-    public Settings settings() {
-        return settings;
     }
 }

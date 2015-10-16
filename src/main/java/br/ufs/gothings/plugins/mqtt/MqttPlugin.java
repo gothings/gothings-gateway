@@ -42,6 +42,18 @@ public class MqttPlugin implements PluginClient {
     }
 
     @Override
+    public String getProtocol() {
+        return GW_PROTOCOL;
+    }
+
+    @Override
+    public Settings settings() {
+        return settings;
+    }
+
+    /* Client implementation */
+
+    @Override
     public void handleRequest(final GwRequest request) {
         client.sendRequest(request);
     }
@@ -52,15 +64,5 @@ public class MqttPlugin implements PluginClient {
             throw new IllegalStateException("plugin already started");
         }
         this.replyLink = replyLink;
-    }
-
-    @Override
-    public String getProtocol() {
-        return GW_PROTOCOL;
-    }
-
-    @Override
-    public Settings settings() {
-        return settings;
     }
 }
