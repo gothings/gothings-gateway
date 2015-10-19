@@ -34,9 +34,7 @@ public class MqttPluginServer {
     private final RequestLink requestLink;
     private final Settings settings;
 
-    private SimpleMessaging messaging;
-    private NettyAcceptor acceptor;
-    private ProtocolProcessor processor;
+    private Runnable stopAction;
 
     MqttPluginServer(final RequestLink requestLink, final Settings settings) {
         this.requestLink = requestLink;
@@ -45,34 +43,40 @@ public class MqttPluginServer {
 
     void start() {
         System.out.println(requestLink);
-        messaging = SimpleMessaging.getInstance();
+        final SimpleMessaging messaging = SimpleMessaging.getInstance();
         final MoquetteConfig config = new MoquetteConfig();
         config.setProperty(PORT_PROPERTY_NAME, String.valueOf(settings.get(Settings.SERVER_PORT)));
 
-        processor = messaging.init(config);
+        final ProtocolProcessor processor = messaging.init(config);
 
         // Hacking moquette with reflection to achieve my goals.
         // NOTE: I'll try, in the future, to put native support for some of these hacks.
-        hacksMoquette();
+        hacksMoquette(messaging, processor, requestLink);
 
-        acceptor = new NettyAcceptor();
+        final NettyAcceptor acceptor = new NettyAcceptor();
         try {
             acceptor.initialize(processor, config);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
+
+        stopAction = () -> {
+            acceptor.close();
+            messaging.shutdown();
+        };
     }
 
     void stop() {
-        acceptor.close();
-        messaging.shutdown();
-        processor = null;
+        stopAction.run();
     }
 
     /**
      *  Prepare moquette intercept handler for use.
      */
-    private void hacksMoquette() {
+    private static void hacksMoquette(final SimpleMessaging messaging,
+                                      final ProtocolProcessor processor,
+                                      final RequestLink requestLink)
+    {
         final Object m_interceptor = getFieldValue(messaging, "m_interceptor");
         final List<InterceptHandler> handlers = getFieldValue(m_interceptor, "handlers");
         final MoquetteIntercept moquetteIntercept = (MoquetteIntercept) handlers.get(0);
