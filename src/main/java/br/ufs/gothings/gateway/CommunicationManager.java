@@ -142,23 +142,18 @@ public class CommunicationManager {
             final Thread pluginThread;
             if (pd.client == pd.server) {
                 pluginThread = new Thread(pluginsGroup, () -> {
-                    pd.clientExecutor = pd.serverExecutor = Executors.newSingleThreadExecutor(new BasicThreadFactory.Builder()
-                            .namingPattern("GW-PluginClient-" + pd.getProtocol())
-                            .build());
+                    pd.clientExecutor = newExecutorService("GW-PluginClient-" + pd.getProtocol());
+                    pd.serverExecutor = newExecutorService("GW-PluginServer-" + pd.getProtocol());
                     pd.client.start();
                 });
             } else {
                 pluginThread = new Thread(pluginsGroup, () -> {
                     if (pd.client != null) {
-                        pd.clientExecutor = Executors.newSingleThreadExecutor(new BasicThreadFactory.Builder()
-                                .namingPattern("GW-PluginClient-" + pd.getProtocol())
-                                .build());
+                        pd.clientExecutor = newExecutorService("GW-PluginClient-" + pd.getProtocol());
                         pd.client.start();
                     }
                     if (pd.server != null) {
-                        pd.serverExecutor = Executors.newSingleThreadExecutor(new BasicThreadFactory.Builder()
-                                .namingPattern("GW-PluginServer-" + pd.getProtocol())
-                                .build());
+                        pd.serverExecutor = newExecutorService("GW-PluginServer-" + pd.getProtocol());
                         pd.server.start();
                     }
                 });
@@ -178,6 +173,12 @@ public class CommunicationManager {
 
         timer.scheduleAtFixedRate(this::sweepWaitingReplies, 1, 1, TimeUnit.MINUTES);
         Runtime.getRuntime().addShutdownHook(new Thread(this::stop));
+    }
+
+    private static ExecutorService newExecutorService(final String name) {
+        return Executors.newSingleThreadExecutor(new BasicThreadFactory.Builder()
+                .namingPattern(name)
+                .build());
     }
 
     public void stop() {
