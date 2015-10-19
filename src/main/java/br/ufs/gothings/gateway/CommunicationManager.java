@@ -141,7 +141,12 @@ public class CommunicationManager {
         for (final PluginData pd : pluginsMap.values()) {
             final Thread pluginThread;
             if (pd.client == pd.server) {
-                pluginThread = new Thread(pluginsGroup, pd.client::start);
+                pluginThread = new Thread(pluginsGroup, () -> {
+                    pd.clientExecutor = pd.serverExecutor = Executors.newSingleThreadExecutor(new BasicThreadFactory.Builder()
+                            .namingPattern("GW-PluginClient-" + pd.getProtocol())
+                            .build());
+                    pd.client.start();
+                });
             } else {
                 pluginThread = new Thread(pluginsGroup, () -> {
                     if (pd.client != null) {
