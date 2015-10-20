@@ -80,7 +80,7 @@ public class MqttPlugin implements PluginClient, PluginServer {
 
     @Override
     public void handleReply(final GwReply reply) {
-
+        server.receiveReply(reply);
     }
 
     @Override

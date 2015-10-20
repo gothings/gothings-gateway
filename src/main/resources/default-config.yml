@@ -6,4 +6,6 @@ plugins:
       server.port: 8080
   - protocol: mqtt
     className: br.ufs.gothings.plugins.mqtt.MqttPlugin
-    type: client
+    type: client+server
+    properties:
+      server.port: 11883

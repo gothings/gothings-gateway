@@ -2,12 +2,20 @@ package br.ufs.gothings.plugins.mqtt;
 
 import br.ufs.gothings.core.Settings;
 import br.ufs.gothings.core.message.GwHeaders;
+import br.ufs.gothings.core.message.GwReply;
 import br.ufs.gothings.core.message.GwRequest;
 import br.ufs.gothings.core.message.headers.Operation;
 import br.ufs.gothings.core.plugin.RequestLink;
+import io.netty.util.AttributeKey;
+import org.apache.commons.lang3.RandomStringUtils;
 import org.eclipse.moquette.interception.InterceptHandler;
 import org.eclipse.moquette.interception.messages.*;
+import org.eclipse.moquette.parser.netty.Utils;
+import org.eclipse.moquette.proto.messages.AbstractMessage;
+import org.eclipse.moquette.proto.messages.ConnAckMessage;
+import org.eclipse.moquette.proto.messages.ConnectMessage;
 import org.eclipse.moquette.proto.messages.PublishMessage;
+import org.eclipse.moquette.server.ServerChannel;
 import org.eclipse.moquette.server.config.IConfig;
 import org.eclipse.moquette.server.netty.NettyAcceptor;
 import org.eclipse.moquette.spi.impl.ProtocolProcessor;
@@ -21,6 +29,9 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -31,10 +42,17 @@ import static org.eclipse.moquette.commons.Constants.*;
  * @author Wagner Macedo
  */
 public class MqttPluginServer {
+    // Extreme unique client id (maximum length random ascii)
+    private static final String EMBEDDED_CLIENT_ID = RandomStringUtils.randomAscii(65535);
+
     private final RequestLink requestLink;
     private final Settings settings;
 
-    private Runnable stopAction;
+    private final AtomicInteger messageIdGen = new AtomicInteger(0);
+    private Runnable stopAction = () -> {};
+
+    private EmbeddedChannel embeddedChannel;
+    private ProtocolProcessorProxy processorProxy;
 
     MqttPluginServer(final RequestLink requestLink, final Settings settings) {
         this.requestLink = requestLink;
@@ -42,40 +60,78 @@ public class MqttPluginServer {
     }
 
     void start() {
-        System.out.println(requestLink);
+        // Get messaging instance and set moquette port
         final SimpleMessaging messaging = SimpleMessaging.getInstance();
         final MoquetteConfig config = new MoquetteConfig();
         config.setProperty(PORT_PROPERTY_NAME, String.valueOf(settings.get(Settings.SERVER_PORT)));
 
+        // Initiate the processor and instantiate the acceptor
         final ProtocolProcessor processor = messaging.init(config);
+        final NettyAcceptor acceptor = new NettyAcceptor();
+
+        // Define the stop instructions
+        stopAction = () -> {
+            try {
+                acceptor.close();
+            } finally {
+                messaging.shutdown();
+                embeddedChannel = null;
+                processorProxy = null;
+            }
+        };
 
         // Hacking moquette with reflection to achieve my goals.
         // NOTE: I'll try, in the future, to put native support for some of these hacks.
-        hacksMoquette(messaging, processor, requestLink);
+        final MoquetteIntercept mi = hacksMoquette(messaging, processor, requestLink);
+        processorProxy = mi.processorProxy;
 
-        final NettyAcceptor acceptor = new NettyAcceptor();
+        // Connect the embedded channel
+        embeddedChannel = new EmbeddedChannel(stopAction);
+        processor.processConnect(embeddedChannel, buildConnectMessage());
+        if (embeddedChannel.getReturnCode() != ConnAckMessage.CONNECTION_ACCEPTED) {
+            stopAction.run();
+            return;
+        }
+
         try {
             acceptor.initialize(processor, config);
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            stopAction.run();
         }
+    }
 
-        stopAction = () -> {
-            acceptor.close();
-            messaging.shutdown();
-        };
+    private static ConnectMessage buildConnectMessage() {
+        final ConnectMessage connectMessage = new ConnectMessage();
+        connectMessage.setClientID(EMBEDDED_CLIENT_ID);
+        connectMessage.setUserFlag(false);
+        connectMessage.setWillFlag(false);
+        connectMessage.setCleanSession(true);
+        connectMessage.setProtocolVersion(Utils.VERSION_3_1_1);
+        return connectMessage;
     }
 
     void stop() {
         stopAction.run();
     }
 
+    public void receiveReply(final GwReply reply) {
+        final PublishMessage msg = new PublishMessage();
+        msg.setMessageID(messageIdGen.incrementAndGet());
+        msg.setRetainFlag(false);
+        msg.setPayload(reply.payload().asBuffer());
+        final GwHeaders h = reply.headers();
+        msg.setTopicName(h.getPath());
+        msg.setQos(AbstractMessage.QOSType.MOST_ONE);
+
+        processorProxy.processPublish(embeddedChannel, msg);
+    }
+
     /**
      *  Prepare moquette intercept handler for use.
      */
-    private static void hacksMoquette(final SimpleMessaging messaging,
-                                      final ProtocolProcessor processor,
-                                      final RequestLink requestLink)
+    private static MoquetteIntercept hacksMoquette(final SimpleMessaging messaging,
+                                                   final ProtocolProcessor processor,
+                                                   final RequestLink requestLink)
     {
         final Object m_interceptor = getFieldValue(messaging, "m_interceptor");
         final List<InterceptHandler> handlers = getFieldValue(m_interceptor, "handlers");
@@ -86,6 +142,8 @@ public class MqttPluginServer {
 
         // add proxy for forbidden methods in the ProtocolProcessor
         moquetteIntercept.processorProxy = new ProtocolProcessorProxy(processor);
+
+        return moquetteIntercept;
     }
 
     @SuppressWarnings("unchecked")
@@ -139,8 +197,8 @@ public class MqttPluginServer {
     public static final class MoquetteAuthorizator implements IAuthorizator {
         @Override
         public boolean canWrite(final String topic, final String user, final String client) {
-            /* always false because the real publishing is done by MoquetteIntercept#onDenyPublish */
-            return false;
+            /* only the embedded client id is allowed to publish */
+            return Objects.equals(EMBEDDED_CLIENT_ID, client);
         }
 
         @Override
@@ -153,11 +211,15 @@ public class MqttPluginServer {
         private RequestLink requestLink;
         private ProtocolProcessorProxy processorProxy;
 
+        private final ScheduledExecutorService delayer = Executors.newSingleThreadScheduledExecutor();
         private final Map<String, ClientInfo> clients = new ConcurrentHashMap<>();
         private final Map<String, SubscriptionInfo> allSubscriptions = new ConcurrentHashMap<>();
 
         @Override
         public void onConnect(final InterceptConnectMessage msg) {
+            // Ignore embedded client id
+            if (Objects.equals(EMBEDDED_CLIENT_ID, msg.getClientID())) return;
+
             // get or create an entry with this clientID
             final ClientInfo client = clients.computeIfAbsent(msg.getClientID(),
                     k -> new ClientInfo(msg.isCleanSession()));
@@ -168,6 +230,9 @@ public class MqttPluginServer {
 
         @Override
         public void onDisconnect(final InterceptDisconnectMessage msg) {
+            // Ignore embedded client id
+            if (Objects.equals(EMBEDDED_CLIENT_ID, msg.getClientID())) return;
+
             // remove the entry with this clientID
             final ClientInfo client = clients.remove(msg.getClientID());
             // remove old subscriptions if connection was a clean session
@@ -187,6 +252,9 @@ public class MqttPluginServer {
          */
         @Override
         public void onSubscribe(final InterceptSubscribeMessage msg) {
+            // Ignore embedded client id
+            if (Objects.equals(EMBEDDED_CLIENT_ID, msg.getClientID())) return;
+
             final ClientInfo client = clients.get(msg.getClientID());
             if (client != null) {
                 final SubscriptionInfo subscription = getSubscription(msg.getTopicFilter());
@@ -211,6 +279,9 @@ public class MqttPluginServer {
 
         @Override
         public void onUnsubscribe(final InterceptUnsubscribeMessage msg) {
+            // Ignore embedded client id
+            if (Objects.equals(EMBEDDED_CLIENT_ID, msg.getClientID())) return;
+
             final ClientInfo client = clients.get(msg.getClientID());
             if (client != null) {
                 // remove from the list of subscriptions of this clientID
@@ -230,6 +301,9 @@ public class MqttPluginServer {
 
         @Override
         public void onDenyPublish(final InterceptPublishMessage msg) {
+            // Ignore embedded client id
+            if (Objects.equals(EMBEDDED_CLIENT_ID, msg.getClientID())) return;
+
             // send internal request with operation=CREATE, operation=UPDATE or operation=DELETE
             final GwRequest request = new GwRequest();
             final GwHeaders h = request.headers();
@@ -256,9 +330,59 @@ public class MqttPluginServer {
                 if (qos == 1) {
                     processorProxy.sendPubAck(msg.getClientID(), realMsg.getMessageID());
                 } else if (qos == 2) {
+                    // QoS 2: part 1
                     processorProxy.sendPubRec(msg.getClientID(), realMsg.getMessageID());
+                    // QoS 2: part 2 (ugly workaround as moquette doesn't allow to change processor flow)
+                    delayer.schedule(() -> processorProxy.sendPubComp(msg.getClientID(), realMsg.getMessageID()),
+                            30, TimeUnit.SECONDS);
                 }
             }
+        }
+    }
+
+    private static final class EmbeddedChannel implements ServerChannel {
+        private final Runnable stopAction;
+
+        private final Map<Object, Object> attributes = new ConcurrentHashMap<>();
+        private byte returnCode;
+
+        public EmbeddedChannel(final Runnable stopAction) {
+            this.stopAction = stopAction;
+        }
+
+        @Override
+        public Object getAttribute(final AttributeKey<Object> key) {
+            return attributes.get(key);
+        }
+
+        @Override
+        public void setAttribute(final AttributeKey<Object> key, final Object value) {
+            attributes.put(key, value);
+        }
+
+        @Override
+        public void setIdleTime(final int idleTime) {
+            // not needed on this implementation
+        }
+
+        @Override
+        public void close(final boolean immediately) {
+            stopAction.run();
+        }
+
+        @Override
+        public void write(final Object value) {
+            try {
+                final AbstractMessage msg = (AbstractMessage) value;
+                if (msg instanceof ConnAckMessage) {
+                    returnCode = ((ConnAckMessage) msg).getReturnCode();
+                }
+            } catch (RuntimeException ignored) {
+            }
+        }
+
+        public byte getReturnCode() {
+            return returnCode;
         }
     }
 
@@ -267,11 +391,13 @@ public class MqttPluginServer {
 
         private final Method p_sendPubAck;
         private final Method p_sendPubRec;
+        private final Method p_sendPubComp;
 
         public ProtocolProcessorProxy(final ProtocolProcessor processor) {
             this.processor = processor;
             p_sendPubAck = getMethod(processor, "sendPubAck", PubAckEvent.class);
             p_sendPubRec = getMethod(processor, "sendPubRec", String.class, int.class);
+            p_sendPubComp = getMethod(processor, "sendPubComp", String.class, int.class);
         }
 
         public void sendPubAck(final String clientID, final int messageID) {
@@ -282,12 +408,20 @@ public class MqttPluginServer {
             invoke(p_sendPubRec, clientID, messageID);
         }
 
+        public void sendPubComp(final String clientID, final Integer messageID) {
+            invoke(p_sendPubComp, clientID, messageID);
+        }
+
         private void invoke(final Method method, final Object... args) {
             try {
                 method.invoke(processor, args);
             } catch (IllegalAccessException | InvocationTargetException e) {
                 throw new RuntimeException(e);
             }
+        }
+
+        public void processPublish(final EmbeddedChannel embeddedChannel, final PublishMessage msg) {
+            processor.processPublish(embeddedChannel, msg);
         }
     }
 
