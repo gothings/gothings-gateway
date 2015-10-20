@@ -88,7 +88,10 @@ public class InterconnectionController implements Controller {
             final String sourceProtocol = pkg.getSourceProtocol();
 
             try {
+                // Make uri and reply path
                 final URI uri = createURI(reply, sourceProtocol);
+                reply.headers().setPath("/" + uri.toString().replaceFirst(":/", ""));
+
                 final Map<String, long[]> observers = observeList.get(uri.toString());
                 pkg.setReplyTo(observers);
             } catch (URISyntaxException e) {
