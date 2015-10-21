@@ -47,20 +47,16 @@ public class MqttPluginServer {
     // Extreme unique client id (maximum length random ascii)
     private static final String EMBEDDED_CLIENT_ID = RandomStringUtils.randomAscii(65535);
 
-    private final RequestLink requestLink;
+    private final Shared shared;
     private final Settings settings;
 
-    private final ScheduledExecutorService delayer = Executors.newSingleThreadScheduledExecutor();
     private final AtomicInteger messageIdGen = new AtomicInteger(0);
     private Runnable stopAction = () -> {};
 
     private EmbeddedChannel embeddedChannel;
-    private ProtocolProcessorProxy processorProxy;
-    private Set<String> forbiddenTopics;
-    private Map<String, ClientInfo> clients;
 
     MqttPluginServer(final RequestLink requestLink, final Settings settings) {
-        this.requestLink = requestLink;
+        this.shared = new Shared(requestLink);
         this.settings = settings;
     }
 
@@ -80,17 +76,14 @@ public class MqttPluginServer {
                 acceptor.close();
             } finally {
                 messaging.shutdown();
+                shared.release();
                 embeddedChannel = null;
-                processorProxy = null;
             }
         };
 
         // Hacking moquette with reflection to achieve my goals.
         // NOTE: I'll try, in the future, to put native support for some of these hacks.
-        final MoquetteIntercept mi = hacksMoquette(processor, requestLink);
-        processorProxy = mi.processorProxy;
-        forbiddenTopics = mi.forbiddenTopics;
-        clients = mi.clients;
+        hacksMoquette(shared, processor);
 
         // Connect the embedded channel
         embeddedChannel = new EmbeddedChannel(stopAction);
@@ -130,7 +123,7 @@ public class MqttPluginServer {
         msg.setTopicName(h.getPath());
         msg.setQos(AbstractMessage.QOSType.MOST_ONE);
 
-        processorProxy.processPublish(embeddedChannel, msg);
+        shared.processorProxy.processPublish(embeddedChannel, msg);
     }
 
     public void receiveError(final GwError error) {
@@ -144,16 +137,16 @@ public class MqttPluginServer {
             case INTERNAL_ERROR:
                 // Instruct the authorizator to don't accept this topic anymore
                 final String topic = error.headers().getPath();
-                forbiddenTopics.add(topic);
+                shared.forbiddenTopics.add(topic);
                 // Remove the topics from all the clients
-                clients.forEach((clientID, clientInfo) -> {
+                shared.clients.forEach((clientID, clientInfo) -> {
                     // Remove from plugin data set
                     try {
                         clientInfo.removeSubscription(topic);
                     } catch (NoSuchElementException ignored) {
                     }
                     // Remove from moquette data set
-                    processorProxy.removeSubscription(topic, clientID);
+                    shared.processorProxy.removeSubscription(topic, clientID);
                 });
                 break;
             // The reasons target/path not found don't mean the topic won't be find on next observes, so try again on
@@ -161,7 +154,7 @@ public class MqttPluginServer {
             case TARGET_NOT_FOUND:
             case PATH_NOT_FOUND:
                 final GwRequest request = new GwRequest(error.headers(), null);
-                delayer.schedule(() -> requestLink.send(request), 30, TimeUnit.SECONDS);
+                shared.delayer.schedule(() -> shared.requestLink.send(request), 30, TimeUnit.SECONDS);
                 break;
         }
     }
@@ -169,24 +162,24 @@ public class MqttPluginServer {
     /**
      *  Prepare moquette intercept handler for use.
      */
-    private static MoquetteIntercept hacksMoquette(final ProtocolProcessor processor,
-                                                   final RequestLink requestLink)
+    private static void hacksMoquette(final Shared shared, final ProtocolProcessor processor)
     {
         final Object m_interceptor = getFieldValue(processor, "m_interceptor");
         final List<InterceptHandler> handlers = getFieldValue(m_interceptor, "handlers");
         final MoquetteIntercept moquetteIntercept = (MoquetteIntercept) handlers.get(0);
 
-        // add reference for the RequestLink
-        moquetteIntercept.requestLink = requestLink;
-
         // add proxy for forbidden methods in the ProtocolProcessor
-        moquetteIntercept.processorProxy = new ProtocolProcessorProxy(processor);
+        shared.processorProxy = new ProtocolProcessorProxy(processor);
 
         // add reference for the authorizator forbiddenTopics map
         final MoquetteAuthorizator authorizator = getFieldValue(processor, "m_authorizator");
-        moquetteIntercept.forbiddenTopics = authorizator.forbiddenTopics;
+        shared.forbiddenTopics = authorizator.forbiddenTopics;
 
-        return moquetteIntercept;
+        // add reference for the registered clients
+        shared.clients = moquetteIntercept.clients;
+
+        // add to the intercept handler a reference for the shared plugin data
+        moquetteIntercept.shared = shared;
     }
 
     @SuppressWarnings("unchecked")
@@ -253,11 +246,8 @@ public class MqttPluginServer {
     }
 
     public static final class MoquetteIntercept implements InterceptHandler {
-        private RequestLink requestLink;
-        private ProtocolProcessorProxy processorProxy;
-        private Set<String> forbiddenTopics;
+        private Shared shared;
 
-        private final ScheduledExecutorService delayer = Executors.newSingleThreadScheduledExecutor();
         private final Map<String, ClientInfo> clients = new ConcurrentHashMap<>();
         private final Map<String, SubscriptionInfo> allSubscriptions = new ConcurrentHashMap<>();
 
@@ -314,7 +304,7 @@ public class MqttPluginServer {
                     h.setQoS(msg.getRequestedQos().byteValue());
                     h.setPath(msg.getTopicFilter());
 
-                    requestLink.send(request);
+                    shared.requestLink.send(request);
                 }
             }
         }
@@ -340,7 +330,7 @@ public class MqttPluginServer {
                     h.setOperation(Operation.UNOBSERVE);
                     h.setPath(msg.getTopicFilter());
 
-                    requestLink.send(request);
+                    shared.requestLink.send(request);
                 }
             }
         }
@@ -366,7 +356,7 @@ public class MqttPluginServer {
             }
 
             // the internal request
-            requestLink.send(request);
+            shared.requestLink.send(request);
 
             // send confirmation to the external client
             final byte qos = msg.getQos().byteValue();
@@ -374,12 +364,13 @@ public class MqttPluginServer {
                 // hack to get message id
                 final PublishMessage realMsg = getFieldValue(msg, "msg");
                 if (qos == 1) {
-                    processorProxy.sendPubAck(msg.getClientID(), realMsg.getMessageID());
+                    shared.processorProxy.sendPubAck(msg.getClientID(), realMsg.getMessageID());
                 } else if (qos == 2) {
                     // QoS 2: part 1
-                    processorProxy.sendPubRec(msg.getClientID(), realMsg.getMessageID());
+                    shared.processorProxy.sendPubRec(msg.getClientID(), realMsg.getMessageID());
                     // QoS 2: part 2 (ugly workaround as moquette doesn't allow to change processor flow)
-                    delayer.schedule(() -> processorProxy.sendPubComp(msg.getClientID(), realMsg.getMessageID()),
+                    shared.delayer.schedule(
+                            () -> shared.processorProxy.sendPubComp(msg.getClientID(), realMsg.getMessageID()),
                             30, TimeUnit.SECONDS);
                 }
             }
@@ -543,6 +534,25 @@ public class MqttPluginServer {
 
         public int getCounter() {
             return counter.get();
+        }
+    }
+
+    private static final class Shared {
+        private final RequestLink requestLink;
+        private final ScheduledExecutorService delayer = Executors.newSingleThreadScheduledExecutor();
+
+        private ProtocolProcessorProxy processorProxy;
+        private Set<String> forbiddenTopics;
+        private Map<String, ClientInfo> clients;
+
+        private Shared(final RequestLink requestLink) {
+            this.requestLink = requestLink;
+        }
+
+        private void release() {
+            processorProxy = null;
+            forbiddenTopics = null;
+            clients = null;
         }
     }
 }
