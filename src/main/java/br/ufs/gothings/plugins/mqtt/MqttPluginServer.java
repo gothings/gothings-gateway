@@ -82,7 +82,7 @@ public class MqttPluginServer {
 
         // Hacking moquette with reflection to achieve my goals.
         // NOTE: I'll try, in the future, to put native support for some of these hacks.
-        final MoquetteIntercept mi = hacksMoquette(messaging, processor, requestLink);
+        final MoquetteIntercept mi = hacksMoquette(processor, requestLink);
         processorProxy = mi.processorProxy;
 
         // Connect the embedded channel
@@ -129,11 +129,10 @@ public class MqttPluginServer {
     /**
      *  Prepare moquette intercept handler for use.
      */
-    private static MoquetteIntercept hacksMoquette(final SimpleMessaging messaging,
-                                                   final ProtocolProcessor processor,
+    private static MoquetteIntercept hacksMoquette(final ProtocolProcessor processor,
                                                    final RequestLink requestLink)
     {
-        final Object m_interceptor = getFieldValue(messaging, "m_interceptor");
+        final Object m_interceptor = getFieldValue(processor, "m_interceptor");
         final List<InterceptHandler> handlers = getFieldValue(m_interceptor, "handlers");
         final MoquetteIntercept moquetteIntercept = (MoquetteIntercept) handlers.get(0);
 
