@@ -1,7 +1,5 @@
 package br.ufs.gothings.plugins.mqtt;
 
-import br.ufs.gothings.core.message.GwError;
-import br.ufs.gothings.core.message.GwReply;
 import br.ufs.gothings.core.message.GwRequest;
 import br.ufs.gothings.core.Settings;
 import br.ufs.gothings.core.plugin.PluginClient;
@@ -77,16 +75,6 @@ public class MqttPlugin implements PluginClient, PluginServer {
     }
 
     /* Server implementation */
-
-    @Override
-    public void handleReply(final GwReply reply) {
-        server.receiveReply(reply);
-    }
-
-    @Override
-    public void handleError(final GwError error) {
-        server.receiveError(error);
-    }
 
     @Override
     public void setUp(final RequestLink requestLink) {

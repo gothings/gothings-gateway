@@ -9,6 +9,7 @@ import br.ufs.gothings.core.message.GwRequest;
 import br.ufs.gothings.core.message.headers.Operation;
 import br.ufs.gothings.gateway.common.Controller;
 import br.ufs.gothings.gateway.common.Package;
+import br.ufs.gothings.gateway.common.Sequencer;
 import br.ufs.gothings.gateway.common.StopProcessException;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.NameValuePair;
@@ -75,7 +76,7 @@ public class InterconnectionController implements Controller {
                         observeList.add(s_uri, pkg.getSourceProtocol(), request.getSequence());
                         break;
                     case UNOBSERVE:
-                        if (!observeList.remove(s_uri, pkg.getSourceProtocol(), 0)) {
+                        if (!observeList.remove(s_uri, pkg.getSourceProtocol(), request.getSequence())) {
                             throw new StopProcessException();
                         }
                         break;
@@ -185,7 +186,7 @@ public class InterconnectionController implements Controller {
                             while (it.hasNext()) {
                                 final long next = it.next();
                                 array[i++] = next;
-                                if (next != 0) {
+                                if (!Sequencer.isObserve(next)) {
                                     it.remove();
                                 }
                             }

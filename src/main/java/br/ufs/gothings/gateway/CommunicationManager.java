@@ -4,6 +4,7 @@ import br.ufs.gothings.core.Settings;
 import br.ufs.gothings.core.common.GatewayException;
 import br.ufs.gothings.core.common.Reason;
 import br.ufs.gothings.core.message.*;
+import br.ufs.gothings.core.message.headers.Operation;
 import br.ufs.gothings.core.plugin.*;
 import br.ufs.gothings.gateway.InterconnectionController.ObserveList;
 import br.ufs.gothings.gateway.common.Controller;
@@ -108,8 +109,11 @@ public class CommunicationManager {
                     request.setSequence(sequencer.nextNormal());
                     break;
                 case OBSERVE:
+                    request.setSequence(sequencer.nextObserve());
+                    break;
                 case UNOBSERVE:
-                    request.setSequence(0);
+                    // Call to check if has a sequence. Unobserve requests must arrive already sequenced.
+                    request.getSequence();
                     break;
             }
 
@@ -118,8 +122,8 @@ public class CommunicationManager {
             pkg.setSourceProtocol(protocol);
             processRequest(pkg);
 
-            // Requests with OBSERVE sequence don't wait for a reply
-            if (request.getSequence() != 0) {
+            // UNOBSERVE request don't wait for a reply
+            if (request.headers().getOperation() != Operation.UNOBSERVE) {
                 return pd.addFuture(request);
             }
             return null;
@@ -287,11 +291,7 @@ public class CommunicationManager {
             if (pd.server != null) {
                 pd.serverExecutor.execute(() -> {
                     for (final long sequence : sequences) {
-                        if (sequence == 0) {
-                            pd.server.handleReply(reply.withSequence(0));
-                        } else {
-                            pd.provideReply(reply.withSequence(sequence));
-                        }
+                        pd.provideReply(reply.withSequence(sequence));
                     }
                 });
             }
@@ -324,14 +324,26 @@ public class CommunicationManager {
         }
 
         public FutureReply addFuture(final GwRequest request) {
-            final CompletableReply future = new CompletableReply();
+            final CompletableReply future;
+            if (Sequencer.isObserve(request.getSequence())) {
+                future = new AsynchronousReply();
+            } else {
+                future = new SynchronousReply();
+            }
             waitingReplies.put(request.getSequence(), future);
             return future;
         }
 
         public void provideReply(final GwReply reply) {
             try {
-                final CompletableReply future = waitingReplies.remove(reply.getSequence());
+                // Remove only non-observe replies
+                final CompletableReply future;
+                if (Sequencer.isObserve(reply.getSequence())) {
+                    future = waitingReplies.get(reply.getSequence());
+                } else {
+                    future = waitingReplies.remove(reply.getSequence());
+                }
+                // Send the reply to be get by other thread
                 future.complete(reply);
             } catch (NullPointerException e) {
                 logger.error("not found a message with sequence %d to send the reply", reply.getSequence());
@@ -343,32 +355,11 @@ public class CommunicationManager {
         }
     }
 
-    private static class CompletableReply implements FutureReply {
-        private volatile Instant threshold = Instant.now();
-        private volatile CompletableFuture<GwReply> future;
+    private abstract static class CompletableReply implements FutureReply {
+        protected volatile CompletableFuture<GwReply> future;
 
         public CompletableReply() {
             future = new CompletableFuture<>();
-        }
-
-        @Override
-        public GwReply get() throws InterruptedException, ExecutionException {
-            // far future threshold as we don't know how much time is spent waiting here
-            threshold = Instant.MAX;
-            try {
-                return future.get();
-            } catch (InterruptedException e) {
-                // usually when this exception is catch means program termination,
-                // but as we can't be sure, we adjust threshold for now.
-                threshold = Instant.now();
-                throw e;
-            }
-        }
-
-        @Override
-        public GwReply get(final long timeout, final TimeUnit unit) throws InterruptedException, ExecutionException, TimeoutException {
-            threshold = Instant.now().plusMillis(unit.toMillis(timeout));
-            return future.get(timeout, unit);
         }
 
         public boolean complete(final GwReply value) {
@@ -397,10 +388,60 @@ public class CommunicationManager {
         public boolean isDone() {
             return future.isDone();
         }
+    }
+
+    private static class SynchronousReply extends CompletableReply {
+        private volatile Instant threshold = Instant.now();
+
+        public SynchronousReply() {
+            super();
+        }
+
+        @Override
+        public GwReply get() throws InterruptedException, ExecutionException {
+            // far future threshold as we don't know how much time is spent waiting here
+            threshold = Instant.MAX;
+            try {
+                return future.get();
+            } catch (InterruptedException e) {
+                // usually when this exception is catch means program termination,
+                // but as we can't be sure, we adjust threshold for now.
+                threshold = Instant.now();
+                throw e;
+            }
+        }
+
+        @Override
+        public GwReply get(final long timeout, final TimeUnit unit) throws InterruptedException, ExecutionException, TimeoutException {
+            threshold = Instant.now().plusMillis(unit.toMillis(timeout));
+            return future.get(timeout, unit);
+        }
 
         @Override
         public void setListener(final ReplyListener replyListener) {
             throw new UnsupportedOperationException();
+        }
+    }
+
+    private static class AsynchronousReply extends CompletableReply {
+        @Override
+        public GwReply get() throws InterruptedException, ExecutionException {
+            return future.get();
+        }
+
+        @Override
+        public GwReply get(final long timeout, final TimeUnit unit) throws InterruptedException, ExecutionException, TimeoutException {
+            return future.get(timeout, unit);
+        }
+
+        @Override
+        public void setListener(final ReplyListener replyListener) {
+            future.whenCompleteAsync((reply, throwable) -> {
+                if (throwable == null)
+                    replyListener.onReply(reply);
+                else
+                    replyListener.onError(((GatewayException) throwable).getErrorMessage());
+            });
         }
     }
 
@@ -413,7 +454,11 @@ public class CommunicationManager {
 
     private void sweepWaitingReplies() {
         waitingReplies.entrySet().removeIf(e -> {
-            final CompletableReply future = e.getValue();
+            final SynchronousReply future;
+            if (e.getValue() instanceof SynchronousReply)
+                future = ((SynchronousReply) e.getValue());
+            else
+                return false;
 
             // If the future hasn't getters this usually means it's been discarded...
             if (future.getNumberOfDependents() < 1) {
