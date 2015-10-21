@@ -1,6 +1,5 @@
 GoThings - TODO
 ===============
 
-- StatusMessage: create a subclass of GwMessage to be used to return errors or
-  other sort of things.
+- MqttPluginClient: recover from connection lost.
 - Model specialized request and reply headers.
