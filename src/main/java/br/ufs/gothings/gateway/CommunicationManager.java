@@ -20,6 +20,7 @@ import java.time.Instant;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 
 /**
@@ -357,37 +358,37 @@ public class CommunicationManager {
     }
 
     private abstract static class CompletableReply implements FutureReply {
-        protected volatile CompletableFuture<GwReply> future;
+        protected final AtomicReference<CompletableFuture<GwReply>> future = new AtomicReference<>();
 
         public CompletableReply() {
-            future = new CompletableFuture<>();
+            future.set(new CompletableFuture<>());
         }
 
         public boolean complete(final GwReply value) {
-            return future.complete(value);
+            return future.get().complete(value);
         }
 
         public boolean completeExceptionally(final Throwable ex) {
-            return future.completeExceptionally(ex);
+            return future.get().completeExceptionally(ex);
         }
 
         public int getNumberOfDependents() {
-            return future.getNumberOfDependents();
+            return future.get().getNumberOfDependents();
         }
 
         @Override
         public boolean cancel(final boolean mayInterruptIfRunning) {
-            return future.cancel(mayInterruptIfRunning);
+            return future.get().cancel(mayInterruptIfRunning);
         }
 
         @Override
         public boolean isCancelled() {
-            return future.isCancelled();
+            return future.get().isCancelled();
         }
 
         @Override
         public boolean isDone() {
-            return future.isDone();
+            return future.get().isDone();
         }
     }
 
@@ -403,7 +404,7 @@ public class CommunicationManager {
             // far future threshold as we don't know how much time is spent waiting here
             threshold = Instant.MAX;
             try {
-                return future.get();
+                return future.get().get();
             } catch (InterruptedException e) {
                 // usually when this exception is catch means program termination,
                 // but as we can't be sure, we adjust threshold for now.
@@ -415,7 +416,7 @@ public class CommunicationManager {
         @Override
         public GwReply get(final long timeout, final TimeUnit unit) throws InterruptedException, ExecutionException, TimeoutException {
             threshold = Instant.now().plusMillis(unit.toMillis(timeout));
-            return future.get(timeout, unit);
+            return future.get().get(timeout, unit);
         }
 
         @Override
@@ -445,22 +446,24 @@ public class CommunicationManager {
 
         private GwReply getAndReset(final long timeout, final TimeUnit unit) throws InterruptedException, TimeoutException, ExecutionException {
             try {
-                final GwReply reply = timeout > 0 ? future.get(timeout, unit) : future.get();
-                future = new CompletableFuture<>();
-                return reply;
+                final CompletableFuture<GwReply> f = future.getAndSet(new CompletableFuture<>());
+                return timeout > 0 ? f.get(timeout, unit) : f.get();
             } catch (ExecutionException e) {
-                future = new CompletableFuture<>();
+                future.set(new CompletableFuture<>());
                 throw e;
             }
         }
 
         @Override
         public void setListener(final ReplyListener replyListener) {
-            future.whenCompleteAsync(new BiConsumer<GwReply, Throwable>() {
+            future.get().whenCompleteAsync(new BiConsumer<GwReply, Throwable>() {
                 @Override
                 public void accept(final GwReply reply, final Throwable throwable) {
-                    future = new CompletableFuture<>();
-                    future.whenCompleteAsync(this);
+                    future.updateAndGet(f -> {
+                        f = new CompletableFuture<>();
+                        f.whenCompleteAsync(this);
+                        return f;
+                    });
 
                     if (throwable == null)
                         replyListener.onReply(reply);
