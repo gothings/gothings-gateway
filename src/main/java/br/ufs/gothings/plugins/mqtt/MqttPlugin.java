@@ -85,7 +85,7 @@ public class MqttPlugin implements PluginClient, PluginServer {
 
     @Override
     public void handleError(final GwError error) {
-
+        server.receiveError(error);
     }
 
     @Override

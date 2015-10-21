@@ -1,6 +1,7 @@
 package br.ufs.gothings.plugins.mqtt;
 
 import br.ufs.gothings.core.Settings;
+import br.ufs.gothings.core.message.GwError;
 import br.ufs.gothings.core.message.GwHeaders;
 import br.ufs.gothings.core.message.GwReply;
 import br.ufs.gothings.core.message.GwRequest;
@@ -22,6 +23,7 @@ import org.eclipse.moquette.spi.impl.ProtocolProcessor;
 import org.eclipse.moquette.spi.impl.SimpleMessaging;
 import org.eclipse.moquette.spi.impl.events.PubAckEvent;
 import org.eclipse.moquette.spi.impl.security.IAuthorizator;
+import org.eclipse.moquette.spi.impl.subscriptions.SubscriptionsStore;
 
 import java.io.IOException;
 import java.lang.reflect.Field;
@@ -48,11 +50,14 @@ public class MqttPluginServer {
     private final RequestLink requestLink;
     private final Settings settings;
 
+    private final ScheduledExecutorService delayer = Executors.newSingleThreadScheduledExecutor();
     private final AtomicInteger messageIdGen = new AtomicInteger(0);
     private Runnable stopAction = () -> {};
 
     private EmbeddedChannel embeddedChannel;
     private ProtocolProcessorProxy processorProxy;
+    private Set<String> forbiddenTopics;
+    private Map<String, ClientInfo> clients;
 
     MqttPluginServer(final RequestLink requestLink, final Settings settings) {
         this.requestLink = requestLink;
@@ -84,6 +89,8 @@ public class MqttPluginServer {
         // NOTE: I'll try, in the future, to put native support for some of these hacks.
         final MoquetteIntercept mi = hacksMoquette(processor, requestLink);
         processorProxy = mi.processorProxy;
+        forbiddenTopics = mi.forbiddenTopics;
+        clients = mi.clients;
 
         // Connect the embedded channel
         embeddedChannel = new EmbeddedChannel(stopAction);
@@ -126,6 +133,39 @@ public class MqttPluginServer {
         processorProxy.processPublish(embeddedChannel, msg);
     }
 
+    public void receiveError(final GwError error) {
+        switch (error.getReason()) {
+            // If target plugin is unavailable then, as we know the gateway cannot register another plugin dynamically,
+            // silently remove all subscribed clients from this topic and avoid future clients to subscribe to it.
+            case UNAVAILABLE_PLUGIN:
+            // The same action is applied for the following unrecoverable errors.
+            case INVALID_URI:
+            case OTHER:
+            case INTERNAL_ERROR:
+                // Instruct the authorizator to don't accept this topic anymore
+                final String topic = error.headers().getPath();
+                forbiddenTopics.add(topic);
+                // Remove the topics from all the clients
+                clients.forEach((clientID, clientInfo) -> {
+                    // Remove from plugin data set
+                    try {
+                        clientInfo.removeSubscription(topic);
+                    } catch (NoSuchElementException ignored) {
+                    }
+                    // Remove from moquette data set
+                    processorProxy.removeSubscription(topic, clientID);
+                });
+                break;
+            // The reasons target/path not found don't mean the topic won't be find on next observes, so try again on
+            // the future.
+            case TARGET_NOT_FOUND:
+            case PATH_NOT_FOUND:
+                final GwRequest request = new GwRequest(error.headers(), null);
+                delayer.schedule(() -> requestLink.send(request), 30, TimeUnit.SECONDS);
+                break;
+        }
+    }
+
     /**
      *  Prepare moquette intercept handler for use.
      */
@@ -141,6 +181,10 @@ public class MqttPluginServer {
 
         // add proxy for forbidden methods in the ProtocolProcessor
         moquetteIntercept.processorProxy = new ProtocolProcessorProxy(processor);
+
+        // add reference for the authorizator forbiddenTopics map
+        final MoquetteAuthorizator authorizator = getFieldValue(processor, "m_authorizator");
+        moquetteIntercept.forbiddenTopics = authorizator.forbiddenTopics;
 
         return moquetteIntercept;
     }
@@ -194,6 +238,8 @@ public class MqttPluginServer {
     }
 
     public static final class MoquetteAuthorizator implements IAuthorizator {
+        private final Set<String> forbiddenTopics = Collections.newSetFromMap(new ConcurrentHashMap<>());
+
         @Override
         public boolean canWrite(final String topic, final String user, final String client) {
             /* only the embedded client id is allowed to publish */
@@ -202,13 +248,14 @@ public class MqttPluginServer {
 
         @Override
         public boolean canRead(final String topic, final String user, final String client) {
-            return true;
+            return !forbiddenTopics.contains(topic);
         }
     }
 
     public static final class MoquetteIntercept implements InterceptHandler {
         private RequestLink requestLink;
         private ProtocolProcessorProxy processorProxy;
+        private Set<String> forbiddenTopics;
 
         private final ScheduledExecutorService delayer = Executors.newSingleThreadScheduledExecutor();
         private final Map<String, ClientInfo> clients = new ConcurrentHashMap<>();
@@ -391,12 +438,16 @@ public class MqttPluginServer {
         private final Method p_sendPubAck;
         private final Method p_sendPubRec;
         private final Method p_sendPubComp;
+        private final SubscriptionsStore subscriptions;
 
         public ProtocolProcessorProxy(final ProtocolProcessor processor) {
             this.processor = processor;
+            // server to client methods
             p_sendPubAck = getMethod(processor, "sendPubAck", PubAckEvent.class);
             p_sendPubRec = getMethod(processor, "sendPubRec", String.class, int.class);
             p_sendPubComp = getMethod(processor, "sendPubComp", String.class, int.class);
+            // server internals
+            subscriptions = getFieldValue(processor, "subscriptions");
         }
 
         public void sendPubAck(final String clientID, final int messageID) {
@@ -421,6 +472,10 @@ public class MqttPluginServer {
 
         public void processPublish(final EmbeddedChannel embeddedChannel, final PublishMessage msg) {
             processor.processPublish(embeddedChannel, msg);
+        }
+
+        public void removeSubscription(final String topic, final String clientID) {
+            subscriptions.removeSubscription(topic, clientID);
         }
     }
 
