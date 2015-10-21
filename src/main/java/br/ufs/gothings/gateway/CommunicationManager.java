@@ -20,6 +20,7 @@ import java.time.Instant;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.*;
+import java.util.function.BiConsumer;
 
 /**
  * @author Wagner Macedo
@@ -426,21 +427,46 @@ public class CommunicationManager {
     private static class AsynchronousReply extends CompletableReply {
         @Override
         public GwReply get() throws InterruptedException, ExecutionException {
-            return future.get();
+            return getAndReset();
         }
 
         @Override
         public GwReply get(final long timeout, final TimeUnit unit) throws InterruptedException, ExecutionException, TimeoutException {
-            return future.get(timeout, unit);
+            return getAndReset(timeout, unit);
+        }
+
+        private GwReply getAndReset() throws InterruptedException, ExecutionException {
+            try {
+                return getAndReset(0, null);
+            } catch (TimeoutException ignored) {
+                return null;  // never happens
+            }
+        }
+
+        private GwReply getAndReset(final long timeout, final TimeUnit unit) throws InterruptedException, TimeoutException, ExecutionException {
+            try {
+                final GwReply reply = timeout > 0 ? future.get(timeout, unit) : future.get();
+                future = new CompletableFuture<>();
+                return reply;
+            } catch (ExecutionException e) {
+                future = new CompletableFuture<>();
+                throw e;
+            }
         }
 
         @Override
         public void setListener(final ReplyListener replyListener) {
-            future.whenCompleteAsync((reply, throwable) -> {
-                if (throwable == null)
-                    replyListener.onReply(reply);
-                else
-                    replyListener.onError(((GatewayException) throwable).getErrorMessage());
+            future.whenCompleteAsync(new BiConsumer<GwReply, Throwable>() {
+                @Override
+                public void accept(final GwReply reply, final Throwable throwable) {
+                    future = new CompletableFuture<>();
+                    future.whenCompleteAsync(this);
+
+                    if (throwable == null)
+                        replyListener.onReply(reply);
+                    else
+                        replyListener.onError(((GatewayException) throwable).getErrorMessage());
+                }
             });
         }
     }
