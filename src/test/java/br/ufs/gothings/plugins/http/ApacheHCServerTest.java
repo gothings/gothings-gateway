@@ -7,21 +7,15 @@ import br.ufs.gothings.core.message.headers.Operation;
 import br.ufs.gothings.core.plugin.RequestLink;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-import org.apache.commons.lang3.concurrent.ConcurrentUtils;
 import org.apache.http.HttpException;
 import org.apache.http.HttpRequest;
 import org.apache.http.HttpResponse;
 import org.apache.http.HttpVersion;
-import org.apache.http.client.methods.*;
-import org.apache.http.client.utils.URIBuilder;
-import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.HttpClients;
 import org.apache.http.message.BasicHttpRequest;
 import org.apache.http.message.BasicHttpResponse;
 import org.junit.Test;
 
 import java.io.IOException;
-import java.net.URISyntaxException;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 
@@ -43,7 +37,7 @@ public class ApacheHCServerTest {
             final GwReply reply = new GwReply(msg.headers(), msg.payload(), 1L);
             reply.payload().set(buf.nioBuffer());
 
-            return ConcurrentUtils.constantFuture(reply);
+            return Utils.constantReply(reply);
         };
 
         ApacheHCServer.ServerRequestHandler serverHandler = new ApacheHCServer.ServerRequestHandler(requestLink);
@@ -98,7 +92,7 @@ public class ApacheHCServerTest {
             reply.payload().set("{\"array\":[1,2,3]}", Charset.defaultCharset());
             reply.headers().setContentType("application/json");
 
-            return ConcurrentUtils.constantFuture(reply);
+            return Utils.constantReply(reply);
         };
 
         final ApacheHCServer.ServerRequestHandler serverHandler = new ApacheHCServer.ServerRequestHandler(requestLink);

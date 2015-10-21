@@ -7,7 +7,6 @@ import br.ufs.gothings.core.message.headers.Operation;
 import br.ufs.gothings.core.plugin.RequestLink;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-import org.apache.commons.lang3.concurrent.ConcurrentUtils;
 import org.apache.http.client.methods.*;
 import org.apache.http.client.utils.URIBuilder;
 import org.apache.http.impl.client.CloseableHttpClient;
@@ -38,7 +37,7 @@ public class NanoHTTPDServerTest {
             final GwReply reply = new GwReply(msg.headers(), msg.payload(), 1L);
             reply.payload().set(buf.nioBuffer());
 
-            return ConcurrentUtils.constantFuture(reply);
+            return Utils.constantReply(reply);
         };
 
         final NanoHTTPDServer.Server server = new NanoHTTPDServer.Server(requestLink, 0);
@@ -96,7 +95,7 @@ public class NanoHTTPDServerTest {
             reply.payload().set("{\"array\":[1,2,3]}", Charset.defaultCharset());
             reply.headers().setContentType("application/json");
 
-            return ConcurrentUtils.constantFuture(reply);
+            return Utils.constantReply(reply);
         };
 
         final NanoHTTPDServer.Server server = new NanoHTTPDServer.Server(requestLink, 0);

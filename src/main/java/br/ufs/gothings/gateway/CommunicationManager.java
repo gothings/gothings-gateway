@@ -4,9 +4,7 @@ import br.ufs.gothings.core.Settings;
 import br.ufs.gothings.core.common.GatewayException;
 import br.ufs.gothings.core.common.Reason;
 import br.ufs.gothings.core.message.*;
-import br.ufs.gothings.core.plugin.PluginClient;
-import br.ufs.gothings.core.plugin.PluginServer;
-import br.ufs.gothings.core.plugin.ReplyLink;
+import br.ufs.gothings.core.plugin.*;
 import br.ufs.gothings.gateway.InterconnectionController.ObserveList;
 import br.ufs.gothings.gateway.common.Controller;
 import br.ufs.gothings.gateway.common.Package;
@@ -33,7 +31,7 @@ public class CommunicationManager {
 
     private final Sequencer sequencer = new Sequencer();
     private final Map<String, PluginData> pluginsMap = new ConcurrentHashMap<>();
-    private final Map<Long, FutureReply> waitingReplies = new ConcurrentHashMap<>();
+    private final Map<Long, CompletableReply> waitingReplies = new ConcurrentHashMap<>();
 
     private final Controller inputC;
     private final Controller interConnC;
@@ -62,7 +60,7 @@ public class CommunicationManager {
         client.setUp(new ReplyLink() {
             @Override
             public void ack(final long sequence) {
-                final FutureReply future = waitingReplies.remove(sequence);
+                final CompletableReply future = waitingReplies.remove(sequence);
                 if (future != null) {
                     future.complete(GwReply.EMPTY.withSequence(sequence));
                 }
@@ -325,15 +323,15 @@ public class CommunicationManager {
             this.protocol = protocol;
         }
 
-        public Future<GwReply> addFuture(final GwRequest request) {
-            final FutureReply future = new FutureReply();
+        public FutureReply addFuture(final GwRequest request) {
+            final CompletableReply future = new CompletableReply();
             waitingReplies.put(request.getSequence(), future);
             return future;
         }
 
         public void provideReply(final GwReply reply) {
             try {
-                final FutureReply future = waitingReplies.remove(reply.getSequence());
+                final CompletableReply future = waitingReplies.remove(reply.getSequence());
                 future.complete(reply);
             } catch (NullPointerException e) {
                 logger.error("not found a message with sequence %d to send the reply", reply.getSequence());
@@ -345,7 +343,7 @@ public class CommunicationManager {
         }
     }
 
-    private static class FutureReply extends CompletableFuture<GwReply> {
+    private static class CompletableReply extends CompletableFuture<GwReply> implements FutureReply {
         private volatile Instant threshold = Instant.now();
 
         @Override
@@ -367,10 +365,15 @@ public class CommunicationManager {
             threshold = Instant.now().plusMillis(unit.toMillis(timeout));
             return super.get(timeout, unit);
         }
+
+        @Override
+        public void setListener(final ReplyListener replyListener) {
+            throw new UnsupportedOperationException();
+        }
     }
 
     private void sendFutureException(final GatewayException gatewayException) {
-        final FutureReply future = waitingReplies.remove(gatewayException.getErrorMessage().getSequence());
+        final CompletableReply future = waitingReplies.remove(gatewayException.getErrorMessage().getSequence());
         if (future != null) {
             future.completeExceptionally(gatewayException);
         }
@@ -378,7 +381,7 @@ public class CommunicationManager {
 
     private void sweepWaitingReplies() {
         waitingReplies.entrySet().removeIf(e -> {
-            final FutureReply future = e.getValue();
+            final CompletableReply future = e.getValue();
 
             // If the future hasn't getters this usually means it's been discarded...
             if (future.getNumberOfDependents() < 1) {
