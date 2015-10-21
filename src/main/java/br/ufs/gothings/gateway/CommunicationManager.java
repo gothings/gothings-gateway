@@ -343,15 +343,20 @@ public class CommunicationManager {
         }
     }
 
-    private static class CompletableReply extends CompletableFuture<GwReply> implements FutureReply {
+    private static class CompletableReply implements FutureReply {
         private volatile Instant threshold = Instant.now();
+        private volatile CompletableFuture<GwReply> future;
+
+        public CompletableReply() {
+            future = new CompletableFuture<>();
+        }
 
         @Override
         public GwReply get() throws InterruptedException, ExecutionException {
             // far future threshold as we don't know how much time is spent waiting here
             threshold = Instant.MAX;
             try {
-                return super.get();
+                return future.get();
             } catch (InterruptedException e) {
                 // usually when this exception is catch means program termination,
                 // but as we can't be sure, we adjust threshold for now.
@@ -363,7 +368,34 @@ public class CommunicationManager {
         @Override
         public GwReply get(final long timeout, final TimeUnit unit) throws InterruptedException, ExecutionException, TimeoutException {
             threshold = Instant.now().plusMillis(unit.toMillis(timeout));
-            return super.get(timeout, unit);
+            return future.get(timeout, unit);
+        }
+
+        public boolean complete(final GwReply value) {
+            return future.complete(value);
+        }
+
+        public boolean completeExceptionally(final Throwable ex) {
+            return future.completeExceptionally(ex);
+        }
+
+        public int getNumberOfDependents() {
+            return future.getNumberOfDependents();
+        }
+
+        @Override
+        public boolean cancel(final boolean mayInterruptIfRunning) {
+            return future.cancel(mayInterruptIfRunning);
+        }
+
+        @Override
+        public boolean isCancelled() {
+            return future.isCancelled();
+        }
+
+        @Override
+        public boolean isDone() {
+            return future.isDone();
         }
 
         @Override
