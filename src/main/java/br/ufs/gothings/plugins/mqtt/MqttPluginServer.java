@@ -6,6 +6,7 @@ import br.ufs.gothings.core.message.GwHeaders;
 import br.ufs.gothings.core.message.GwReply;
 import br.ufs.gothings.core.message.GwRequest;
 import br.ufs.gothings.core.message.headers.Operation;
+import br.ufs.gothings.core.plugin.ReplyListener;
 import br.ufs.gothings.core.plugin.RequestLink;
 import io.netty.util.AttributeKey;
 import org.apache.commons.lang3.RandomStringUtils;
@@ -56,7 +57,7 @@ public class MqttPluginServer {
     private EmbeddedChannel embeddedChannel;
 
     MqttPluginServer(final RequestLink requestLink, final Settings settings) {
-        this.shared = new Shared(requestLink);
+        this.shared = new Shared(this, requestLink);
         this.settings = settings;
     }
 
@@ -154,7 +155,7 @@ public class MqttPluginServer {
             case TARGET_NOT_FOUND:
             case PATH_NOT_FOUND:
                 final GwRequest request = new GwRequest(error.headers(), null);
-                shared.delayer.schedule(() -> shared.requestLink.send(request), 30, TimeUnit.SECONDS);
+                shared.delayer.schedule(() -> shared.sendRequest(request), 30, TimeUnit.SECONDS);
                 break;
         }
     }
@@ -304,7 +305,7 @@ public class MqttPluginServer {
                     h.setQoS(msg.getRequestedQos().byteValue());
                     h.setPath(msg.getTopicFilter());
 
-                    shared.requestLink.send(request);
+                    shared.sendRequest(request);
                 }
             }
         }
@@ -330,7 +331,7 @@ public class MqttPluginServer {
                     h.setOperation(Operation.UNOBSERVE);
                     h.setPath(msg.getTopicFilter());
 
-                    shared.requestLink.send(request);
+                    shared.sendRequest(request);
                 }
             }
         }
@@ -356,7 +357,7 @@ public class MqttPluginServer {
             }
 
             // the internal request
-            shared.requestLink.send(request);
+            shared.sendRequest(request);
 
             // send confirmation to the external client
             final byte qos = msg.getQos().byteValue();
@@ -538,6 +539,7 @@ public class MqttPluginServer {
     }
 
     private static final class Shared {
+        private final MqttPluginServer pluginServer;
         private final RequestLink requestLink;
         private final ScheduledExecutorService delayer = Executors.newSingleThreadScheduledExecutor();
 
@@ -545,7 +547,8 @@ public class MqttPluginServer {
         private Set<String> forbiddenTopics;
         private Map<String, ClientInfo> clients;
 
-        private Shared(final RequestLink requestLink) {
+        private Shared(final MqttPluginServer pluginServer, final RequestLink requestLink) {
+            this.pluginServer = pluginServer;
             this.requestLink = requestLink;
         }
 
@@ -553,6 +556,21 @@ public class MqttPluginServer {
             processorProxy = null;
             forbiddenTopics = null;
             clients = null;
+        }
+
+        private void sendRequest(final GwRequest request) {
+            requestLink.send(request)
+                .setListener(new ReplyListener() {
+                    @Override
+                    public void onReply(final GwReply reply) {
+                        pluginServer.receiveReply(reply);
+                    }
+
+                    @Override
+                    public void onError(final GwError error) {
+                        pluginServer.receiveError(error);
+                    }
+                });
         }
     }
 }
