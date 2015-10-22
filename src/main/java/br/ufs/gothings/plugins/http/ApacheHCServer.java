@@ -129,9 +129,7 @@ public class ApacheHCServer implements HttpPluginServer {
                         case "PUT":
                             h.set(GW_OPERATION, Operation.UPDATE);
                         case "POST":
-                            if (h.get(GW_OPERATION) == null) {
-                                h.set(GW_OPERATION, Operation.CREATE);
-                            }
+                            h.setIfAbsent(GW_OPERATION, Operation.CREATE);
                             if (request instanceof HttpEntityEnclosingRequest) {
                                 final HttpEntity entity = ((HttpEntityEnclosingRequest) request).getEntity();
                                 msg.payload().set(entity.getContent());

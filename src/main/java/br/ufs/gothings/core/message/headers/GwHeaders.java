@@ -54,6 +54,29 @@ public class GwHeaders {
         }
     }
 
+    public <T> void setIfAbsent(HKey<T> key, T value) {
+        if (readonly) throw new ReadOnlyException();
+
+        // remove if absent?
+        if (value == null)
+            return;
+
+        if (!key.validate(value)) {
+            throw new IllegalArgumentException("value `" + value + "` didn't pass in the validation");
+        }
+
+        else if (key instanceof HKeyMulti) {
+            final Collection<T> collection = getCollection((HKeyMulti<T>) key);
+            if (collection.isEmpty()) {
+                collection.add(value);
+            }
+        }
+
+        else {
+            map.putIfAbsent(key, value);
+        }
+    }
+
     public <T> void add(HKeyMulti<T> key, T value) {
         if (readonly) throw new ReadOnlyException();
 
