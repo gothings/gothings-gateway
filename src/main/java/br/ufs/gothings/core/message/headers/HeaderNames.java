@@ -1,6 +1,7 @@
 package br.ufs.gothings.core.message.headers;
 
 import java.util.Collection;
+import java.util.Date;
 import java.util.LinkedHashSet;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -22,6 +23,15 @@ public class HeaderNames {
 
     public static final HKey<Byte>
             GW_QOS = newKey(byte.class);
+
+    public static final HKey<String>
+            GW_CACHE_SIGNATURE = newKey(String.class);
+
+    public static final HKey<Date>
+            GW_CACHE_EXPIRATION = newKey(Date.class);
+
+    public static final HKey<Boolean>
+            GW_CACHE_MODIFIED = newKey(boolean.class);
 
     /* Internal use */
 
