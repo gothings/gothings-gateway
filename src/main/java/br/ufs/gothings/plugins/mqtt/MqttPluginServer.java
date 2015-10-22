@@ -39,6 +39,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
+import static br.ufs.gothings.core.message.headers.HeaderNames.GW_OPERATION;
+import static br.ufs.gothings.core.message.headers.HeaderNames.GW_PATH;
+import static br.ufs.gothings.core.message.headers.HeaderNames.GW_QOS;
 import static org.eclipse.moquette.commons.Constants.*;
 
 /**
@@ -121,7 +124,7 @@ public class MqttPluginServer {
         msg.setRetainFlag(false);
         msg.setPayload(reply.payload().asBuffer());
         final GwHeaders h = reply.headers();
-        msg.setTopicName(h.getPath());
+        msg.setTopicName(h.get(GW_PATH));
         msg.setQos(AbstractMessage.QOSType.MOST_ONE);
 
         shared.processorProxy.processPublish(embeddedChannel, msg);
@@ -137,7 +140,7 @@ public class MqttPluginServer {
             case OTHER:
             case INTERNAL_ERROR:
                 // Instruct the authorizator to don't accept this topic anymore
-                final String topic = error.headers().getPath();
+                final String topic = error.headers().get(GW_PATH);
                 shared.forbiddenTopics.add(topic);
                 // Remove the topics from all the clients
                 shared.clients.forEach((clientID, clientInfo) -> {
@@ -301,9 +304,9 @@ public class MqttPluginServer {
                 if (counter == 1) {
                     final GwRequest request = new GwRequest();
                     final GwHeaders h = request.headers();
-                    h.setOperation(Operation.OBSERVE);
-                    h.setQoS(msg.getRequestedQos().byteValue());
-                    h.setPath(msg.getTopicFilter());
+                    h.set(GW_OPERATION, Operation.OBSERVE);
+                    h.set(GW_QOS, msg.getRequestedQos().byteValue());
+                    h.set(GW_PATH, msg.getTopicFilter());
 
                     shared.sendRequest(request);
                 }
@@ -328,8 +331,8 @@ public class MqttPluginServer {
                 if (subscription.getCounter() == 0) {
                     final GwRequest request = new GwRequest();
                     final GwHeaders h = request.headers();
-                    h.setOperation(Operation.UNOBSERVE);
-                    h.setPath(msg.getTopicFilter());
+                    h.set(GW_OPERATION, Operation.UNOBSERVE);
+                    h.set(GW_PATH, msg.getTopicFilter());
 
                     shared.sendRequest(request);
                 }
@@ -344,16 +347,16 @@ public class MqttPluginServer {
             // send internal request with operation=CREATE, operation=UPDATE or operation=DELETE
             final GwRequest request = new GwRequest();
             final GwHeaders h = request.headers();
-            h.setQoS(msg.getQos().byteValue());
-            h.setPath(msg.getTopicName());
+            h.set(GW_QOS, msg.getQos().byteValue());
+            h.set(GW_PATH, msg.getTopicName());
 
             // when retain=true request with UPDATE (if has payload) or DELETE (if empty payload)
             if (msg.isRetainFlag()) {
-                h.setOperation(msg.getPayload().hasRemaining() ? Operation.UPDATE : Operation.DELETE);
+                h.set(GW_OPERATION, msg.getPayload().hasRemaining() ? Operation.UPDATE : Operation.DELETE);
             }
             // when retain=false request with CREATE
             else {
-                h.setOperation(Operation.CREATE);
+                h.set(GW_OPERATION, Operation.CREATE);
             }
 
             // the internal request

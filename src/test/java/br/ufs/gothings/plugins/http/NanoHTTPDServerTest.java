@@ -18,6 +18,9 @@ import java.net.URISyntaxException;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 
+import static br.ufs.gothings.core.message.headers.HeaderNames.GW_CONTENT_TYPE;
+import static br.ufs.gothings.core.message.headers.HeaderNames.GW_OPERATION;
+import static br.ufs.gothings.core.message.headers.HeaderNames.GW_PATH;
 import static org.junit.Assert.*;
 
 /**
@@ -30,8 +33,8 @@ public class NanoHTTPDServerTest {
         final RequestLink requestLink = msg -> {
             final GwHeaders h = msg.headers();
 
-            final Operation operation = h.getOperation();
-            final String path = h.getPath();
+            final Operation operation = h.get(GW_OPERATION);
+            final String path = h.get(GW_PATH);
             final ByteBuf buf = Unpooled.buffer().writeInt(operation.name().length() + path.length());
 
             final GwReply reply = new GwReply(msg.headers(), msg.payload(), 1L);
@@ -93,7 +96,7 @@ public class NanoHTTPDServerTest {
         final RequestLink requestLink = msg -> {
             final GwReply reply = new GwReply(msg.headers(), msg.payload(), 1L);
             reply.payload().set("{\"array\":[1,2,3]}", Charset.defaultCharset());
-            reply.headers().setContentType("application/json");
+            reply.headers().set(GW_CONTENT_TYPE, "application/json");
 
             return Utils.constantReply(reply);
         };

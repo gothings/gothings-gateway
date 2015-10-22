@@ -12,6 +12,9 @@ import java.nio.charset.Charset;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.SynchronousQueue;
 
+import static br.ufs.gothings.core.message.headers.HeaderNames.GW_OPERATION;
+import static br.ufs.gothings.core.message.headers.HeaderNames.GW_PATH;
+import static br.ufs.gothings.core.message.headers.HeaderNames.GW_TARGET;
 import static org.junit.Assert.*;
 
 /*
@@ -29,14 +32,14 @@ public class MqttPluginClientTest {
         final MqttPluginClient pluginClient = new MqttPluginClient(replyLink);
 
         final GwRequest req = new GwRequest();
-        req.headers().setTarget("localhost");
-        req.headers().setOperation(Operation.READ);
-        req.headers().setPath("temperature");
+        req.headers().set(GW_TARGET, "localhost");
+        req.headers().set(GW_OPERATION, Operation.READ);
+        req.headers().set(GW_PATH, "temperature");
         pluginClient.sendRequest(req);
 
         final GwReply reply = replyLink.receive();
-        assertEquals("localhost", reply.headers().getTarget());
-        assertEquals("temperature", reply.headers().getPath());
+        assertEquals("localhost", reply.headers().get(GW_TARGET));
+        assertEquals("temperature", reply.headers().get(GW_PATH));
         assertEquals("88 C", reply.payload().asString(Charset.defaultCharset()));
     }
 

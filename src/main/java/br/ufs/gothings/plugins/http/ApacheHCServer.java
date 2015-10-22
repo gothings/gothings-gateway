@@ -21,6 +21,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
 
+import static br.ufs.gothings.core.message.headers.HeaderNames.*;
+
 /**
  * @author Wagner Macedo
  */
@@ -117,28 +119,28 @@ public class ApacheHCServer implements HttpPluginServer {
                 case "DELETE":
                     final GwRequest msg = new GwRequest();
                     final GwHeaders h = msg.headers();
-                    h.setPath(request.getRequestLine().getUri());
+                    h.set(GW_PATH, request.getRequestLine().getUri());
 
                     switch (method) {
                         case "GET":
-                            h.setOperation(Operation.READ);
+                            h.set(GW_OPERATION, Operation.READ);
                             addExpectedTypes(h, request.getFirstHeader("Accept"));
                             break;
                         case "PUT":
-                            h.setOperation(Operation.UPDATE);
+                            h.set(GW_OPERATION, Operation.UPDATE);
                         case "POST":
-                            if (h.getOperation() == null) {
-                                h.setOperation(Operation.CREATE);
+                            if (h.get(GW_OPERATION) == null) {
+                                h.set(GW_OPERATION, Operation.CREATE);
                             }
                             if (request instanceof HttpEntityEnclosingRequest) {
                                 final HttpEntity entity = ((HttpEntityEnclosingRequest) request).getEntity();
                                 msg.payload().set(entity.getContent());
                             }
                             final Header ct = request.getFirstHeader("Content-Type");
-                            addGatewayHeader(h::setContentType, ct);
+                            addGatewayHeader(s -> h.set(GW_CONTENT_TYPE, s), ct);
                             break;
                         case "DELETE":
-                            h.setOperation(Operation.DELETE);
+                            h.set(GW_OPERATION, Operation.DELETE);
                             break;
                     }
 
@@ -152,7 +154,7 @@ public class ApacheHCServer implements HttpPluginServer {
                 final String acceptValues = acceptHeader.getValue();
                 for (String type : acceptValues.split(",")) {
                     final int pos = type.indexOf(';');
-                    gw_headers.addExpectedType(pos != -1 ? type.substring(0, pos) : type);
+                    gw_headers.add(GW_EXPECTED_TYPES, pos != -1 ? type.substring(0, pos) : type);
                 }
             }
         }
@@ -164,7 +166,7 @@ public class ApacheHCServer implements HttpPluginServer {
         }
 
         private void fillHttpResponseHeaders(final HttpResponse response, final GwHeaders gwh) {
-            addHttpHeader(response, "Content-Type", gwh.getContentType());
+            addHttpHeader(response, "Content-Type", gwh.get(GW_CONTENT_TYPE));
         }
 
         private static void addHttpHeader(HttpResponse response, String name, CharSequence value) {

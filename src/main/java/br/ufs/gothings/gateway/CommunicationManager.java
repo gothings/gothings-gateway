@@ -23,6 +23,8 @@ import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 
+import static br.ufs.gothings.core.message.headers.HeaderNames.GW_OPERATION;
+
 /**
  * @author Wagner Macedo
  */
@@ -103,7 +105,7 @@ public class CommunicationManager {
         }
 
         server.setUp(request -> {
-            switch (request.headers().getOperation()) {
+            switch (request.headers().get(GW_OPERATION)) {
                 case CREATE:
                 case READ:
                 case UPDATE:
@@ -125,7 +127,7 @@ public class CommunicationManager {
             processRequest(pkg);
 
             // UNOBSERVE request don't wait for a reply
-            if (request.headers().getOperation() != Operation.UNOBSERVE) {
+            if (request.headers().get(GW_OPERATION) != Operation.UNOBSERVE) {
                 return pd.addFuture(request);
             }
             return null;

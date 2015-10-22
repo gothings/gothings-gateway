@@ -17,6 +17,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+import static br.ufs.gothings.core.message.headers.HeaderNames.*;
 import static java.lang.Math.max;
 import static java.lang.Math.min;
 import static org.eclipse.paho.client.mqttv3.MqttException.*;
@@ -38,7 +39,7 @@ public final class MqttPluginClient {
 
     void sendRequest(final GwRequest request) {
         if (!closed) {
-            final String host = request.headers().getTarget();
+            final String host = request.headers().get(GW_TARGET);
             try {
                 final MqttClientConnection conn = getMqttConnection(host);
                 conn.sendMessage(request);
@@ -110,9 +111,9 @@ public final class MqttPluginClient {
 
         public void sendMessage(GwRequest msg) throws MqttException {
             final GwHeaders h = msg.headers();
-            final Operation operation = h.getOperation();
-            final String topic = h.getPath();
-            final int qos = max(0, min(2, h.getQoS()));
+            final Operation operation = h.get(GW_OPERATION);
+            final String topic = h.get(GW_PATH);
+            final int qos = max(0, min(2, h.get(GW_QOS)));
             switch (operation) {
                 // CREATE or UPDATE is mapped as a publish, but this plugin treats CREATE as a retained message
                 case CREATE:
@@ -181,8 +182,8 @@ public final class MqttPluginClient {
                 final GwReply msg = new GwReply();
                 msg.payload().set(mqttMessage.getPayload());
                 final GwHeaders h = msg.headers();
-                h.setTarget(mc.host);
-                h.setPath(topic);
+                h.set(GW_TARGET, mc.host);
+                h.set(GW_PATH, topic);
 
                 mc.replyLink.send(msg);
             }

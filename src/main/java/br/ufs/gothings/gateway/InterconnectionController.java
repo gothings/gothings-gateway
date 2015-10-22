@@ -25,6 +25,10 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
+import static br.ufs.gothings.core.message.headers.HeaderNames.GW_OPERATION;
+import static br.ufs.gothings.core.message.headers.HeaderNames.GW_PATH;
+import static br.ufs.gothings.core.message.headers.HeaderNames.GW_TARGET;
+
 /**
  * @author Wagner Macedo
  */
@@ -56,13 +60,13 @@ public class InterconnectionController implements Controller {
             pkg.setTargetProtocol(targetProtocol);
 
             final String target = uri.getRawAuthority();
-            headers.setTarget(target);
+            headers.set(GW_TARGET, target);
 
             final String targetAndPath = uri.getRawSchemeSpecificPart();
             final String path = StringUtils.replaceOnce(targetAndPath, "//" + target, "");
-            headers.setPath(path);
+            headers.set(GW_PATH, path);
 
-            final Operation operation = headers.getOperation();
+            final Operation operation = headers.get(GW_OPERATION);
             final String s_uri = uri.toString();
 
             final GwReply cached = getCache(operation, s_uri);
@@ -91,7 +95,7 @@ public class InterconnectionController implements Controller {
             try {
                 // Make uri and reply path
                 final URI uri = createURI(reply, sourceProtocol);
-                reply.headers().setPath("/" + uri.toString().replaceFirst(":/", ""));
+                reply.headers().set(GW_PATH, "/" + uri.toString().replaceFirst(":/", ""));
 
                 final Map<String, long[]> observers = observeList.get(uri.toString());
                 pkg.setReplyTo(observers);
@@ -121,7 +125,7 @@ public class InterconnectionController implements Controller {
     }
 
     private URI createURI(final GwRequest msg) throws URISyntaxException {
-        final String path = msg.headers().getPath();
+        final String path = msg.headers().get(GW_PATH);
         final String s_uri = path.replaceFirst("^/+", "").replaceFirst("/+", "://");
         final URIBuilder uri = new URIBuilder(s_uri);
 
@@ -136,8 +140,8 @@ public class InterconnectionController implements Controller {
     }
 
     private URI createURI(final GwReply msg, final String sourceProtocol) throws URISyntaxException {
-        final String target = msg.headers().getTarget();
-        final String path = msg.headers().getPath().replaceFirst("^/+", "");
+        final String target = msg.headers().get(GW_TARGET);
+        final String path = msg.headers().get(GW_PATH).replaceFirst("^/+", "");
 
         return new URI(String.format("%s://%s/%s", sourceProtocol, target, path));
     }

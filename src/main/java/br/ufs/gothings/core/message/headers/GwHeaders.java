@@ -1,14 +1,10 @@
 package br.ufs.gothings.core.message.headers;
 
 import br.ufs.gothings.core.common.ReadOnlyException;
+import br.ufs.gothings.core.util.AbstractKey;
+import br.ufs.gothings.core.util.CollectionUtils;
 
-import java.util.Collection;
-import java.util.Collections;
-import java.util.LinkedHashSet;
-import java.util.Set;
-
-import static java.util.Collections.emptySet;
-import static java.util.Collections.unmodifiableSet;
+import java.util.*;
 
 /**
  * @author Wagner Macedo
@@ -16,109 +12,61 @@ import static java.util.Collections.unmodifiableSet;
 public class GwHeaders {
     public static final GwHeaders EMPTY = new GwHeaders().readOnly();
 
-    private static class Holder {
-        private Operation operation;
-        private String target;
-        private String path;
-        private String contentType;
-        private Set<String> expectedTypes;
-        private int qos;
+    // Map of header values
+    private final Map<HKey, Object> map = new IdentityHashMap<>();
+
+    @SuppressWarnings("unchecked")
+    public <T> T get(HKey<T> key) {
+        return key instanceof HKeyMulti
+                ? CollectionUtils.firstElement((Collection<T>) map.get(key))
+                : (T) map.get(key);
     }
 
-    private final Holder holder;
+    public <T> Collection<T> getAll(HKeyMulti<T> key) {
+        @SuppressWarnings("unchecked")
+        final Collection<T> values = (Collection<T>) map.get(key);
+        return values != null ? Collections.unmodifiableCollection(values) : Collections.emptyList();
+    }
+
+    public <T> void set(HKey<T> key, T value) {
+        if (readonly) throw new ReadOnlyException();
+
+        if (value == null) {
+            map.computeIfPresent(key, (k, o) -> {
+                if (o instanceof Collection)
+                    ((Collection) o).clear();
+                return null;
+            });
+        }
+
+        else if (!key.validate(value)) {
+            throw new IllegalArgumentException("value `" + value + "` didn't pass in the validation");
+        }
+
+        else if (key instanceof HKeyMulti) {
+            final Collection<T> collection = getCollection((HKeyMulti<T>) key);
+            collection.clear();
+            collection.add(value);
+        }
+
+        else {
+            map.put(key, value);
+        }
+    }
+
+    public <T> void add(HKeyMulti<T> key, T value) {
+        if (readonly) throw new ReadOnlyException();
+
+        Objects.requireNonNull(value, "value");
+        getCollection(key).add(value);
+    }
+
+    @SuppressWarnings("unchecked")
+    private <T> Collection<T> getCollection(final HKeyMulti<T> key) {
+        return (Collection<T>) map.computeIfAbsent(key, AbstractKey::newCollection);
+    }
+
     private volatile boolean readonly = false;
-
-    public GwHeaders() {
-        holder = new Holder();
-    }
-
-    public Operation getOperation() {
-        return holder.operation;
-    }
-
-    public void setOperation(final Operation operation) {
-        if (readonly) {
-            throw new ReadOnlyException();
-        }
-        holder.operation = operation;
-    }
-
-    public String getTarget() {
-        return holder.target;
-    }
-
-    public void setTarget(final String target) {
-        if (readonly) {
-            throw new ReadOnlyException();
-        }
-        holder.target = target;
-    }
-
-    public String getPath() {
-        return holder.path;
-    }
-
-    public void setPath(final String path) {
-        if (readonly) {
-            throw new ReadOnlyException();
-        }
-        holder.path = path;
-    }
-
-    public String getContentType() {
-        return holder.contentType;
-    }
-
-    public void setContentType(final String contentType) {
-        if (readonly) {
-            throw new ReadOnlyException();
-        }
-        holder.contentType = contentType;
-    }
-
-    public Collection<String> getExpectedTypes() {
-        return holder.expectedTypes == null ? emptySet() : unmodifiableSet(holder.expectedTypes);
-    }
-
-    public void setExpectedTypes(final Collection<String> expectedTypes) {
-        if (readonly) {
-            throw new ReadOnlyException();
-        }
-
-        if (!(expectedTypes == null || expectedTypes.isEmpty())) {
-            if (holder.expectedTypes != null) {
-                holder.expectedTypes.clear();
-            } else {
-                holder.expectedTypes = new LinkedHashSet<>();
-            }
-            expectedTypes.forEach(holder.expectedTypes::add);
-        }
-    }
-
-    public void addExpectedType(final String expectedType) {
-        if (readonly) {
-            throw new ReadOnlyException();
-        }
-
-        if (expectedType != null) {
-            if (holder.expectedTypes == null) {
-                setExpectedTypes(Collections.singletonList(expectedType));
-            } else {
-                holder.expectedTypes.add(expectedType);
-            }
-        }
-    }
-
-    public int getQoS() {
-        return holder.qos;
-    }
-
-    public void setQoS(final int qos) {
-        if (readonly) {
-            throw new ReadOnlyException();
-        }
-        holder.qos = qos;
-    }
 
     public final GwHeaders readOnly() {
         readonly = true;
