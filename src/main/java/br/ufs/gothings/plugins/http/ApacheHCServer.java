@@ -5,6 +5,7 @@ import br.ufs.gothings.core.common.GatewayException;
 import br.ufs.gothings.core.message.headers.GwHeaders;
 import br.ufs.gothings.core.message.GwReply;
 import br.ufs.gothings.core.message.GwRequest;
+import br.ufs.gothings.core.message.headers.HKey;
 import br.ufs.gothings.core.message.headers.Operation;
 import br.ufs.gothings.core.plugin.RequestLink;
 import org.apache.http.*;
@@ -134,8 +135,7 @@ public class ApacheHCServer implements HttpPluginServer {
                                 final HttpEntity entity = ((HttpEntityEnclosingRequest) request).getEntity();
                                 msg.payload().set(entity.getContent());
                             }
-                            final Header ct = request.getFirstHeader("Content-Type");
-                            addGatewayHeader(s -> h.set(GW_CONTENT_TYPE, s), ct);
+                            setGatewayHeader(h, GW_CONTENT_TYPE, request, "Content-Type");
                             break;
                         case "DELETE":
                             h.set(GW_OPERATION, Operation.DELETE);
@@ -147,6 +147,15 @@ public class ApacheHCServer implements HttpPluginServer {
             return null;
         }
 
+        private static void setGatewayHeader(final GwHeaders gw_headers, final HKey<String> key,
+                                             final HttpRequest request, final String headerName)
+        {
+            final Header header = request.getFirstHeader(headerName);
+            if (header != null) {
+                gw_headers.set(key, header.getValue());
+            }
+        }
+
         private static void addExpectedTypes(final GwHeaders gw_headers, final Header acceptHeader) {
             if (acceptHeader != null) {
                 final String acceptValues = acceptHeader.getValue();
@@ -154,12 +163,6 @@ public class ApacheHCServer implements HttpPluginServer {
                     final int pos = type.indexOf(';');
                     gw_headers.add(GW_EXPECTED_TYPES, pos != -1 ? type.substring(0, pos) : type);
                 }
-            }
-        }
-
-        private static void addGatewayHeader(final Consumer<String> addFunction, final Header httpHeader) {
-            if (httpHeader != null) {
-                addFunction.accept(httpHeader.getValue());
             }
         }
 
