@@ -2,7 +2,7 @@ package br.ufs.gothings.plugins.http;
 
 import br.ufs.gothings.core.Settings;
 import br.ufs.gothings.core.common.GatewayException;
-import br.ufs.gothings.core.message.GwHeaders;
+import br.ufs.gothings.core.message.headers.GwHeaders;
 import br.ufs.gothings.core.message.GwReply;
 import br.ufs.gothings.core.message.GwRequest;
 import br.ufs.gothings.core.message.headers.Operation;
@@ -19,7 +19,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
 /**

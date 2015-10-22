@@ -1,6 +1,6 @@
 package br.ufs.gothings.plugins.http;
 
-import br.ufs.gothings.core.message.GwHeaders;
+import br.ufs.gothings.core.message.headers.GwHeaders;
 import br.ufs.gothings.core.message.GwReply;
 import br.ufs.gothings.core.message.Payload;
 import br.ufs.gothings.core.message.headers.Operation;

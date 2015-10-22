@@ -2,7 +2,7 @@ package br.ufs.gothings.plugins.mqtt;
 
 import br.ufs.gothings.core.Settings;
 import br.ufs.gothings.core.message.GwError;
-import br.ufs.gothings.core.message.GwHeaders;
+import br.ufs.gothings.core.message.headers.GwHeaders;
 import br.ufs.gothings.core.message.GwReply;
 import br.ufs.gothings.core.message.GwRequest;
 import br.ufs.gothings.core.message.headers.Operation;

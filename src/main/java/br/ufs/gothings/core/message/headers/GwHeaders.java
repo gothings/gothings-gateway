@@ -1,7 +1,6 @@
-package br.ufs.gothings.core.message;
+package br.ufs.gothings.core.message.headers;
 
 import br.ufs.gothings.core.common.ReadOnlyException;
-import br.ufs.gothings.core.message.headers.Operation;
 
 import java.util.Collection;
 import java.util.Collections;

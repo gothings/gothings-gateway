@@ -2,7 +2,7 @@ package br.ufs.gothings.gateway;
 
 import br.ufs.gothings.core.common.GatewayException;
 import br.ufs.gothings.core.common.Reason;
-import br.ufs.gothings.core.message.GwHeaders;
+import br.ufs.gothings.core.message.headers.GwHeaders;
 import br.ufs.gothings.core.message.GwMessage;
 import br.ufs.gothings.core.message.GwReply;
 import br.ufs.gothings.core.message.GwRequest;

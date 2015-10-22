@@ -1,5 +1,7 @@
 package br.ufs.gothings.core.message;
 
+import br.ufs.gothings.core.message.headers.GwHeaders;
+
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
