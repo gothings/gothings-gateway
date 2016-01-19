@@ -28,7 +28,7 @@ dependencies {
     // mqtt plugin dependencies
     compile 'org.eclipse.paho:org.eclipse.paho.client.mqttv3:1.0.2'
     // must install to local repo from: https://github.com/wagnerluis1982/moquette
-    compile 'org.eclipse.moquette:moquette-broker:0.8-SNAPSHOT'
+    compile 'io.moquette:moquette-broker:0.9-SNAPSHOT'
 
     // http plugin dependencies
     compile 'com.nanohttpd:nanohttpd:2.1.1'

@@ -10,21 +10,20 @@ import br.ufs.gothings.core.plugin.ReplyListener;
 import br.ufs.gothings.core.plugin.RequestLink;
 import io.netty.util.AttributeKey;
 import org.apache.commons.lang3.RandomStringUtils;
-import org.eclipse.moquette.interception.InterceptHandler;
-import org.eclipse.moquette.interception.messages.*;
-import org.eclipse.moquette.parser.netty.Utils;
-import org.eclipse.moquette.proto.messages.AbstractMessage;
-import org.eclipse.moquette.proto.messages.ConnAckMessage;
-import org.eclipse.moquette.proto.messages.ConnectMessage;
-import org.eclipse.moquette.proto.messages.PublishMessage;
-import org.eclipse.moquette.server.ServerChannel;
-import org.eclipse.moquette.server.config.IConfig;
-import org.eclipse.moquette.server.netty.NettyAcceptor;
-import org.eclipse.moquette.spi.impl.ProtocolProcessor;
-import org.eclipse.moquette.spi.impl.SimpleMessaging;
-import org.eclipse.moquette.spi.impl.events.PubAckEvent;
-import org.eclipse.moquette.spi.impl.security.IAuthorizator;
-import org.eclipse.moquette.spi.impl.subscriptions.SubscriptionsStore;
+import io.moquette.interception.InterceptHandler;
+import io.moquette.interception.messages.*;
+import io.moquette.parser.netty.Utils;
+import io.moquette.proto.messages.AbstractMessage;
+import io.moquette.proto.messages.ConnAckMessage;
+import io.moquette.proto.messages.ConnectMessage;
+import io.moquette.proto.messages.PublishMessage;
+import io.moquette.server.ServerChannel;
+import io.moquette.server.config.IConfig;
+import io.moquette.server.netty.NettyAcceptor;
+import io.moquette.spi.impl.ProtocolProcessor;
+import io.moquette.spi.impl.SimpleMessaging;
+import io.moquette.spi.security.IAuthorizator;
+import io.moquette.spi.impl.subscriptions.SubscriptionsStore;
 
 import java.io.IOException;
 import java.lang.reflect.Field;
@@ -42,7 +41,7 @@ import java.util.concurrent.locks.ReentrantLock;
 import static br.ufs.gothings.core.message.headers.HeaderNames.GW_OPERATION;
 import static br.ufs.gothings.core.message.headers.HeaderNames.GW_PATH;
 import static br.ufs.gothings.core.message.headers.HeaderNames.GW_QOS;
-import static org.eclipse.moquette.commons.Constants.*;
+import static io.moquette.BrokerConstants.*;
 
 /**
  * @author Wagner Macedo
@@ -71,7 +70,7 @@ public class MqttPluginServer {
         config.setProperty(PORT_PROPERTY_NAME, String.valueOf(settings.get(Settings.SERVER_PORT)));
 
         // Initiate the processor and instantiate the acceptor
-        final ProtocolProcessor processor = messaging.init(config);
+        final ProtocolProcessor processor = messaging.init(config, Collections.emptyList(), null, null);
         final NettyAcceptor acceptor = new NettyAcceptor();
 
         // Define the stop instructions
@@ -98,7 +97,7 @@ public class MqttPluginServer {
         }
 
         try {
-            acceptor.initialize(processor, config);
+            acceptor.initialize(processor, config, () -> null);
         } catch (IOException e) {
             stopAction.run();
         }
@@ -438,7 +437,7 @@ public class MqttPluginServer {
         public ProtocolProcessorProxy(final ProtocolProcessor processor) {
             this.processor = processor;
             // server to client methods
-            p_sendPubAck = getMethod(processor, "sendPubAck", PubAckEvent.class);
+            p_sendPubAck = getMethod(processor, "sendPubAck", String.class, int.class);
             p_sendPubRec = getMethod(processor, "sendPubRec", String.class, int.class);
             p_sendPubComp = getMethod(processor, "sendPubComp", String.class, int.class);
             // server internals
@@ -446,7 +445,7 @@ public class MqttPluginServer {
         }
 
         public void sendPubAck(final String clientID, final int messageID) {
-            invoke(p_sendPubAck, new PubAckEvent(messageID, clientID));
+            invoke(p_sendPubAck, clientID, messageID);
         }
 
         public void sendPubRec(final String clientID, final int messageID) {
