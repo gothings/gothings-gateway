@@ -69,7 +69,7 @@ public class Payload {
     }
 
     public ByteBuffer asBuffer() {
-        return data.get().nioBuffer();
+        return data.get().copy().nioBuffer();
     }
 
     public String asString(Charset charset) {
