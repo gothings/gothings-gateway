@@ -1,5 +1,7 @@
 package br.ufs.gothings.core.util;
 
+import org.apache.commons.lang3.ClassUtils;
+
 import java.util.Collection;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -17,11 +19,12 @@ public abstract class AbstractKey<K, T> {
         this(keyId, classType, validator, null);
     }
 
+    @SuppressWarnings("unchecked")
     protected AbstractKey(final K keyId, final Class<T> classType, final Predicate<T> validator,
                           final Supplier<Collection<T>> collectionSupplier)
     {
         this.keyId = keyId;
-        this.classType = classType;
+        this.classType = (Class<T>) ClassUtils.primitiveToWrapper(classType);
         this.validator = validator;
         this.collectionSupplier = collectionSupplier;
     }
