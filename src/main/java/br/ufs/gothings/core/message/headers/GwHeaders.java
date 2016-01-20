@@ -13,7 +13,15 @@ public class GwHeaders {
     public static final GwHeaders EMPTY = new GwHeaders().readOnly();
 
     // Map of header values
-    private final Map<HKey, Object> map = new IdentityHashMap<>();
+    private final Map<HKey, Object> map;
+
+    public GwHeaders() {
+        this.map = new IdentityHashMap<>();
+    }
+
+    private GwHeaders(final Map<HKey, Object> map) {
+        this.map = map;
+    }
 
     @SuppressWarnings("unchecked")
     public <T> T get(HKey<T> key) {
@@ -94,5 +102,10 @@ public class GwHeaders {
     public final GwHeaders readOnly() {
         readonly = true;
         return this;
+    }
+
+    /** Create a writable copy of this header */
+    public GwHeaders copy() {
+        return new GwHeaders(new IdentityHashMap<>(map));
     }
 }

@@ -14,7 +14,7 @@ public final class GwReply extends DataMessage {
      * @param req    request to be replied
      */
     public GwReply(GwRequest req) {
-        super(req.headers(), req.payload(), req.getSequence());
+        super(req.headers().copy(), req.payload().copy(), req.getSequence());
     }
 
     /**

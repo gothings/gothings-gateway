@@ -25,6 +25,10 @@ public class Payload {
         this.data.set(Unpooled.buffer());
     }
 
+    private Payload(final ByteBuf bb) {
+        this.data.set(bb);
+    }
+
     public void set(byte[] bytes) {
         data.get().clear().writeBytes(bytes);
     }
@@ -79,5 +83,9 @@ public class Payload {
     public Payload readOnly() {
         data.updateAndGet(bb -> !(bb instanceof ReadOnlyByteBuf) ? Unpooled.unmodifiableBuffer(bb) : bb);
         return this;
+    }
+
+    public Payload copy() {
+        return new Payload(data.get().copy());
     }
 }
