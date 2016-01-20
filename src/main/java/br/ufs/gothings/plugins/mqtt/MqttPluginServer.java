@@ -59,10 +59,6 @@ public class MqttPluginServer {
         // Instantiate moquette server
         embeddedServer = new Server();
 
-        // Create config and set moquette port
-        final MoquetteConfig config = new MoquetteConfig();
-        config.setProperty(PORT_PROPERTY_NAME, String.valueOf(settings.get(Settings.SERVER_PORT)));
-
         // Define the stop instructions
         stopAction = () -> {
             try {
@@ -73,8 +69,16 @@ public class MqttPluginServer {
             }
         };
 
+        // Create config and set moquette port
+        final MoquetteConfig config = new MoquetteConfig();
+        config.setProperty(PORT_PROPERTY_NAME, String.valueOf(settings.get(Settings.SERVER_PORT)));
+
+        // The custom InterceptHandler and IAuthorizator used by this plugin
+        final InterceptHandler handler = new MoquetteIntercept();
+        final IAuthorizator authorizator = new MoquetteAuthorizator();
+
         try {
-            embeddedServer.startServer(config, null, null, null, null);
+            embeddedServer.startServer(config, Collections.singletonList(handler), null, null, authorizator);
 
             // Hacking moquette with reflection to achieve the plugin goals.
             hacksMoquette(shared, embeddedServer);
@@ -185,8 +189,6 @@ public class MqttPluginServer {
             put(PERSISTENT_STORE_PROPERTY_NAME, "");
             put(ALLOW_ANONYMOUS_PROPERTY_NAME, "true");
             put(AUTHENTICATOR_CLASS_NAME, "");
-            put(AUTHORIZATOR_CLASS_NAME, MoquetteAuthorizator.class.getName());
-            put("intercept.handler", MoquetteIntercept.class.getName());
         }};
 
         @Override
