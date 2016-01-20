@@ -74,14 +74,15 @@ public class MqttPluginServer {
         config.setProperty(PORT_PROPERTY_NAME, String.valueOf(settings.get(Settings.SERVER_PORT)));
 
         // The custom InterceptHandler and IAuthorizator used by this plugin
-        final InterceptHandler handler = new MoquetteIntercept();
-        final IAuthorizator authorizator = new MoquetteAuthorizator();
+        final InterceptHandler handler = new MoquetteIntercept(shared);
+        final IAuthorizator authorizator = new MoquetteAuthorizator(shared);
 
         try {
             embeddedServer.startServer(config, Collections.singletonList(handler), null, null, authorizator);
 
             // Hacking moquette with reflection to achieve the plugin goals.
-            hacksMoquette(shared, embeddedServer);
+            final ProtocolProcessor processor = getFieldValue(embeddedServer, "m_processor");
+            shared.processorProxy = new ProtocolProcessorProxy(processor);
         } catch (IOException e) {
             stopAction.run();
         }
@@ -136,31 +137,6 @@ public class MqttPluginServer {
         }
     }
 
-    /**
-     *  Prepare moquette intercept handler for use.
-     */
-    private static void hacksMoquette(final Shared shared, final Server server)
-    {
-        final ProtocolProcessor processor = getFieldValue(server, "m_processor");
-
-        final Object m_interceptor = getFieldValue(processor, "m_interceptor");
-        final List<InterceptHandler> handlers = getFieldValue(m_interceptor, "handlers");
-        final MoquetteIntercept moquetteIntercept = (MoquetteIntercept) handlers.get(0);
-
-        // add proxy for forbidden methods in the ProtocolProcessor
-        shared.processorProxy = new ProtocolProcessorProxy(processor);
-
-        // add reference for the authorizator forbiddenTopics map
-        final MoquetteAuthorizator authorizator = getFieldValue(processor, "m_authorizator");
-        shared.forbiddenTopics = authorizator.forbiddenTopics;
-
-        // add reference for the registered clients
-        shared.clients = moquetteIntercept.clients;
-
-        // add to the intercept handler a reference for the shared plugin data
-        moquetteIntercept.shared = shared;
-    }
-
     @SuppressWarnings("unchecked")
     private static <T> T getFieldValue(final Object obj, final String name) {
         try {
@@ -210,6 +186,11 @@ public class MqttPluginServer {
     public static final class MoquetteAuthorizator implements IAuthorizator {
         private final Set<String> forbiddenTopics = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
+        public MoquetteAuthorizator(final Shared shared) {
+            // copy reference of forbiddenTopics set into shared
+            shared.forbiddenTopics = this.forbiddenTopics;
+        }
+
         @Override
         public boolean canWrite(final String topic, final String user, final String client) {
             /* only the embedded client id is allowed to publish */
@@ -227,6 +208,13 @@ public class MqttPluginServer {
 
         private final Map<String, ClientInfo> clients = new ConcurrentHashMap<>();
         private final Map<String, SubscriptionInfo> allSubscriptions = new ConcurrentHashMap<>();
+
+        public MoquetteIntercept(final Shared shared) {
+            // copy reference of shared
+            this.shared = shared;
+            // copy reference of clients map into shared
+            shared.clients = this.clients;
+        }
 
         @Override
         public void onConnect(final InterceptConnectMessage msg) {
