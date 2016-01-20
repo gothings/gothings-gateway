@@ -1,7 +1,7 @@
 plugins:
   - protocol: http
     className: br.ufs.gothings.plugins.http.HttpPlugin
-    type: server
+    type: client+server
     properties:
       server.port: 8080
   - protocol: mqtt

@@ -1,7 +1,10 @@
 package br.ufs.gothings.plugins.http;
 
 import br.ufs.gothings.core.Settings;
+import br.ufs.gothings.core.message.GwRequest;
+import br.ufs.gothings.core.plugin.PluginClient;
 import br.ufs.gothings.core.plugin.PluginServer;
+import br.ufs.gothings.core.plugin.ReplyLink;
 import br.ufs.gothings.core.plugin.RequestLink;
 
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -9,17 +12,20 @@ import java.util.concurrent.atomic.AtomicBoolean;
 /**
  * @author Wagner Macedo
  */
-public class HttpPlugin implements PluginServer {
+public class HttpPlugin implements PluginClient, PluginServer {
 
     static final String GW_PROTOCOL = "http";
 
+    private final HttpPluginClient client;
     private final HttpPluginServer server;
     private final Settings settings;
     private final AtomicBoolean started = new AtomicBoolean(false);
 
+    private ReplyLink replyLink;
     private RequestLink requestLink;
 
     public HttpPlugin() {
+        client = new HttpPluginClient();
         server = new ApacheHCServer();
         settings = new Settings(started);
     }
@@ -31,6 +37,7 @@ public class HttpPlugin implements PluginServer {
                 throw new NullPointerException("no RequestLink to start the server");
             }
             try {
+                client.start(replyLink);
                 server.start(requestLink, settings);
             } catch (InterruptedException e) {
                 started.set(false);
@@ -42,6 +49,7 @@ public class HttpPlugin implements PluginServer {
     public void stop() {
         if (started.compareAndSet(true, false)) {
             try {
+                client.stop();
                 server.stop();
             } catch (InterruptedException ignored) {
             }
@@ -56,6 +64,21 @@ public class HttpPlugin implements PluginServer {
     @Override
     public Settings settings() {
         return settings;
+    }
+
+    /* Client implementation */
+
+    @Override
+    public void handleRequest(final GwRequest request) {
+        client.sendRequest(request);
+    }
+
+    @Override
+    public void setUp(final ReplyLink replyLink) {
+        if (started.get()) {
+            throw new IllegalStateException("plugin already started");
+        }
+        this.replyLink = replyLink;
     }
 
     /* Server implementation */
