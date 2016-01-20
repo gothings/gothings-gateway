@@ -8,7 +8,6 @@ import br.ufs.gothings.core.message.GwRequest;
 import br.ufs.gothings.core.message.headers.Operation;
 import br.ufs.gothings.core.plugin.ReplyListener;
 import br.ufs.gothings.core.plugin.RequestLink;
-import org.apache.commons.lang3.RandomStringUtils;
 import io.moquette.interception.InterceptHandler;
 import io.moquette.interception.messages.*;
 import io.moquette.proto.messages.AbstractMessage;
@@ -39,14 +38,10 @@ import static io.moquette.BrokerConstants.*;
  * @author Wagner Macedo
  */
 public class MqttPluginServer {
-    // Extreme unique client id (maximum length random ascii)
-    private static final String EMBEDDED_CLIENT_ID = RandomStringUtils.randomAscii(65535);
-
     private final Shared shared;
     private final Settings settings;
 
     private final AtomicInteger messageIdGen = new AtomicInteger(0);
-    private Runnable stopAction = () -> {};
 
     private Server embeddedServer;
 
@@ -58,16 +53,6 @@ public class MqttPluginServer {
     void start() {
         // Instantiate moquette server
         embeddedServer = new Server();
-
-        // Define the stop instructions
-        stopAction = () -> {
-            try {
-                embeddedServer.stopServer();
-            } finally {
-                shared.release();
-                embeddedServer = null;
-            }
-        };
 
         // Create config and set moquette port
         final MoquetteConfig config = new MoquetteConfig();
@@ -84,12 +69,17 @@ public class MqttPluginServer {
             final ProtocolProcessor processor = getFieldValue(embeddedServer, "m_processor");
             shared.processorProxy = new ProtocolProcessorProxy(processor);
         } catch (IOException e) {
-            stopAction.run();
+            stop();
         }
     }
 
     void stop() {
-        stopAction.run();
+        try {
+            embeddedServer.stopServer();
+        } finally {
+            shared.release();
+            embeddedServer = null;
+        }
     }
 
     public void receiveReply(final GwReply reply) {
@@ -193,8 +183,7 @@ public class MqttPluginServer {
 
         @Override
         public boolean canWrite(final String topic, final String user, final String client) {
-            /* only the embedded client id is allowed to publish */
-            return Objects.equals(EMBEDDED_CLIENT_ID, client);
+            return false;
         }
 
         @Override
@@ -218,9 +207,6 @@ public class MqttPluginServer {
 
         @Override
         public void onConnect(final InterceptConnectMessage msg) {
-            // Ignore embedded client id
-            if (Objects.equals(EMBEDDED_CLIENT_ID, msg.getClientID())) return;
-
             // get or create an entry with this clientID
             final ClientInfo client = clients.computeIfAbsent(msg.getClientID(),
                     k -> new ClientInfo(msg.isCleanSession()));
@@ -231,9 +217,6 @@ public class MqttPluginServer {
 
         @Override
         public void onDisconnect(final InterceptDisconnectMessage msg) {
-            // Ignore embedded client id
-            if (Objects.equals(EMBEDDED_CLIENT_ID, msg.getClientID())) return;
-
             // remove the entry with this clientID
             final ClientInfo client = clients.remove(msg.getClientID());
             // remove old subscriptions if connection was a clean session
@@ -253,9 +236,6 @@ public class MqttPluginServer {
          */
         @Override
         public void onSubscribe(final InterceptSubscribeMessage msg) {
-            // Ignore embedded client id
-            if (Objects.equals(EMBEDDED_CLIENT_ID, msg.getClientID())) return;
-
             final ClientInfo client = clients.get(msg.getClientID());
             if (client != null) {
                 final SubscriptionInfo subscription = getSubscription(msg.getTopicFilter());
@@ -280,9 +260,6 @@ public class MqttPluginServer {
 
         @Override
         public void onUnsubscribe(final InterceptUnsubscribeMessage msg) {
-            // Ignore embedded client id
-            if (Objects.equals(EMBEDDED_CLIENT_ID, msg.getClientID())) return;
-
             final ClientInfo client = clients.get(msg.getClientID());
             if (client != null) {
                 // remove from the list of subscriptions of this clientID
@@ -302,9 +279,6 @@ public class MqttPluginServer {
 
         @Override
         public void onDenyPublish(final InterceptPublishMessage msg) {
-            // Ignore embedded client id
-            if (Objects.equals(EMBEDDED_CLIENT_ID, msg.getClientID())) return;
-
             // send internal request with operation=CREATE, operation=UPDATE or operation=DELETE
             final GwRequest request = new GwRequest();
             final GwHeaders h = request.headers();
