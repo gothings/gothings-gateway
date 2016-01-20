@@ -8,20 +8,14 @@ import br.ufs.gothings.core.message.GwRequest;
 import br.ufs.gothings.core.message.headers.Operation;
 import br.ufs.gothings.core.plugin.ReplyListener;
 import br.ufs.gothings.core.plugin.RequestLink;
-import io.netty.util.AttributeKey;
 import org.apache.commons.lang3.RandomStringUtils;
 import io.moquette.interception.InterceptHandler;
 import io.moquette.interception.messages.*;
-import io.moquette.parser.netty.Utils;
 import io.moquette.proto.messages.AbstractMessage;
-import io.moquette.proto.messages.ConnAckMessage;
-import io.moquette.proto.messages.ConnectMessage;
 import io.moquette.proto.messages.PublishMessage;
-import io.moquette.server.ServerChannel;
+import io.moquette.server.Server;
 import io.moquette.server.config.IConfig;
-import io.moquette.server.netty.NettyAcceptor;
 import io.moquette.spi.impl.ProtocolProcessor;
-import io.moquette.spi.impl.SimpleMessaging;
 import io.moquette.spi.security.IAuthorizator;
 import io.moquette.spi.impl.subscriptions.SubscriptionsStore;
 
@@ -38,9 +32,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
-import static br.ufs.gothings.core.message.headers.HeaderNames.GW_OPERATION;
-import static br.ufs.gothings.core.message.headers.HeaderNames.GW_PATH;
-import static br.ufs.gothings.core.message.headers.HeaderNames.GW_QOS;
+import static br.ufs.gothings.core.message.headers.HeaderNames.*;
 import static io.moquette.BrokerConstants.*;
 
 /**
@@ -56,7 +48,7 @@ public class MqttPluginServer {
     private final AtomicInteger messageIdGen = new AtomicInteger(0);
     private Runnable stopAction = () -> {};
 
-    private EmbeddedChannel embeddedChannel;
+    private Server embeddedServer;
 
     MqttPluginServer(final RequestLink requestLink, final Settings settings) {
         this.shared = new Shared(this, requestLink);
@@ -64,53 +56,31 @@ public class MqttPluginServer {
     }
 
     void start() {
-        // Get messaging instance and set moquette port
-        final SimpleMessaging messaging = SimpleMessaging.getInstance();
+        // Instantiate moquette server
+        embeddedServer = new Server();
+
+        // Create config and set moquette port
         final MoquetteConfig config = new MoquetteConfig();
         config.setProperty(PORT_PROPERTY_NAME, String.valueOf(settings.get(Settings.SERVER_PORT)));
-
-        // Initiate the processor and instantiate the acceptor
-        final ProtocolProcessor processor = messaging.init(config, Collections.emptyList(), null, null);
-        final NettyAcceptor acceptor = new NettyAcceptor();
 
         // Define the stop instructions
         stopAction = () -> {
             try {
-                acceptor.close();
+                embeddedServer.stopServer();
             } finally {
-                messaging.shutdown();
                 shared.release();
-                embeddedChannel = null;
+                embeddedServer = null;
             }
         };
 
-        // Hacking moquette with reflection to achieve my goals.
-        // NOTE: I'll try, in the future, to put native support for some of these hacks.
-        hacksMoquette(shared, processor);
-
-        // Connect the embedded channel
-        embeddedChannel = new EmbeddedChannel(stopAction);
-        processor.processConnect(embeddedChannel, buildConnectMessage());
-        if (embeddedChannel.getReturnCode() != ConnAckMessage.CONNECTION_ACCEPTED) {
-            stopAction.run();
-            return;
-        }
-
         try {
-            acceptor.initialize(processor, config, () -> null);
+            embeddedServer.startServer(config, null, null, null, null);
+
+            // Hacking moquette with reflection to achieve the plugin goals.
+            hacksMoquette(shared, embeddedServer);
         } catch (IOException e) {
             stopAction.run();
         }
-    }
-
-    private static ConnectMessage buildConnectMessage() {
-        final ConnectMessage connectMessage = new ConnectMessage();
-        connectMessage.setClientID(EMBEDDED_CLIENT_ID);
-        connectMessage.setUserFlag(false);
-        connectMessage.setWillFlag(false);
-        connectMessage.setCleanSession(true);
-        connectMessage.setProtocolVersion(Utils.VERSION_3_1_1);
-        return connectMessage;
     }
 
     void stop() {
@@ -126,7 +96,7 @@ public class MqttPluginServer {
         msg.setTopicName(h.get(GW_PATH));
         msg.setQos(AbstractMessage.QOSType.MOST_ONE);
 
-        shared.processorProxy.processPublish(embeddedChannel, msg);
+        embeddedServer.internalPublish(msg);
     }
 
     public void receiveError(final GwError error) {
@@ -165,8 +135,10 @@ public class MqttPluginServer {
     /**
      *  Prepare moquette intercept handler for use.
      */
-    private static void hacksMoquette(final Shared shared, final ProtocolProcessor processor)
+    private static void hacksMoquette(final Shared shared, final Server server)
     {
+        final ProtocolProcessor processor = getFieldValue(server, "m_processor");
+
         final Object m_interceptor = getFieldValue(processor, "m_interceptor");
         final List<InterceptHandler> handlers = getFieldValue(m_interceptor, "handlers");
         final MoquetteIntercept moquetteIntercept = (MoquetteIntercept) handlers.get(0);
@@ -380,52 +352,6 @@ public class MqttPluginServer {
         }
     }
 
-    private static final class EmbeddedChannel implements ServerChannel {
-        private final Runnable stopAction;
-
-        private final Map<Object, Object> attributes = new ConcurrentHashMap<>();
-        private byte returnCode;
-
-        public EmbeddedChannel(final Runnable stopAction) {
-            this.stopAction = stopAction;
-        }
-
-        @Override
-        public Object getAttribute(final AttributeKey<Object> key) {
-            return attributes.get(key);
-        }
-
-        @Override
-        public void setAttribute(final AttributeKey<Object> key, final Object value) {
-            attributes.put(key, value);
-        }
-
-        @Override
-        public void setIdleTime(final int idleTime) {
-            // not needed on this implementation
-        }
-
-        @Override
-        public void close(final boolean immediately) {
-            stopAction.run();
-        }
-
-        @Override
-        public void write(final Object value) {
-            try {
-                final AbstractMessage msg = (AbstractMessage) value;
-                if (msg instanceof ConnAckMessage) {
-                    returnCode = ((ConnAckMessage) msg).getReturnCode();
-                }
-            } catch (RuntimeException ignored) {
-            }
-        }
-
-        public byte getReturnCode() {
-            return returnCode;
-        }
-    }
-
     private static final class ProtocolProcessorProxy {
         private final ProtocolProcessor processor;
 
@@ -462,10 +388,6 @@ public class MqttPluginServer {
             } catch (IllegalAccessException | InvocationTargetException e) {
                 throw new RuntimeException(e);
             }
-        }
-
-        public void processPublish(final EmbeddedChannel embeddedChannel, final PublishMessage msg) {
-            processor.processPublish(embeddedChannel, msg);
         }
 
         public void removeSubscription(final String topic, final String clientID) {
