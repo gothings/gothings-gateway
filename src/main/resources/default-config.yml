@@ -9,3 +9,8 @@ plugins:
     type: client+server
     properties:
       server.port: 11883
+  - protocol: coap
+    className: br.ufs.gothings.plugins.coap.CoapPlugin
+    type: client+server
+    properties:
+      server.port: 55683
