@@ -25,7 +25,7 @@ public class CoapPlugin implements PluginClient, PluginServer {
     private RequestLink requestLink;
 
     public CoapPlugin() {
-        client = null;
+        client = new CaliforniumClient();
         server = new CaliforniumServer();
         settings = new Settings(started);
     }
