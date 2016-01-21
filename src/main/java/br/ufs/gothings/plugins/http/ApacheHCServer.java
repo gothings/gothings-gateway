@@ -93,16 +93,15 @@ public class ApacheHCServer implements HttpPluginServer {
                         switch (cause.getErrorMessage().getReason()) {
                             case INVALID_URI:
                                 response.setStatusCode(HttpStatus.SC_BAD_REQUEST);
-                                break;
+                                return;
                             case UNAVAILABLE_PLUGIN:
                             case TARGET_NOT_FOUND:
                             case PATH_NOT_FOUND:
                                 response.setStatusCode(HttpStatus.SC_NOT_FOUND);
-                                break;
-                            default:
-                                response.setStatusCode(HttpStatus.SC_INTERNAL_SERVER_ERROR);
+                                return;
                         }
                     }
+                    response.setStatusCode(HttpStatus.SC_INTERNAL_SERVER_ERROR);
                 } catch (TimeoutException e) {
                     response.setStatusCode(HttpStatus.SC_GATEWAY_TIMEOUT);
                 }
