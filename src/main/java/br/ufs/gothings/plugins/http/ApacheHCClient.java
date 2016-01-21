@@ -22,7 +22,7 @@ import static br.ufs.gothings.core.message.headers.HeaderNames.*;
 /**
  * @author Wagner Macedo
  */
-public class HttpPluginClient {
+public class ApacheHCClient {
     private ReplyLink replyLink;
     private CloseableHttpClient httpClient;
 

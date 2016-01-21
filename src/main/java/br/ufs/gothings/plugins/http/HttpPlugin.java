@@ -16,7 +16,7 @@ public class HttpPlugin implements PluginClient, PluginServer {
 
     static final String GW_PROTOCOL = "http";
 
-    private final HttpPluginClient client;
+    private final ApacheHCClient client;
     private final HttpPluginServer server;
     private final Settings settings;
     private final AtomicBoolean started = new AtomicBoolean(false);
@@ -25,7 +25,7 @@ public class HttpPlugin implements PluginClient, PluginServer {
     private RequestLink requestLink;
 
     public HttpPlugin() {
-        client = new HttpPluginClient();
+        client = new ApacheHCClient();
         server = new ApacheHCServer();
         settings = new Settings(started);
     }
