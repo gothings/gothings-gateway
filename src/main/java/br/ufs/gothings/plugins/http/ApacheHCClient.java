@@ -33,6 +33,10 @@ public class ApacheHCClient {
 
     public void stop() {
         this.replyLink = null;
+        try {
+            this.httpClient.close();
+        } catch (IOException ignored) {
+        }
         this.httpClient = null;
     }
 
