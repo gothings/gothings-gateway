@@ -64,12 +64,18 @@ public class CaliforniumClient {
         final OptionSet coapOptions = coapRequest.getOptions();
         switch (operation) {
             case CREATE:
-            case UPDATE:
-                coapOptions.setContentFormat(MediaTypeRegistry.parse(h.get(GW_CONTENT_TYPE)));
+            case UPDATE: {
+                final int format = MediaTypeRegistry.parse(h.get(GW_CONTENT_TYPE));
+                if (format != MediaTypeRegistry.UNDEFINED)
+                    coapOptions.setContentFormat(format);
                 break;
-            case READ:
-                coapOptions.setAccept(MediaTypeRegistry.parse(h.get(GW_EXPECTED_TYPES)));
+            }
+            case READ: {
+                final int format = MediaTypeRegistry.parse(h.get(GW_EXPECTED_TYPES));
+                if (format != MediaTypeRegistry.UNDEFINED)
+                    coapOptions.setAccept(format);
                 break;
+            }
         }
 
         final CoapResponse coapResponse = coapClient.advanced(coapRequest);
