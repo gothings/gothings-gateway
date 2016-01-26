@@ -95,7 +95,7 @@ public class MqttPluginServer {
     }
 
     public void receiveError(final GwError error) {
-        switch (error.getReason()) {
+        switch (error.getCode()) {
             // If target plugin is unavailable then, as we know the gateway cannot register another plugin dynamically,
             // silently remove all subscribed clients from this topic and avoid future clients to subscribe to it.
             case UNAVAILABLE_PLUGIN:

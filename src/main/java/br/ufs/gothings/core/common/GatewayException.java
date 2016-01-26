@@ -13,8 +13,8 @@ public final class GatewayException extends Exception {
         this.error = error;
     }
 
-    public GatewayException(final GwRequest message, final Reason reason) {
-        this.error = new GwError(message, reason);
+    public GatewayException(final GwRequest message, final ErrorCode code) {
+        this.error = new GwError(message, code);
     }
 
     public GwError getErrorMessage() {

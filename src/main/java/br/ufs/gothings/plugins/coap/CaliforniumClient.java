@@ -1,6 +1,6 @@
 package br.ufs.gothings.plugins.coap;
 
-import br.ufs.gothings.core.common.Reason;
+import br.ufs.gothings.core.common.ErrorCode;
 import br.ufs.gothings.core.message.GwError;
 import br.ufs.gothings.core.message.GwReply;
 import br.ufs.gothings.core.message.GwRequest;
@@ -80,7 +80,7 @@ public class CaliforniumClient {
 
         final CoapResponse coapResponse = coapClient.advanced(coapRequest);
         if (coapResponse == null) {
-            replyLink.sendError(new GwError(request, Reason.OTHER));
+            replyLink.sendError(new GwError(request, ErrorCode.OTHER));
             return;
         }
 
@@ -89,10 +89,10 @@ public class CaliforniumClient {
         if (!ResponseCode.isSuccess(code)) {
             switch (code) {
                 case NOT_FOUND:
-                    replyLink.sendError(new GwError(request, Reason.PATH_NOT_FOUND));
+                    replyLink.sendError(new GwError(request, ErrorCode.PATH_NOT_FOUND));
                     return;
                 default:
-                    replyLink.sendError(new GwError(request, Reason.OTHER));
+                    replyLink.sendError(new GwError(request, ErrorCode.OTHER));
                     return;
             }
         }

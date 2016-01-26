@@ -1,7 +1,7 @@
 package br.ufs.gothings.gateway;
 
+import br.ufs.gothings.core.common.ErrorCode;
 import br.ufs.gothings.core.common.GatewayException;
-import br.ufs.gothings.core.common.Reason;
 import br.ufs.gothings.core.message.headers.GwHeaders;
 import br.ufs.gothings.core.message.GwMessage;
 import br.ufs.gothings.core.message.GwReply;
@@ -53,7 +53,7 @@ public class InterconnectionController implements Controller {
                     logger.error("could not parse URI from path sent by %s plugin: %s",
                             pkg.getSourceProtocol(), e.getInput());
                 }
-                throw new GatewayException(request, Reason.INVALID_URI);
+                throw new GatewayException(request, ErrorCode.INVALID_URI);
             }
 
             final String targetProtocol = uri.getScheme();

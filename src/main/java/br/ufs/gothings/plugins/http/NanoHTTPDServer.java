@@ -74,7 +74,7 @@ class NanoHTTPDServer implements HttpPluginServer {
 
                     if (e.getCause() instanceof GatewayException) {
                         final GatewayException gwx = (GatewayException) e.getCause();
-                        switch (gwx.getErrorMessage().getReason()) {
+                        switch (gwx.getErrorMessage().getCode()) {
                             case INVALID_URI:
                                 status = Status.BAD_REQUEST;
                                 break;

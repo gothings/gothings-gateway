@@ -20,7 +20,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.function.Consumer;
 
 import static br.ufs.gothings.core.message.headers.HeaderNames.*;
 
@@ -90,7 +89,7 @@ public class ApacheHCServer implements HttpPluginServer {
                 } catch (ExecutionException e) {
                     if (e.getCause() instanceof GatewayException) {
                         final GatewayException cause = (GatewayException) e.getCause();
-                        switch (cause.getErrorMessage().getReason()) {
+                        switch (cause.getErrorMessage().getCode()) {
                             case INVALID_URI:
                                 response.setStatusCode(HttpStatus.SC_BAD_REQUEST);
                                 return;

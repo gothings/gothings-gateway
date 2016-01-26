@@ -1,6 +1,6 @@
 package br.ufs.gothings.plugins.http;
 
-import br.ufs.gothings.core.common.Reason;
+import br.ufs.gothings.core.common.ErrorCode;
 import br.ufs.gothings.core.message.GwError;
 import br.ufs.gothings.core.message.GwReply;
 import br.ufs.gothings.core.message.GwRequest;
@@ -87,9 +87,9 @@ public class ApacheHCClient {
             httpResponse = httpClient.execute(httpRequest);
         } catch (IOException e) {
             if (e instanceof SocketException || e instanceof UnknownHostException) {
-                replyLink.sendError(new GwError(request, Reason.TARGET_NOT_FOUND));
+                replyLink.sendError(new GwError(request, ErrorCode.TARGET_NOT_FOUND));
             } else {
-                replyLink.sendError(new GwError(request, Reason.OTHER));
+                replyLink.sendError(new GwError(request, ErrorCode.OTHER));
             }
             return;
         }
@@ -99,9 +99,9 @@ public class ApacheHCClient {
         // Error handling
         if (statusCode >= 400) {
             if (statusCode == 404) {
-                replyLink.sendError(new GwError(request, Reason.PATH_NOT_FOUND));
+                replyLink.sendError(new GwError(request, ErrorCode.PATH_NOT_FOUND));
             } else {
-                replyLink.sendError(new GwError(request, Reason.OTHER));
+                replyLink.sendError(new GwError(request, ErrorCode.OTHER));
             }
             return;
         }
@@ -121,7 +121,7 @@ public class ApacheHCClient {
                 EntityUtils.consume(entity);
             }
         } catch (IOException e) {
-            replyLink.sendError(new GwError(request, Reason.OTHER));
+            replyLink.sendError(new GwError(request, ErrorCode.OTHER));
             return;
         }
 

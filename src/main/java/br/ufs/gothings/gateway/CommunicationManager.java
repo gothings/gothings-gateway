@@ -1,8 +1,8 @@
 package br.ufs.gothings.gateway;
 
 import br.ufs.gothings.core.Settings;
+import br.ufs.gothings.core.common.ErrorCode;
 import br.ufs.gothings.core.common.GatewayException;
-import br.ufs.gothings.core.common.Reason;
 import br.ufs.gothings.core.message.*;
 import br.ufs.gothings.core.message.headers.Operation;
 import br.ufs.gothings.core.plugin.*;
@@ -241,7 +241,7 @@ public class CommunicationManager {
         if (message instanceof GwRequest) {
             final GwRequest request = (GwRequest) message;
             if (!requestToPlugin(request.readOnly(), pkg.getTargetProtocol())) {
-                sendFutureException(new GatewayException(request, Reason.UNAVAILABLE_PLUGIN));
+                sendFutureException(new GatewayException(request, ErrorCode.UNAVAILABLE_PLUGIN));
             }
         }
         // On the other hand, if ICC left a reply, then pass to OC to continue processing
@@ -308,7 +308,7 @@ public class CommunicationManager {
         } else if (e instanceof GatewayException) {
             sendFutureException((GatewayException) e);
         } else {
-            sendFutureException(new GatewayException((GwRequest) pkg.getMessage(), Reason.INTERNAL_ERROR));
+            sendFutureException(new GatewayException((GwRequest) pkg.getMessage(), ErrorCode.INTERNAL_ERROR));
         }
         // Always throws an exception so processing is stopped
         throw new StopProcessException();

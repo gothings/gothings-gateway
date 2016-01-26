@@ -1,6 +1,6 @@
 package br.ufs.gothings.plugins.mqtt;
 
-import br.ufs.gothings.core.common.Reason;
+import br.ufs.gothings.core.common.ErrorCode;
 import br.ufs.gothings.core.message.GwError;
 import br.ufs.gothings.core.message.headers.GwHeaders;
 import br.ufs.gothings.core.message.GwReply;
@@ -53,13 +53,13 @@ public final class MqttPluginClient {
                     case REASON_CODE_BROKER_UNAVAILABLE:
                     case REASON_CODE_CLIENT_TIMEOUT:
                     case REASON_CODE_CONNECTION_LOST:
-                        replyLink.sendError(new GwError(request, Reason.TARGET_NOT_FOUND));
+                        replyLink.sendError(new GwError(request, ErrorCode.TARGET_NOT_FOUND));
                         break;
                 }
-                replyLink.sendError(new GwError(request, Reason.OTHER));
+                replyLink.sendError(new GwError(request, ErrorCode.OTHER));
             }
         } else {
-            replyLink.sendError(new GwError(request, Reason.OTHER));
+            replyLink.sendError(new GwError(request, ErrorCode.OTHER));
         }
     }
 

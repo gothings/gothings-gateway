@@ -123,7 +123,7 @@ public class CaliforniumServer {
             } catch (ExecutionException e) {
                 if (e.getCause() instanceof GatewayException) {
                     final GatewayException cause = (GatewayException) e.getCause();
-                    switch (cause.getErrorMessage().getReason()) {
+                    switch (cause.getErrorMessage().getCode()) {
                         case INVALID_URI:
                             ex.respond(ResponseCode.BAD_REQUEST);
                             return;

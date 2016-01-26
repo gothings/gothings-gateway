@@ -3,7 +3,7 @@ package br.ufs.gothings.core.common;
 /**
  * @author Wagner Macedo
  */
-public enum Reason {
+public enum ErrorCode {
     INVALID_URI,
     UNAVAILABLE_PLUGIN,
     TARGET_NOT_FOUND,
