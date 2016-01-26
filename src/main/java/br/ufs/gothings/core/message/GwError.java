@@ -9,7 +9,7 @@ public class GwError extends GwMessage {
     private final Reason reason;
     private final MessageType sourceType;
 
-    public GwError(final DataMessage message, final Reason reason) {
+    public GwError(final GwRequest message, final Reason reason) {
         super(message.headers().readOnly(), message.getSequence());
         this.reason = reason;
         this.sourceType = message.getType();

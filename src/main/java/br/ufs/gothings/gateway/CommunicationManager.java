@@ -308,7 +308,7 @@ public class CommunicationManager {
         } else if (e instanceof GatewayException) {
             sendFutureException((GatewayException) e);
         } else {
-            sendFutureException(new GatewayException((DataMessage) pkg.getMessage(), Reason.INTERNAL_ERROR));
+            sendFutureException(new GatewayException((GwRequest) pkg.getMessage(), Reason.INTERNAL_ERROR));
         }
         // Always throws an exception so processing is stopped
         throw new StopProcessException();
