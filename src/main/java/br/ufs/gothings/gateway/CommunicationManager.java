@@ -81,11 +81,7 @@ public class CommunicationManager {
 
             @Override
             public void sendError(final GwError error) {
-                if (error.getSourceType() == GwMessage.MessageType.REQUEST) {
-                    sendFutureException(new GatewayException(error));
-                } else {
-                    logger.error("client plugin send an error with source other than GwRequest");
-                }
+                sendFutureException(new GatewayException(error));
             }
         });
 
