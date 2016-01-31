@@ -9,6 +9,7 @@ import br.ufs.gothings.core.message.headers.Operation;
 import br.ufs.gothings.core.plugin.ReplyLink;
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapResponse;
+import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.OptionSet;
@@ -59,6 +60,11 @@ public class CaliforniumClient {
         if (coapRequest == null) {
             // do something for observe/unobserve operation and stop
             return;
+        }
+
+        final Byte qos = h.get(GW_QOS);
+        if (qos != null) {
+            coapRequest.setType(qos == 0 ? CoAP.Type.NON : CoAP.Type.CON);
         }
 
         final OptionSet coapOptions = coapRequest.getOptions();

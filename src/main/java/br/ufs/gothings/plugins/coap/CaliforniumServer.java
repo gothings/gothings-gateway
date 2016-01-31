@@ -74,6 +74,8 @@ public class CaliforniumServer {
             final GwRequest gw_request = new GwRequest();
             final GwHeaders h = gw_request.headers();
             h.set(GW_PATH, uri);
+            final CoAP.Type type = exchange.getRequest().getType();
+            h.set(GW_QOS, (byte) (type == CoAP.Type.CON ? 1 : 0));
 
             // Set headers according to the request code
             switch (code) {
