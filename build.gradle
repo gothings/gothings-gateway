@@ -27,7 +27,7 @@ dependencies {
 
     // mqtt plugin dependencies
     compile 'org.eclipse.paho:org.eclipse.paho.client.mqttv3:1.0.2'
-    // must install to local repo from: https://github.com/wagnerluis1982/moquette/tree/interceptor
+    // must install from: https://github.com/gothings/moquette/tree/interceptor
     compile 'io.moquette:moquette-broker:0.9-SNAPSHOT'
 
     // http plugin dependencies
