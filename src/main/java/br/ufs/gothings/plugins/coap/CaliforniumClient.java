@@ -62,10 +62,8 @@ public class CaliforniumClient {
             return;
         }
 
-        final Byte qos = h.get(GW_QOS);
-        if (qos != null) {
-            coapRequest.setType(qos == 0 ? CoAP.Type.NON : CoAP.Type.CON);
-        }
+        final int qos = h.get(GW_QOS, 1);
+        coapRequest.setType(qos == 0 ? CoAP.Type.NON : CoAP.Type.CON);
 
         final OptionSet coapOptions = coapRequest.getOptions();
         switch (operation) {

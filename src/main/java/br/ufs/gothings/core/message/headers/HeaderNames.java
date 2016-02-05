@@ -21,8 +21,8 @@ public class HeaderNames {
     public static final HKeyMulti<String>
             GW_EXPECTED_TYPES = newComplexKey(String.class, LinkedHashSet::new);
 
-    public static final HKey<Byte>
-            GW_QOS = newKey(byte.class);
+    public static final HKey<Integer>
+            GW_QOS = newKey(int.class);
 
     public static final HKey<String>
             GW_CACHE_SIGNATURE = newKey(String.class);

@@ -33,6 +33,7 @@ import java.util.concurrent.locks.ReentrantLock;
 
 import static br.ufs.gothings.core.message.headers.HeaderNames.*;
 import static io.moquette.BrokerConstants.*;
+import static java.lang.Byte.toUnsignedInt;
 
 /**
  * @author Wagner Macedo
@@ -246,7 +247,7 @@ public class MqttPluginServer {
                     final GwRequest request = new GwRequest();
                     final GwHeaders h = request.headers();
                     h.set(GW_OPERATION, Operation.OBSERVE);
-                    h.set(GW_QOS, msg.getRequestedQos().byteValue());
+                    h.set(GW_QOS, toUnsignedInt(msg.getRequestedQos().byteValue()));
                     h.set(GW_PATH, msg.getTopicFilter());
 
                     shared.sendRequest(request);
@@ -282,7 +283,7 @@ public class MqttPluginServer {
             // send internal request with operation=CREATE, operation=UPDATE or operation=DELETE
             final GwRequest request = new GwRequest();
             final GwHeaders h = request.headers();
-            h.set(GW_QOS, msg.getQos().byteValue());
+            h.set(GW_QOS, toUnsignedInt(msg.getQos().byteValue()));
             h.set(GW_PATH, msg.getTopicName());
 
             // when retain=true request with UPDATE (if has payload) or DELETE (if empty payload)
