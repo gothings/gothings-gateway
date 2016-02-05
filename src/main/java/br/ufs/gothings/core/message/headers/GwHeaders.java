@@ -2,9 +2,11 @@ package br.ufs.gothings.core.message.headers;
 
 import br.ufs.gothings.core.common.ReadOnlyException;
 import br.ufs.gothings.core.util.AbstractKey;
-import br.ufs.gothings.core.util.CollectionUtils;
 
 import java.util.*;
+
+import static br.ufs.gothings.core.util.CollectionUtils.firstElement;
+import static br.ufs.gothings.core.util.CollectionUtils.isEmpty;
 
 /**
  * @author Wagner Macedo
@@ -23,11 +25,18 @@ public class GwHeaders {
         this.map = map;
     }
 
+    public <T> T get(final HKey<T> key) {
+        return get(key, null);
+    }
+
     @SuppressWarnings("unchecked")
-    public <T> T get(HKey<T> key) {
-        return key instanceof HKeyMulti
-                ? CollectionUtils.firstElement((Collection<T>) map.get(key))
-                : (T) map.get(key);
+    public <T> T get(final HKey<T> key, T failValue) {
+        if (key instanceof HKeyMulti) {
+            final Collection<T> values = (Collection<T>) map.get(key);
+            return isEmpty(values) ? failValue : firstElement(values);
+        } else {
+            return !map.containsKey(key) ? failValue : (T) map.get(key);
+        }
     }
 
     public <T> Collection<T> getAll(HKeyMulti<T> key) {

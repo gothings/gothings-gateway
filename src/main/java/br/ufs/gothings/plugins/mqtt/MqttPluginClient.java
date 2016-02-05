@@ -113,7 +113,7 @@ public final class MqttPluginClient {
             final GwHeaders h = msg.headers();
             final Operation operation = h.get(GW_OPERATION);
             final String topic = h.get(GW_PATH);
-            final int qos = max(0, min(2, h.get(GW_QOS)));
+            final int qos = max(0, min(2, h.get(GW_QOS, (byte) 0)));
             switch (operation) {
                 // CREATE or UPDATE is mapped as a publish, but this plugin treats CREATE as a retained message
                 case CREATE:

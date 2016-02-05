@@ -12,4 +12,8 @@ public class CollectionUtils {
         }
         return null;
     }
+
+    public static boolean isEmpty(final Collection values) {
+        return values == null || values.isEmpty();
+    }
 }
