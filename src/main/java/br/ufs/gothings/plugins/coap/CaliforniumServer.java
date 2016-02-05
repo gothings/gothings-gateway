@@ -2,11 +2,13 @@ package br.ufs.gothings.plugins.coap;
 
 import br.ufs.gothings.core.Settings;
 import br.ufs.gothings.core.common.GatewayException;
+import br.ufs.gothings.core.message.GwError;
 import br.ufs.gothings.core.message.GwReply;
 import br.ufs.gothings.core.message.GwRequest;
 import br.ufs.gothings.core.message.headers.GwHeaders;
 import br.ufs.gothings.core.message.headers.Operation;
 import br.ufs.gothings.core.plugin.FutureReply;
+import br.ufs.gothings.core.plugin.ReplyListener;
 import br.ufs.gothings.core.plugin.RequestLink;
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapServer;
@@ -16,8 +18,10 @@ import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.OptionSet;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.Exchange;
+import org.eclipse.californium.core.observe.ObserveRelation;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.core.server.resources.Resource;
+import org.eclipse.californium.core.server.resources.ResourceObserver;
 
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -29,7 +33,6 @@ import static br.ufs.gothings.core.message.headers.HeaderNames.*;
  * @author Wagner Macedo
  */
 public class CaliforniumServer {
-
     private CoapServer server;
     private RequestLink requestLink;
 
@@ -55,6 +58,7 @@ public class CaliforniumServer {
     private class CatchallResource extends CoapResource {
         public CatchallResource() {
             super("");
+            setObservable(true);
         }
 
         @Override
@@ -80,7 +84,11 @@ public class CaliforniumServer {
             // Set headers according to the request code
             switch (code) {
                 case GET:
-                    h.set(GW_OPERATION, Operation.READ);
+                    if (opts.hasObserve()) {
+                        h.set(GW_OPERATION, Operation.OBSERVE);
+                    } else {
+                        h.set(GW_OPERATION, Operation.READ);
+                    }
                     if (opts.hasAccept())
                         h.set(GW_EXPECTED_TYPES, MediaTypeRegistry.toString(opts.getAccept()));
                     break;
@@ -111,28 +119,25 @@ public class CaliforniumServer {
                                             final int timeout, final TimeUnit minutes) {
             final FutureReply future = requestLink.send(request);
             try {
-                return future.get(timeout, minutes);
+                if (request.headers().get(GW_OPERATION) == Operation.OBSERVE) {
+                    future.setListener(new ReplyListener() {
+                        @Override
+                        public void onReply(final GwReply reply) {
+                            sendExternalReply(reply, ex);
+                        }
+
+                        @Override
+                        public void onError(final GwError error) {
+                            sendExternalError(new GatewayException(error), ex);
+                        }
+                    });
+                } else {
+                    return future.get(timeout, minutes);
+                }
             }
             // handle possible errors
-            catch (InterruptedException e) {
-                ex.respond(ResponseCode.SERVICE_UNAVAILABLE);
-            } catch (ExecutionException e) {
-                if (e.getCause() instanceof GatewayException) {
-                    final GatewayException cause = (GatewayException) e.getCause();
-                    switch (cause.getErrorMessage().getCode()) {
-                        case INVALID_URI:
-                            ex.respond(ResponseCode.BAD_REQUEST);
-                            return null;
-                        case UNAVAILABLE_PLUGIN:
-                        case TARGET_NOT_FOUND:
-                        case PATH_NOT_FOUND:
-                            ex.respond(ResponseCode.NOT_FOUND);
-                            return null;
-                    }
-                }
-                ex.respond(ResponseCode.INTERNAL_SERVER_ERROR);
-            } catch (TimeoutException e) {
-                ex.respond(ResponseCode.GATEWAY_TIMEOUT);
+            catch (InterruptedException | ExecutionException | TimeoutException e) {
+                sendExternalError(e, ex);
             }
             return null;
         }
@@ -154,6 +159,39 @@ public class CaliforniumServer {
                     ex.respond(ResponseCode.DELETED);
                     break;
             }
+        }
+
+        private void sendExternalError(final Exception e, final CoapExchange exchange) {
+            if (e instanceof InterruptedException) {
+                exchange.respond(ResponseCode.SERVICE_UNAVAILABLE);
+                return;
+            }
+
+            if (e instanceof TimeoutException) {
+                exchange.respond(ResponseCode.GATEWAY_TIMEOUT);
+                return;
+            }
+
+            GatewayException cause = null;
+            if (e instanceof ExecutionException && e.getCause() instanceof GatewayException) {
+                cause = (GatewayException) e.getCause();
+            } else if (e instanceof GatewayException) {
+                cause = (GatewayException) e;
+            }
+
+            if (cause != null) {
+                switch (cause.getErrorMessage().getCode()) {
+                    case INVALID_URI:
+                        exchange.respond(ResponseCode.BAD_REQUEST);
+                        return;
+                    case UNAVAILABLE_PLUGIN:
+                    case TARGET_NOT_FOUND:
+                    case PATH_NOT_FOUND:
+                        exchange.respond(ResponseCode.NOT_FOUND);
+                        return;
+                }
+            }
+            exchange.respond(ResponseCode.INTERNAL_SERVER_ERROR);
         }
 
         @Override
