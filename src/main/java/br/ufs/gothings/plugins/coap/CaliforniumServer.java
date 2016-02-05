@@ -97,27 +97,21 @@ public class CaliforniumServer {
                     break;
             }
 
-            // Make the internal request
-            final FutureReply future = requestLink.send(gw_request);
-            try {
-                final GwReply gw_reply = future.get(1, TimeUnit.MINUTES);
+            // Internal request
+            final GwReply gw_reply = sendInternalRequest(gw_request, ex, 1, TimeUnit.MINUTES);
+            if (gw_reply == null) {
+                return;
+            }
 
-                switch (code) {
-                    case GET:
-                        final byte[] payload = gw_reply.payload().asBytes();
-                        final int contentFormat = MediaTypeRegistry.parse(gw_reply.headers().get(GW_CONTENT_TYPE));
-                        ex.respond(ResponseCode.CONTENT, payload, contentFormat);
-                        break;
-                    case POST:
-                        ex.respond(ResponseCode.CREATED);
-                        break;
-                    case PUT:
-                        ex.respond(ResponseCode.CHANGED);
-                        break;
-                    case DELETE:
-                        ex.respond(ResponseCode.DELETED);
-                        break;
-                }
+            // External reply
+            sendExternalReply(gw_reply, ex);
+        }
+
+        private GwReply sendInternalRequest(final GwRequest request, final CoapExchange ex,
+                                            final int timeout, final TimeUnit minutes) {
+            final FutureReply future = requestLink.send(request);
+            try {
+                return future.get(timeout, minutes);
             }
             // handle possible errors
             catch (InterruptedException e) {
@@ -128,17 +122,37 @@ public class CaliforniumServer {
                     switch (cause.getErrorMessage().getCode()) {
                         case INVALID_URI:
                             ex.respond(ResponseCode.BAD_REQUEST);
-                            return;
+                            return null;
                         case UNAVAILABLE_PLUGIN:
                         case TARGET_NOT_FOUND:
                         case PATH_NOT_FOUND:
                             ex.respond(ResponseCode.NOT_FOUND);
-                            return;
+                            return null;
                     }
                 }
                 ex.respond(ResponseCode.INTERNAL_SERVER_ERROR);
             } catch (TimeoutException e) {
                 ex.respond(ResponseCode.GATEWAY_TIMEOUT);
+            }
+            return null;
+        }
+
+        private void sendExternalReply(final GwReply reply, final CoapExchange ex) {
+            switch (ex.getRequestCode()) {
+                case GET:
+                    final byte[] payload = reply.payload().asBytes();
+                    final int contentFormat = MediaTypeRegistry.parse(reply.headers().get(GW_CONTENT_TYPE));
+                    ex.respond(ResponseCode.CONTENT, payload, contentFormat);
+                    break;
+                case POST:
+                    ex.respond(ResponseCode.CREATED);
+                    break;
+                case PUT:
+                    ex.respond(ResponseCode.CHANGED);
+                    break;
+                case DELETE:
+                    ex.respond(ResponseCode.DELETED);
+                    break;
             }
         }
 
