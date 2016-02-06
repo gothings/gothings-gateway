@@ -34,18 +34,19 @@ public class CaliforniumClient {
     public void sendRequest(final GwRequest request) {
         final GwHeaders h = request.headers();
         final Operation operation = h.get(GW_OPERATION);
-        final String uri = "coap://" + h.get(GW_TARGET) + h.get(GW_PATH);
 
-        final CoapClient coapClient = new CoapClient(uri);
+        // READ is processed a bit different
+        switch (operation) {
+            case READ:
+                sendGET(request);
+                return;
+        }
 
         // Choose CoAP request code by the gateway operation
         final Request coapRequest;
         switch (operation) {
             case CREATE:
                 coapRequest = Request.newPost();
-                break;
-            case READ:
-                coapRequest = Request.newGet();
                 break;
             case UPDATE:
                 coapRequest = Request.newPut();
@@ -54,38 +55,65 @@ public class CaliforniumClient {
                 coapRequest = Request.newDelete();
                 break;
             default:
-                coapRequest = null;
+                return;
         }
 
-        if (coapRequest == null) {
-            // do something for observe/unobserve operation and stop
-            return;
-        }
-
-        final int qos = h.get(GW_QOS, 1);
-        coapRequest.setType(qos == 0 ? CoAP.Type.NON : CoAP.Type.CON);
-
+        // Set CREATE and UPDATE options
         final OptionSet coapOptions = coapRequest.getOptions();
         switch (operation) {
             case CREATE:
-            case UPDATE: {
+            case UPDATE:
                 final int format = MediaTypeRegistry.parse(h.get(GW_CONTENT_TYPE));
                 if (format != MediaTypeRegistry.UNDEFINED)
                     coapOptions.setContentFormat(format);
-                break;
-            }
-            case READ: {
-                final int format = MediaTypeRegistry.parse(h.get(GW_EXPECTED_TYPES));
-                if (format != MediaTypeRegistry.UNDEFINED)
-                    coapOptions.setAccept(format);
-                break;
-            }
         }
+        setCoapQoS(coapRequest, h);
+
+        // Get CoAP response
+        final CoapResponse coapResponse = getCoapResponse(coapRequest, request);
+        if (coapResponse == null)
+            return;
+
+        // Send reply ack: no payload for CREATE, UPDATE and DELETE operations
+        replyLink.ack(request.getSequence());
+    }
+
+    private void sendGET(final GwRequest request) {
+        final GwHeaders h = request.headers();
+        final Request coapRequest = Request.newGet();
+
+        // Set GET options
+        final OptionSet coapOptions = coapRequest.getOptions();
+        final int format = MediaTypeRegistry.parse(h.get(GW_EXPECTED_TYPES));
+        if (format != MediaTypeRegistry.UNDEFINED) {
+            coapOptions.setAccept(format);
+        }
+        setCoapQoS(coapRequest, h);
+
+        // Get CoAP response
+        final CoapResponse coapResponse = getCoapResponse(coapRequest, request);
+        if (coapResponse == null) {
+            return;
+        }
+
+        // Payload handling
+        final GwReply reply = new GwReply(request);
+        reply.payload().set(coapResponse.getPayload());
+        replyLink.send(reply);
+    }
+
+    private static void setCoapQoS(final Request coapRequest, final GwHeaders h) {
+        final int qos = h.get(GW_QOS, 1);
+        coapRequest.setType(qos == 0 ? CoAP.Type.NON : CoAP.Type.CON);
+    }
+
+    private CoapResponse getCoapResponse(final Request coapRequest, final GwRequest request) {
+        final CoapClient coapClient = new CoapClient(createURI(request.headers()));
 
         final CoapResponse coapResponse = coapClient.advanced(coapRequest);
         if (coapResponse == null) {
             replyLink.sendError(new GwError(request, ErrorCode.OTHER));
-            return;
+            return null;
         }
 
         // Error handling
@@ -94,22 +122,16 @@ public class CaliforniumClient {
             switch (code) {
                 case NOT_FOUND:
                     replyLink.sendError(new GwError(request, ErrorCode.PATH_NOT_FOUND));
-                    return;
+                    return null;
                 default:
                     replyLink.sendError(new GwError(request, ErrorCode.OTHER));
-                    return;
+                    return null;
             }
         }
+        return coapResponse;
+    }
 
-        // Payload handling
-        if (operation == Operation.READ) {
-            final GwReply reply = new GwReply(request);
-            reply.payload().set(coapResponse.getPayload());
-            replyLink.send(reply);
-            return;
-        }
-
-        // Send reply ack for CREATE, UPDATE and DELETE operations
-        replyLink.ack(request.getSequence());
+    private String createURI(final GwHeaders h) {
+        return "coap://" + h.get(GW_TARGET) + h.get(GW_PATH);
     }
 }
