@@ -46,8 +46,12 @@ public final class Polling {
     }
 
     public void add(final GwRequest request) {
+        add(request, true);
+    }
+
+    public void add(final GwRequest request, final boolean execute) {
         final Destination dst = new Destination(request);
-        scheduler.submit(() -> requestLogic.accept(dst));
+        if (execute) scheduler.submit(() -> requestLogic.accept(dst));
 
         if (!destinations.contains(dst)) {
             dst.request = new GwRequest(request.headers(), request.payload());

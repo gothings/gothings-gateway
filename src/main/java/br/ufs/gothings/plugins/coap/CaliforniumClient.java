@@ -7,13 +7,15 @@ import br.ufs.gothings.core.message.GwRequest;
 import br.ufs.gothings.core.message.headers.GwHeaders;
 import br.ufs.gothings.core.message.headers.Operation;
 import br.ufs.gothings.core.plugin.ReplyLink;
+import br.ufs.gothings.core.util.Polling;
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapResponse;
-import org.eclipse.californium.core.coap.CoAP;
+import org.eclipse.californium.core.coap.*;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
-import org.eclipse.californium.core.coap.MediaTypeRegistry;
-import org.eclipse.californium.core.coap.OptionSet;
-import org.eclipse.californium.core.coap.Request;
+
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.TimeUnit;
 
 import static br.ufs.gothings.core.message.headers.HeaderNames.*;
 
@@ -23,22 +25,45 @@ import static br.ufs.gothings.core.message.headers.HeaderNames.*;
 public class CaliforniumClient {
     private ReplyLink replyLink;
 
+    private ConcurrentMap<String, Request> observers;
+    private Polling polling;
+
     public void start(final ReplyLink replyLink) {
         this.replyLink = replyLink;
+        this.observers = new ConcurrentHashMap<>();
+        this.polling = new Polling(
+                dst -> sendGET(dst.getRequest()),
+                5, TimeUnit.MINUTES);
+        this.polling.start();
     }
 
     public void stop() {
         this.replyLink = null;
+        this.polling.stop();
+        this.polling = null;
     }
 
     public void sendRequest(final GwRequest request) {
         final GwHeaders h = request.headers();
         final Operation operation = h.get(GW_OPERATION);
 
-        // READ is processed a bit different
+        // READ, OBSERVE and UNOBSERVE are processed a bit different
         switch (operation) {
             case READ:
+            case OBSERVE:
                 sendGET(request);
+                return;
+            case UNOBSERVE:
+                final String uri = createURI(h);
+                observers.compute(uri,
+                        (k, req) -> {
+                            if (req == null) {
+                                polling.del(request);
+                            } else {
+                                req.cancel();
+                            }
+                            return null;
+                        });
                 return;
         }
 
@@ -90,16 +115,33 @@ public class CaliforniumClient {
         }
         setCoapQoS(coapRequest, h);
 
-        // Get CoAP response
+        // Set Observe flag if applicable
+        if (h.get(GW_OPERATION) == Operation.OBSERVE) {
+            coapRequest.setObserve();
+        }
+
+        // Get CoAP response asynchronously
+        coapRequest.addMessageObserver(new MessageObserverAdapter() {
+            @Override
+            public void onResponse(final Response response) {
+                final GwReply reply = new GwReply(request);
+                reply.payload().set(response.getPayload());
+                replyLink.send(reply);
+            }
+        });
+
         final CoapResponse coapResponse = getCoapResponse(coapRequest, request);
         if (coapResponse == null) {
             return;
         }
 
-        // Payload handling
-        final GwReply reply = new GwReply(request);
-        reply.payload().set(coapResponse.getPayload());
-        replyLink.send(reply);
+        if (coapResponse.getOptions().hasObserve()) {
+            final String uri = createURI(h);
+            observers.put(uri, coapRequest);
+        } else {
+            coapRequest.cancel();
+            polling.add(request, false);
+        }
     }
 
     private static void setCoapQoS(final Request coapRequest, final GwHeaders h) {
