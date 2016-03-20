@@ -17,6 +17,8 @@ import io.moquette.server.config.IConfig;
 import io.moquette.spi.impl.ProtocolProcessor;
 import io.moquette.spi.security.IAuthorizator;
 import io.moquette.spi.impl.subscriptions.SubscriptionsStore;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
 import java.lang.reflect.Field;
@@ -28,8 +30,10 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Consumer;
 
 import static br.ufs.gothings.core.message.headers.HeaderNames.*;
 import static io.moquette.BrokerConstants.*;
@@ -39,6 +43,8 @@ import static java.lang.Byte.toUnsignedInt;
  * @author Wagner Macedo
  */
 public class MqttPluginServer {
+    private static final Logger logger = LogManager.getFormatterLogger(MqttPluginServer.class);
+
     private final Shared shared;
     private final Settings settings;
 
@@ -206,23 +212,41 @@ public class MqttPluginServer {
             shared.clients = this.clients;
         }
 
+        private void sendUnobserve(final SubscriptionInfo si) {
+            final GwRequest request = new GwRequest();
+            request.setSequence(si.sequence.get());
+
+            final GwHeaders h = request.headers();
+            h.set(GW_OPERATION, Operation.UNOBSERVE);
+            h.set(GW_PATH, si.name);
+
+            shared.requestLink.send(request);
+        }
+
         @Override
         public void onConnect(final InterceptConnectMessage msg) {
             // get or create an entry with this clientID
             final ClientInfo client = clients.computeIfAbsent(msg.getClientID(),
                     k -> new ClientInfo(msg.isCleanSession()));
+
+            logger.trace("client connected cleanSession=%s", client.cleanSession);
+
             // remove old subscriptions if connection is a clean session
-            if (client.cleanSession)
-                client.removeSubscriptions();
+            if (client.cleanSession) {
+                client.removeSubscriptions(this::sendUnobserve);
+            }
         }
 
         @Override
         public void onDisconnect(final InterceptDisconnectMessage msg) {
             // remove the entry with this clientID
             final ClientInfo client = clients.remove(msg.getClientID());
+
+            logger.trace("client disconnected cleanSession=%s", client.cleanSession);
+
             // remove old subscriptions if connection was a clean session
             if (client.cleanSession)
-                client.removeSubscriptions();
+                client.removeSubscriptions(this::sendUnobserve);
         }
 
         @Override
@@ -251,6 +275,8 @@ public class MqttPluginServer {
                     h.set(GW_PATH, msg.getTopicFilter());
 
                     shared.sendRequest(request);
+
+                    subscription.sequence.set(request.getSequence());
                 }
             }
         }
@@ -268,12 +294,7 @@ public class MqttPluginServer {
 
                 // if subscribing counter == 0 request gateway with operation=UNOBSERVE
                 if (subscription.getCounter() == 0) {
-                    final GwRequest request = new GwRequest();
-                    final GwHeaders h = request.headers();
-                    h.set(GW_OPERATION, Operation.UNOBSERVE);
-                    h.set(GW_PATH, msg.getTopicFilter());
-
-                    shared.sendRequest(request);
+                    sendUnobserve(subscription);
                 }
             }
         }
@@ -397,9 +418,13 @@ public class MqttPluginServer {
         }
 
         // remove all subscriptions decrementing subscribers counter for each subscription
-        public void removeSubscriptions() {
+        public void removeSubscriptions(final Consumer<SubscriptionInfo> onZero) {
             lock.lock();
-            subscriptions.forEach(SubscriptionInfo::decrementCounter);
+            subscriptions.forEach((si) -> {
+                if (si.decrementCounter() == 0) {
+                    onZero.accept(si);
+                }
+            });
             subscriptions.clear();
             lock.unlock();
         }
@@ -409,6 +434,7 @@ public class MqttPluginServer {
         final String name;
 
         private final AtomicInteger counter = new AtomicInteger(0);
+        public final AtomicLong sequence = new AtomicLong();
 
         public SubscriptionInfo(final String name) {
             this.name = name;
